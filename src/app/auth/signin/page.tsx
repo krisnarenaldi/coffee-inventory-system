@@ -41,7 +41,11 @@ function SignInForm() {
       }
 
       // Handle coffeelogica.com subdomains (e.g., tenant.coffeelogica.com)
-      if (parts.length >= 3 && parts[parts.length - 2] === "coffeelogica" && parts[parts.length - 1] === "com") {
+      if (
+        parts.length >= 3 &&
+        parts[parts.length - 2] === "coffeelogica" &&
+        parts[parts.length - 1] === "com"
+      ) {
         const subdomain = parts[0];
         if (subdomain !== "www" && subdomain !== "admin") {
           setTenantSubdomain(subdomain);
@@ -87,13 +91,20 @@ function SignInForm() {
           result?.error === "SUBSCRIPTION_EXPIRED" ||
           result?.error?.includes("SUBSCRIPTION_EXPIRED")
         ) {
-          console.log("Subscription expired, showing message with pricing link");
+          console.log(
+            "Subscription expired, showing message with pricing link"
+          );
           setError(
-            <>Your subscription has ended. Please{" "}
-              <Link href="/pricing" className="text-amber-600 hover:text-amber-500 underline">
+            <>
+              Your subscription has ended. Please{" "}
+              <Link
+                href="/pricing"
+                className="text-amber-600 hover:text-amber-500 underline"
+              >
                 upgrade your plan
               </Link>{" "}
-              to continue using the service.</>
+              to continue using the service.
+            </>
           );
           return;
         }
@@ -120,11 +131,16 @@ function SignInForm() {
                   "🔐 SIGNIN: Subscription expired detected via API, showing message with pricing link"
                 );
                 setError(
-                  <>Your subscription has ended. Please{" "}
-                    <Link href="/pricing" className="text-amber-600 hover:text-amber-500 underline">
+                  <>
+                    Your subscription has ended. Please{" "}
+                    <Link
+                      href="/pricing"
+                      className="text-amber-600 hover:text-amber-500 underline"
+                    >
                       upgrade your plan
                     </Link>{" "}
-                    to continue using the service.</>
+                    to continue using the service.
+                  </>
                 );
                 return;
               }
@@ -163,7 +179,8 @@ function SignInForm() {
               "http://admin.localhost:3000/admin/dashboard";
           } else if (currentHost.includes("coffeelogica.com")) {
             // For coffeelogica.com, redirect to admin subdomain
-            window.location.href = "https://admin.coffeelogica.com/admin/dashboard";
+            window.location.href =
+              "https://admin.coffeelogica.com/admin/dashboard";
           } else {
             // For other production domains, redirect to admin subdomain
             const adminHost =
@@ -208,11 +225,16 @@ function SignInForm() {
                 "🔐 SIGNIN: Subscription expired detected in catch block, showing message with pricing link"
               );
               setError(
-                <>Your subscription has ended. Please{" "}
-                  <Link href="/pricing" className="text-amber-600 hover:text-amber-500 underline">
+                <>
+                  Your subscription has ended. Please{" "}
+                  <Link
+                    href="/pricing"
+                    className="text-amber-600 hover:text-amber-500 underline"
+                  >
                     upgrade your plan
                   </Link>{" "}
-                  to continue using the service.</>
+                  to continue using the service.
+                </>
               );
               return;
             }
@@ -247,7 +269,7 @@ function SignInForm() {
             className="rounded-lg"
           />
           <div className="text-xl font-thin text-amber-600 font-[var(--font-josefin-sans)]">
-            Coffee Logica
+            Coffee Logica 123
           </div>
         </Link>
       </div>
