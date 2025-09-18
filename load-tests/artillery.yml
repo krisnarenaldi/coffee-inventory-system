@@ -1,0 +1,115 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Ramp up load"
+    - duration: 300
+      arrivalRate: 20
+      name: "Sustained load"
+  payload:
+    path: "./test-data.csv"
+    fields:
+      - "email"
+      - "password"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+      Accept: 'application/json'
+
+scenarios:
+  - name: "Authentication Load Test"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/signin"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - think: 2
+      - get:
+          url: "/api/dashboard"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "API Endpoints Load Test"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/auth/signin"
+          json:
+            email: "admin@brewery.com"
+            password: "admin123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - think: 1
+      - get:
+          url: "/api/products"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 1
+      - get:
+          url: "/api/batches"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 1
+      - get:
+          url: "/api/recipes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 1
+      - get:
+          url: "/api/ingredients"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Database Operations Load Test"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/signin"
+          json:
+            email: "manager@brewery.com"
+            password: "manager123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - think: 1
+      - post:
+          url: "/api/products"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            name: "Load Test Product {{ $randomString() }}"
+            description: "Product created during load testing"
+            category: "BEER"
+            unitOfMeasure: "LITERS"
+            currentStock: 100
+            minimumStock: 10
+            maximumStock: 500
+            unitCost: 25.50
+            supplierName: "Test Supplier"
+      - think: 2
+      - get:
+          url: "/api/products"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Rate Limiting Test"
+    weight: 10
+    flow:
+      - loop:
+          - post:
+              url: "/api/auth/signin"
+              json:
+                email: "test@brewery.com"
+                password: "wrongpassword"
+        count: 10
+        whileTrue: "response.statusCode < 429"

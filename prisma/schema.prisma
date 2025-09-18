@@ -1,0 +1,670 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                   String                @id @default(cuid())
+  name                 String
+  subdomain            String                @unique
+  domain               String?
+  status               String                @default("ACTIVE")
+  createdAt            DateTime              @default(now()) @map("createdat")
+  updatedAt            DateTime              @updatedAt @map("updatedat")
+  activityLogs         ActivityLog[]
+  alerts               Alert[]
+  batches              Batch[]
+  ingredients          Ingredient[]
+  inventoryAdjustments InventoryAdjustment[]
+  packagingTypes       PackagingType[]
+  products             Product[]
+  recipes              Recipe[]
+  roles                Role[]
+  schedules            Schedule[]
+  shipments            Shipment[]
+  storageLocations     StorageLocation[]
+  subscription         Subscription?
+  suppliers            Supplier[]
+  settings             TenantSetting[]
+  usage                Usage[]
+  users                User[]
+
+  @@map("tenants")
+}
+
+model TenantSetting {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenantid")
+  key       String
+  value     String
+  createdAt DateTime @default(now()) @map("createdat")
+  updatedAt DateTime @updatedAt @map("updatedat")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@map("tenant_settings")
+}
+
+model SubscriptionPlan {
+  id                  String          @id @default(cuid())
+  name                String
+  description         String?
+  price               Decimal
+  interval            BillingInterval
+  maxUsers            Int?            @map("maxusers")
+  maxIngredients      Int?            @map("maxingredients")
+  maxBatches          Int?            @map("maxbatches")
+  features            Json
+  isActive            Boolean         @default(true) @map("isactive")
+  createdAt           DateTime        @default(now()) @map("createdat")
+  updatedAt           DateTime        @updatedAt @map("updatedat")
+  maxStorageLocations Int?            @map("maxstoragelocations")
+  maxProducts         Int?            @map("maxproducts")
+  maxRecipes          Int?            @map("maxrecipes")
+  subscriptions       Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  tenantId             String             @unique @map("tenantid")
+  planId               String             @map("planid")
+  stripeCustomerId     String?            @map("stripecustomerid")
+  stripeSubscriptionId String?            @map("stripesubscriptionid")
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime           @map("currentperiodstart")
+  currentPeriodEnd     DateTime           @map("currentperiodend")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancelatperiodend")
+  createdAt            DateTime           @default(now()) @map("createdat")
+  updatedAt            DateTime           @updatedAt @map("updatedat")
+  plan                 SubscriptionPlan   @relation(fields: [planId], references: [id])
+  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([planId], map: "subscriptions_planId_idx")
+  @@map("subscriptions")
+}
+
+model Usage {
+  id       String   @id @default(cuid())
+  tenantId String   @map("tenantid")
+  metric   String
+  value    Int
+  date     DateTime @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, metric, date])
+  @@map("usage")
+}
+
+model User {
+  id                   String                @id @default(cuid())
+  tenantId             String                @map("tenantid")
+  email                String
+  name                 String?
+  password             String?
+  role                 UserRole              @default(STAFF)
+  isActive             Boolean               @default(true) @map("isactive")
+  lastLogin            DateTime?             @map("lastlogin")
+  emailVerified        DateTime?             @map("emailverified")
+  image                String?
+  createdAt            DateTime              @default(now()) @map("createdat")
+  updatedAt            DateTime              @updatedAt @map("updatedat")
+  accounts             Account[]
+  activityLogs         ActivityLog[]
+  alerts               Alert[]
+  batches              Batch[]
+  inventoryAdjustments InventoryAdjustment[]
+  sessions             Session[]
+  shipmentsReceived    Shipment[]
+  userRoles            UserRoleAssignment[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Role {
+  id              String               @id @default(cuid())
+  name            String
+  description     String?
+  isSystem        Boolean              @default(false) @map("issystem")
+  tenantId        String?              @map("tenantid")
+  createdAt       DateTime             @default(now()) @map("createdat")
+  updatedAt       DateTime             @updatedAt @map("updatedat")
+  permissions     RolePermission[]
+  tenant          Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userAssignments UserRoleAssignment[]
+
+  @@unique([name, tenantId])
+  @@index([tenantId], map: "roles_tenantId_idx")
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  resource    String
+  action      String
+  createdAt   DateTime         @default(now()) @map("createdat")
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String     @map("roleid")
+  permissionId String     @map("permissionid")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId], map: "role_permissions_permissionId_idx")
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id         String   @id @default(cuid())
+  userId     String   @map("userid")
+  roleId     String   @map("roleid")
+  assignedAt DateTime @default(now()) @map("assignedat")
+  assignedBy String?  @map("assignedby")
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId], map: "user_role_assignments_roleId_idx")
+  @@map("user_role_assignments")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("userid")
+  type              String
+  provider          String
+  providerAccountId String  @map("provideraccountid")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "accounts_userId_idx")
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("sessiontoken")
+  userId       String   @map("userid")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "sessions_userId_idx")
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Ingredient {
+  id                String                @id @default(cuid())
+  tenantId          String                @map("tenantid")
+  name              String
+  type              IngredientType
+  stockQuantity     Decimal               @default(0.000000000000000000000000000000) @map("stockquantity")
+  unitOfMeasure     String                @map("unitofmeasure")
+  minimumThreshold  Decimal               @map("minimumthreshold")
+  costPerUnit       Decimal               @map("costperunit")
+  location          String?
+  batchNumber       String?               @map("batchnumber")
+  expirationDate    DateTime?             @map("expirationdate")
+  supplierId        String?               @map("supplierid")
+  isActive          Boolean               @default(true) @map("isactive")
+  createdAt         DateTime              @default(now()) @map("createdat")
+  updatedAt         DateTime              @updatedAt @map("updatedat")
+  supplier          Supplier?             @relation(fields: [supplierId], references: [id])
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  adjustments       InventoryAdjustment[]
+  recipeIngredients RecipeIngredient[]
+  shipmentItems     ShipmentItem[]
+
+  @@index([supplierId], map: "ingredients_supplierId_idx")
+  @@index([tenantId], map: "ingredients_tenantId_idx")
+  @@map("ingredients")
+}
+
+model Supplier {
+  id            String       @id @default(cuid())
+  tenantId      String       @map("tenantid")
+  name          String
+  contactPerson String?      @map("contactperson")
+  email         String?
+  phone         String?
+  address       String?
+  notes         String?
+  isActive      Boolean      @default(true) @map("isactive")
+  createdAt     DateTime     @default(now()) @map("createdat")
+  updatedAt     DateTime     @updatedAt @map("updatedat")
+  ingredients   Ingredient[]
+  shipments     Shipment[]
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "suppliers_tenantId_idx")
+  @@map("suppliers")
+}
+
+model InventoryAdjustment {
+  id           String                  @id @default(cuid())
+  tenantId     String                  @map("tenantid")
+  ingredientId String                  @map("ingredientid")
+  type         InventoryAdjustmentType @map("adjustmenttype")
+  quantity     Decimal
+  reason       String?
+  notes        String?
+  createdById  String                  @map("createdbyid")
+  createdAt    DateTime                @default(now()) @map("createdat")
+  updatedAt    DateTime                @updatedAt @map("updatedat")
+  createdBy    User                    @relation(fields: [createdById], references: [id])
+  ingredient   Ingredient              @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([createdById], map: "inventory_adjustments_createdById_idx")
+  @@index([ingredientId], map: "inventory_adjustments_ingredientId_idx")
+  @@index([tenantId], map: "inventory_adjustments_tenantId_idx")
+  @@map("inventory_adjustments")
+}
+
+model Shipment {
+  id             String         @id @default(cuid())
+  tenantId       String         @map("tenantid")
+  supplierId     String?        @map("supplierid")
+  shipmentNumber String?        @map("shipmentnumber")
+  receivedDate   DateTime       @map("receiveddate")
+  status         ShipmentStatus @default(PENDING)
+  notes          String?
+  receivedById   String         @map("receivedbyid")
+  createdAt      DateTime       @default(now()) @map("createdat")
+  updatedAt      DateTime       @updatedAt @map("updatedat")
+  items          ShipmentItem[]
+  receivedBy     User           @relation(fields: [receivedById], references: [id])
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([receivedById], map: "shipments_receivedById_idx")
+  @@index([supplierId], map: "shipments_supplierId_idx")
+  @@index([tenantId], map: "shipments_tenantId_idx")
+  @@map("shipments")
+}
+
+model ShipmentItem {
+  id               String     @id @default(cuid())
+  shipmentId       String     @map("shipmentid")
+  ingredientId     String     @map("ingredientid")
+  quantityOrdered  Decimal    @map("quantityordered")
+  quantityReceived Decimal    @map("quantityreceived")
+  unitCost         Decimal?   @map("unitcost")
+  batchNumber      String?    @map("batchnumber")
+  expirationDate   DateTime?  @map("expirationdate")
+  notes            String?
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  shipment         Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId], map: "shipment_items_ingredientId_idx")
+  @@index([shipmentId], map: "shipment_items_shipmentId_idx")
+  @@map("shipment_items")
+}
+
+model Recipe {
+  id                  String             @id @default(cuid())
+  tenantId            String             @map("tenantid")
+  name                String
+  style               String?
+  description         String?            @db.Text
+  expectedYield       Decimal            @map("expectedyield")
+  processInstructions String?            @db.Text @map("processinstructions")
+  version             Int                @default(1)
+  isActive            Boolean            @default(true) @map("isactive")
+  createdAt           DateTime           @default(now()) @map("createdat")
+  updatedAt           DateTime           @updatedAt @map("updatedat")
+  batches             Batch[]
+  ingredients         RecipeIngredient[]
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "recipes_tenantId_idx")
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id           String     @id @default(cuid())
+  recipeId     String     @map("recipeid")
+  ingredientId String     @map("ingredientid")
+  quantity     Decimal
+  unit         String
+  notes        String?
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, ingredientId])
+  @@index([ingredientId], map: "recipe_ingredients_ingredientId_idx")
+  @@map("recipe_ingredients")
+}
+
+model Batch {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenantid")
+  recipeId     String    @map("recipeid")
+  batchNumber  String    @map("batchnumber")
+  status       String    @default("PLANNED")
+  startDate    DateTime? @map("startdate")
+  endDate      DateTime? @map("enddate")
+  actualYield  Decimal?  @map("actualyield")
+  measurements Json?     @map("qualitynotes")
+  notes        String?
+  createdById  String    @map("createdbyid")
+  createdAt    DateTime  @default(now()) @map("createdat")
+  updatedAt    DateTime  @updatedAt @map("updatedat")
+  createdBy    User      @relation(fields: [createdById], references: [id])
+  recipe       Recipe    @relation(fields: [recipeId], references: [id])
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([tenantId, batchNumber])
+  @@index([createdById], map: "batches_createdById_idx")
+  @@index([recipeId], map: "batches_recipeId_idx")
+  @@map("batches")
+}
+
+model Product {
+  id              String         @id @default(cuid())
+  tenantId        String         @map("tenantid")
+  batchId         String?        @map("batchid")
+  name            String
+  packagingTypeId String?        @map("packagingtypeid")
+  packagingDate   DateTime?      @map("packagingdate")
+  lotNumber       String?        @map("lotnumber")
+  quantity        Decimal        @default(0.000000000000000000000000000000)
+  shelfLife       Int?           @map("shelflife")
+  storageLocation String?        @map("storagelocation")
+  status          String         @default("IN_STOCK")
+  createdAt       DateTime       @default(now()) @map("createdat")
+  updatedAt       DateTime       @updatedAt @map("updatedat")
+  batch           Batch?         @relation(fields: [batchId], references: [id])
+  packagingType   PackagingType? @relation(fields: [packagingTypeId], references: [id])
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([batchId], map: "products_batchId_idx")
+  @@index([packagingTypeId], map: "products_packagingTypeId_idx")
+  @@index([tenantId], map: "products_tenantId_idx")
+  @@map("products")
+}
+
+model StorageLocation {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenantid")
+  name        String
+  description String?
+  capacity    Int?
+  isActive    Boolean  @default(true) @map("isactive")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @updatedAt @map("updatedat")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("storage_locations")
+}
+
+model PackagingType {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenantid")
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("isactive")
+  createdAt   DateTime  @default(now()) @map("createdat")
+  updatedAt   DateTime  @updatedAt @map("updatedat")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([tenantId, name])
+  @@map("packaging_types")
+}
+
+model Alert {
+  id           String        @id @default(cuid())
+  tenantId     String
+  scheduleId   String?
+  type         AlertType
+  title        String
+  message      String
+  severity     AlertSeverity @default(MEDIUM)
+  isRead       Boolean       @default(false)
+  isResolved   Boolean       @default(false)
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  resolvedBy   User?         @relation(fields: [resolvedById], references: [id])
+  schedule     Schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedById], map: "alerts_resolvedById_idx")
+  @@index([scheduleId], map: "alerts_scheduleId_idx")
+  @@index([tenantId], map: "alerts_tenantId_idx")
+  @@map("alerts")
+}
+
+model Schedule {
+  id             String         @id @default(cuid())
+  tenantId       String         @map("tenantid")
+  title          String
+  description    String?
+  type           ScheduleType
+  startDate      DateTime       @map("startdate")
+  endDate        DateTime?      @map("enddate")
+  isRecurring    Boolean        @default(false) @map("isrecurring")
+  recurrenceRule String?        @map("recurrencerule")
+  status         ScheduleStatus @default(SCHEDULED)
+  createdAt      DateTime       @default(now()) @map("createdat")
+  updatedAt      DateTime       @updatedAt @map("updatedat")
+  alerts         Alert[]
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "schedules_tenantId_idx")
+  @@map("schedules")
+}
+
+model FeatureFlag {
+  id                String                 @id @default(cuid())
+  name              String
+  key               String                 @unique
+  description       String?
+  isEnabled         Boolean                @default(false) @map("isenabled")
+  rolloutPercentage Int                    @default(0) @map("rolloutpercentage")
+  createdAt         DateTime               @default(now()) @map("createdat")
+  updatedAt         DateTime               @updatedAt @map("updatedat")
+  conditions        FeatureFlagCondition[]
+
+  @@map("feature_flags")
+}
+
+model FeatureFlagCondition {
+  id        String      @id @default(cuid())
+  flagId    String      @map("flagid")
+  type      String
+  operator  String
+  value     String
+  isEnabled Boolean     @default(true) @map("isenabled")
+  createdAt DateTime    @default(now()) @map("createdat")
+  updatedAt DateTime    @updatedAt @map("updatedat")
+  flag      FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@index([flagId], map: "feature_flag_conditions_flagId_idx")
+  @@map("feature_flag_conditions")
+}
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenantid")
+  userId       String?  @map("userid")
+  activityType String   @map("activity_type")
+  severity     String
+  description  String
+  metadata     Json
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  resourceId   String?  @map("resource_id")
+  resourceType String?  @map("resource_type")
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, timestamp])
+  @@index([userId, timestamp])
+  @@index([activityType, timestamp])
+  @@map("activity_logs")
+}
+
+model Contact {
+  id          String             @id @default(cuid())
+  name        String
+  email       String
+  company     String?
+  phone       String?
+  subject     String
+  message     String             @db.Text
+  inquiryType ContactInquiryType @default(GENERAL) @map("inquirytype")
+  status      ContactStatus      @default(NEW)
+  ipAddress   String?            @map("ipaddress")
+  userAgent   String?            @map("useragent")
+  createdAt   DateTime           @default(now()) @map("createdat")
+  updatedAt   DateTime           @updatedAt @map("updatedat")
+
+  @@index([status, createdAt])
+  @@index([inquiryType, createdAt])
+  @@map("contacts")
+}
+
+
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
+}
+
+enum UserRole {
+  PLATFORM_ADMIN
+  SUPPORT
+  BILLING_ADMIN
+  ADMIN
+  MANAGER
+  BREWMASTER
+  WAREHOUSE_STAFF
+  SALES
+  STAFF
+}
+
+enum IngredientType {
+  COFFEE_BEANS
+  MILK
+  SUGAR
+  SYRUP
+  PASTRY
+  PACKAGING
+  OTHER
+}
+
+
+
+
+
+enum AlertType {
+  LOW_STOCK
+  EXPIRATION
+  REORDER
+  BATCH_READY
+  MAINTENANCE
+  SYSTEM
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ScheduleType {
+  BREW_SESSION
+  MAINTENANCE
+  CLEANING
+  DELIVERY
+  MEETING
+  OTHER
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum InventoryAdjustmentType {
+  INCREASE
+  DECREASE
+  CORRECTION
+  WASTE
+  TRANSFER
+}
+
+enum ShipmentStatus {
+  PENDING
+  RECEIVED
+  PARTIAL
+  CANCELLED
+}
+
+enum ContactInquiryType {
+  GENERAL
+  SUPPORT
+  SALES
+  BILLING
+  TECHNICAL
+  PARTNERSHIP
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}

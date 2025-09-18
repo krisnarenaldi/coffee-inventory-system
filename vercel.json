@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "env": {
+    "DATABASE_URL": "$DATABASE_URL",
+    "NEXTAUTH_SECRET": "$NEXTAUTH_SECRET"
+  },
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/tenant/:path*",
+      "destination": "/api/:path*"
+    }
+  ]
+}

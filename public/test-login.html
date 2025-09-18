@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Login</title>
+  </head>
+  <body>
+    <h1>Test Login Form</h1>
+    <form
+      action="http://localhost:3000/api/auth/callback/credentials"
+      method="POST"
+    >
+      <div>
+        <label>Email:</label>
+        <input type="email" name="email" value="admin@kopifree.com" required />
+      </div>
+      <div>
+        <label>Password:</label>
+        <input type="password" id="password" name="password" value="admin123abc" required />
+      </div>
+      <div>
+        <label>Tenant Subdomain:</label>
+        <input type="text" name="tenantSubdomain" value="kopi-free" required />
+      </div>
+      <input type="hidden" name="csrfToken" value="test" />
+      <input type="hidden" name="callbackUrl" value="http://localhost:3000" />
+      <input type="hidden" name="json" value="true" />
+      <div>
+        <button type="submit">Login</button>
+      </div>
+    </form>
+
+    <script>
+      async function testFetch() {
+        try {
+          // First get CSRF token
+          const csrfResponse = await fetch("/api/auth/csrf");
+          const csrfData = await csrfResponse.json();
+          console.log("CSRF Token:", csrfData.csrfToken);
+
+          const response = await fetch("/api/auth/callback/credentials", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              email: "admin@kopifree.com",
+              password: "admin123abc",
+              tenantSubdomain: "kopi-free",
+              csrfToken: csrfData.csrfToken,
+              callbackUrl: "http://localhost:3000",
+              json: "true",
+            }),
+          });
+
+          console.log("Response status:", response.status);
+          const data = await response.text();
+          console.log("Response data:", data);
+
+          document.getElementById("results").innerHTML = `
+            <h3>Response:</h3>
+            <p>Status: ${response.status}</p>
+            <pre>${data}</pre>
+          `;
+        } catch (error) {
+          console.error("Error:", error);
+          document.getElementById(
+            "results"
+          ).innerHTML = `<p>Error: ${error.message}</p>`;
+        }
+      }
+
+      // Test on page load
+      window.onload = () => {
+        console.log("Page loaded, testing fetch...");
+        testFetch();
+      };
+    </script>
+
+    <button onclick="testFetch()">Test with JavaScript</button>
+    <div id="results"></div>
+  </body>
+</html>
