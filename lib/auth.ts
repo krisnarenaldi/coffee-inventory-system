@@ -57,6 +57,7 @@ declare module "next-auth/jwt" {
 export const authOptions: NextAuthOptions = {
   // adapter: PrismaAdapter(prisma), // Removed: conflicts with JWT strategy
   secret: process.env.NEXTAUTH_SECRET,
+  debug: true,
   providers: [
     // Credentials Provider (always available)
     CredentialsProvider({
@@ -67,6 +68,15 @@ export const authOptions: NextAuthOptions = {
         tenantSubdomain: { label: "Tenant Subdomain", type: "text" },
       },
       async authorize(credentials, req) {
+        console.log("🔐 AUTHORIZE FUNCTION CALLED!");
+        console.log("🔐 Authorize function called with credentials:", {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password,
+          tenantSubdomain: credentials?.tenantSubdomain,
+        });
+        console.log("🔐 Full credentials object:", credentials);
+        console.log("🔐 Request object:", req);
+        
         try {
           console.log("🔐 AUTH: Credentials received:", {
             email: credentials?.email,
