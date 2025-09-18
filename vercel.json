@@ -3,7 +3,7 @@
   "env": {
     "DATABASE_URL": "$DATABASE_URL",
     "NEXTAUTH_SECRET": "$NEXTAUTH_SECRET",
-    "NEXTAUTH_URL": "$NEXTAUTH_URL"
+    "NEXTAUTH_URL": "https://coffeelogica.com"
   },
   "regions": ["iad1"],
   "functions": {
