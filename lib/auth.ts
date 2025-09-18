@@ -58,44 +58,7 @@ export const authOptions: NextAuthOptions = {
   // adapter: PrismaAdapter(prisma), // Removed: conflicts with JWT strategy
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
-    // Google OAuth Provider
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-        },
-      },
-    }),
-
-    // Azure AD Provider (Microsoft)
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID,
-      authorization: {
-        params: {
-          scope: "openid profile email User.Read",
-        },
-      },
-    }),
-
-    // Okta Provider
-    OktaProvider({
-      clientId: process.env.OKTA_CLIENT_ID!,
-      clientSecret: process.env.OKTA_CLIENT_SECRET!,
-      issuer: process.env.OKTA_ISSUER!,
-      authorization: {
-        params: {
-          scope: "openid profile email",
-        },
-      },
-    }),
-
-    // Credentials Provider (existing)
+    // Credentials Provider (always available)
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -364,6 +327,47 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+
+    // OAuth Providers (only if environment variables are available)
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+          params: {
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code",
+          },
+        },
+      })
+    ] : []),
+
+    ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET ? [
+      AzureADProvider({
+        clientId: process.env.AZURE_AD_CLIENT_ID,
+        clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+        tenantId: process.env.AZURE_AD_TENANT_ID,
+        authorization: {
+          params: {
+            scope: "openid profile email User.Read",
+          },
+        },
+      })
+    ] : []),
+
+    ...(process.env.OKTA_CLIENT_ID && process.env.OKTA_CLIENT_SECRET && process.env.OKTA_ISSUER ? [
+       OktaProvider({
+         clientId: process.env.OKTA_CLIENT_ID,
+         clientSecret: process.env.OKTA_CLIENT_SECRET,
+         issuer: process.env.OKTA_ISSUER,
+         authorization: {
+           params: {
+             scope: "openid profile email",
+           },
+         },
+       })
+     ] : [])
   ],
   session: {
     strategy: "jwt",
