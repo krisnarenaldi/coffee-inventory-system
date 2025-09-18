@@ -68,13 +68,13 @@ function SignInForm() {
       console.log("🔐 SIGNIN: Attempting login with:", {
         email,
         hasPassword: !!password,
-        tenantSubdomain: tenantSubdomain || "null",
+        tenantSubdomain: tenantSubdomain || "demo",
       });
 
       const result = await signIn("credentials", {
         email,
         password,
-        tenantSubdomain: tenantSubdomain || "null",
+        tenantSubdomain: tenantSubdomain || "demo",
         redirect: false,
       });
 

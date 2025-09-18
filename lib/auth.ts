@@ -123,7 +123,7 @@ export const authOptions: NextAuthOptions = {
 
           // Treat 'www' as no subdomain (main domain)
           if (tenantSubdomain === "www") {
-            tenantSubdomain = null;
+            tenantSubdomain = "";
           }
 
           let tenantId: string | undefined;
