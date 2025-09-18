@@ -135,28 +135,46 @@ export const authOptions: NextAuthOptions = {
               "🔍 AUTH: No subdomain provided, will lookup user's tenant by email"
             );
 
-            // In production, if no subdomain is provided, default to 'demo' tenant
-            if (process.env.NODE_ENV === "production") {
-              console.log(
-                "🏢 AUTH: Production mode - defaulting to 'demo' tenant"
-              );
-              try {
-                const tenant = await prisma.tenant.findUnique({
+            // Find tenant by email: first get tenantId from users table, then get subdomain from tenants table
+            try {
+              console.log(`🔍 AUTH: Looking up user by email: ${credentials.email}`);
+              const userWithTenant = await prisma.user.findFirst({
+                where: {
+                  email: credentials.email,
+                  isActive: true,
+                },
+                include: {
+                  tenant: true,
+                },
+              });
+
+              if (userWithTenant && userWithTenant.tenant) {
+                tenantId = userWithTenant.tenantId;
+                userTenant = userWithTenant.tenant;
+                console.log(
+                  `🏢 AUTH: Found user's tenant: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
+                );
+              } else {
+                console.log("🔍 AUTH: User not found or has no tenant, falling back to demo tenant");
+                
+                // Fallback to 'demo' tenant only if user lookup fails
+                const demoTenant = await prisma.tenant.findUnique({
                   where: { subdomain: "demo" },
                 });
-                if (tenant) {
-                  tenantId = tenant.id;
-                  userTenant = tenant;
+                if (demoTenant) {
+                  tenantId = demoTenant.id;
+                  userTenant = demoTenant;
                   console.log(
-                    `🏢 AUTH: Using default tenant: ${tenant.name} (${tenant.id})`
+                    `🏢 AUTH: Using fallback demo tenant: ${demoTenant.name} (${demoTenant.id})`
                   );
                 }
-              } catch (dbError) {
-                console.error(
-                  "❌ AUTH: Error finding default tenant:",
-                  dbError
-                );
               }
+            } catch (dbError) {
+              console.error(
+                "❌ AUTH: Error during tenant lookup by email:",
+                dbError
+              );
+              return null;
             }
           }
 
