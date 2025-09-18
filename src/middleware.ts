@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from 'next-auth/jwt';
+import { getToken } from "next-auth/jwt";
 
 // Extract subdomain from hostname
 function extractSubdomain(hostname: string): string | null {
@@ -22,8 +22,17 @@ function extractSubdomain(hostname: string): string | null {
   }
 
   // Handle coffeelogica.com subdomains (e.g., tenant.coffeelogica.com)
-  if (parts.length >= 3 && parts[parts.length - 2] === "coffeelogica" && parts[parts.length - 1] === "com") {
-    return parts[0]; // Return the first part as subdomain
+  if (
+    parts.length >= 3 &&
+    parts[parts.length - 2] === "coffeelogica" &&
+    parts[parts.length - 1] === "com"
+  ) {
+    const subdomain = parts[0];
+    // Treat 'www' as the main domain, not a tenant subdomain
+    if (subdomain === "www") {
+      return null;
+    }
+    return subdomain; // Return the first part as subdomain
   }
 
   // Handle regular domains (e.g., coffee-logic.example.com)
@@ -111,16 +120,19 @@ export async function middleware(request: NextRequest) {
 
     if (tenant) {
       console.log("✅ Tenant found:", tenant.name, tenant.id);
-      
+
       // For protected routes, ensure user is authenticated
       if (!isPublicRoute(pathname)) {
-        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-        
+        const token = await getToken({
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+        });
+
         if (!token) {
-          return NextResponse.redirect(new URL('/auth/signin', request.url));
+          return NextResponse.redirect(new URL("/auth/signin", request.url));
         }
       }
-      
+
       response.headers.set("X-Tenant-ID", tenant.id);
       response.headers.set("X-Tenant-Subdomain", tenant.subdomain);
     } else {

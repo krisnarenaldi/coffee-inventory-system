@@ -119,7 +119,13 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Use tenant context from credentials (passed from signin page)
-          const tenantSubdomain = credentials.tenantSubdomain;
+          let tenantSubdomain = credentials.tenantSubdomain;
+
+          // Treat 'www' as no subdomain (main domain)
+          if (tenantSubdomain === "www") {
+            tenantSubdomain = null;
+          }
+
           let tenantId: string | undefined;
           let userTenant: any = null;
 

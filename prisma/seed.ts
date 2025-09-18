@@ -140,13 +140,13 @@ async function main() {
     where: {
       tenantId_email: {
         tenantId: demoTenant.id,
-        email: "admin@demo.coffeeshop",
+        email: "admin@demo.com",
       },
     },
     update: {},
     create: {
       tenantId: demoTenant.id,
-      email: "admin@demo.coffeeshop",
+      email: "admin@demo.com",
       name: "Demo Admin",
       password: hashedPassword,
       role: "ADMIN",
@@ -472,7 +472,7 @@ async function main() {
   console.log("✅ Database seeded successfully!");
   console.log("Demo tenant created:", demoTenant.subdomain);
   console.log("Demo users:");
-  console.log("  - Admin: admin@demo.coffeeshop (password: demo123)");
+  console.log("  - Admin: admin@demo.com (password: demo123)");
   console.log("  - Barista: barista@demo.coffeeshop (password: demo123)");
   console.log(
     "  - Platform Admin: platform@coffeeshop.com (password: demo123)"
