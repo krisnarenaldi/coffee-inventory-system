@@ -2,7 +2,10 @@
 export async function GET() {
   return Response.json({
     hasDatabase: !!process.env.DATABASE_URL,
-    preview: process.env.DATABASE_URL?.substring(0, 50) + "...",
+    fullValue: process.env.DATABASE_URL, // Show the full value temporarily
+    allEnvKeys: Object.keys(process.env).filter((key) =>
+      key.includes("DATABASE")
+    ),
     nodeEnv: process.env.NODE_ENV,
   });
 }
