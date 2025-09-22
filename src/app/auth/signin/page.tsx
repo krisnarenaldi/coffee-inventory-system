@@ -269,7 +269,7 @@ function SignInForm() {
             className="rounded-lg"
           />
           <div className="text-xl font-thin text-amber-600 font-[var(--font-josefin-sans)]">
-            Coffee Logica 123
+            Coffee Logica
           </div>
         </Link>
       </div>
