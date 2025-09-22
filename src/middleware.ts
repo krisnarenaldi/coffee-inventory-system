@@ -43,11 +43,10 @@ function extractSubdomain(hostname: string): string | null {
   return null;
 }
 
-// Simple tenant validation - just check if subdomain exists
-// Full validation will be done during authentication
+// Simple tenant validation without database calls for Edge Runtime
 function validateTenant(subdomain: string) {
-  // For now, allow any subdomain and let auth handle validation
-  // This avoids the Edge Runtime limitation with Prisma
+  // For now, return a mock tenant object to avoid database calls in middleware
+  // In production, you might want to cache tenant data or use a different approach
   return {
     id: `tenant-${subdomain}`,
     subdomain: subdomain,

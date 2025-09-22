@@ -62,7 +62,7 @@ export const getAuthOptions = (): NextAuthOptions => {
   return {
     // adapter: PrismaAdapter(prisma), // Removed: conflicts with JWT strategy
     secret: process.env.NEXTAUTH_SECRET,
-    debug: true,
+    debug: false, // Disable debug logging in production
   providers: [
     // Credentials Provider (always available)
     CredentialsProvider({
@@ -83,13 +83,14 @@ export const getAuthOptions = (): NextAuthOptions => {
         console.log("🔐 Request object:", req);
         
         try {
-          console.log("🔐 AUTH: Credentials received:", {
-            email: credentials?.email,
-            hasPassword: !!credentials?.password,
-            tenantSubdomain: credentials?.tenantSubdomain,
-            nodeEnv: process.env.NODE_ENV,
-            nextAuthUrl: process.env.NEXTAUTH_URL,
-          });
+          // Remove excessive console logging for better performance
+          if (process.env.NODE_ENV === 'development') {
+            console.log("🔐 AUTH: Credentials received:", {
+              email: credentials?.email,
+              hasPassword: !!credentials?.password,
+              tenantSubdomain: credentials?.tenantSubdomain,
+            });
+          }
 
           if (!credentials?.email || !credentials?.password) {
             console.log("❌ AUTH: Missing email or password");
