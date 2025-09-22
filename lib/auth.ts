@@ -55,18 +55,9 @@ declare module "next-auth/jwt" {
 }
 
 // Dynamic function to get auth options based on request
-export const getAuthOptions = (req?: any): NextAuthOptions => {
-  // Determine the base URL dynamically
-  let baseUrl = process.env.NEXTAUTH_URL || 'https://coffeelogica.com';
-  
-  // If we have a request, try to extract the host
-  if (req) {
-    const host = req.headers?.host || req.headers?.['x-forwarded-host'];
-    if (host) {
-      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      baseUrl = `${protocol}://${host}`;
-    }
-  }
+export const getAuthOptions = (): NextAuthOptions => {
+  // Use environment variable or default to main domain
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://coffeelogica.com';
 
   return {
     // adapter: PrismaAdapter(prisma), // Removed: conflicts with JWT strategy
@@ -617,20 +608,17 @@ export const getAuthOptions = (req?: any): NextAuthOptions => {
     },
 
     async redirect({ url, baseUrl }) {
-      // Use dynamic baseUrl if available
-      const dynamicBaseUrl = baseUrl;
-      
       // Default redirect behavior with subdomain support
       try {
-        if (url.startsWith("/")) return `${dynamicBaseUrl}${url}`;
-        else if (new URL(url).origin === dynamicBaseUrl) return url;
-        return dynamicBaseUrl;
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        else if (new URL(url).origin === baseUrl) return url;
+        return baseUrl;
       } catch (error) {
         console.error("Error in redirect callback:", error);
         // Fallback to default behavior
-        if (url.startsWith("/")) return `${dynamicBaseUrl}${url}`;
-        else if (new URL(url).origin === dynamicBaseUrl) return url;
-        return dynamicBaseUrl;
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        else if (new URL(url).origin === baseUrl) return url;
+        return baseUrl;
       }
     },
   },

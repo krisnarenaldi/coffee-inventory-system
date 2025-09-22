@@ -337,9 +337,9 @@ model Recipe {
   tenantId            String             @map("tenantid")
   name                String
   style               String?
-  description         String?            @db.Text
+  description         String?
   expectedYield       Decimal            @map("expectedyield")
-  processInstructions String?            @db.Text @map("processinstructions")
+  processInstructions String?            @map("processinstructions")
   version             Int                @default(1)
   isActive            Boolean            @default(true) @map("isactive")
   createdAt           DateTime           @default(now()) @map("createdat")
@@ -464,9 +464,9 @@ model Alert {
   schedule     Schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@index([resolvedById], map: "alerts_resolvedById_idx")
-  @@index([scheduleId], map: "alerts_scheduleId_idx")
-  @@index([tenantId], map: "alerts_tenantId_idx")
+  @@index([resolvedById])
+  @@index([scheduleId])
+  @@index([tenantId])
   @@map("alerts")
 }
 
@@ -549,7 +549,7 @@ model Contact {
   company     String?
   phone       String?
   subject     String
-  message     String             @db.Text
+  message     String
   inquiryType ContactInquiryType @default(GENERAL) @map("inquirytype")
   status      ContactStatus      @default(NEW)
   ipAddress   String?            @map("ipaddress")
@@ -561,8 +561,6 @@ model Contact {
   @@index([inquiryType, createdAt])
   @@map("contacts")
 }
-
-
 
 enum BillingInterval {
   MONTHLY
@@ -600,10 +598,6 @@ enum IngredientType {
   PACKAGING
   OTHER
 }
-
-
-
-
 
 enum AlertType {
   LOW_STOCK
