@@ -138,50 +138,9 @@ export const getAuthOptions = (): NextAuthOptions => {
             }
           } else {
             console.log(
-              "🔍 AUTH: No subdomain provided, will lookup user's tenant by email"
+              "🔍 AUTH: No subdomain provided, will lookup user's tenant by email after successful login"
             );
-
-            // Find tenant by email: first get tenantId from users table, then get subdomain from tenants table
-            try {
-              console.log(`🔍 AUTH: Looking up user by email: ${credentials.email}`);
-              const userWithTenant = await prisma.user.findFirst({
-                where: {
-                  email: credentials.email,
-                  isActive: true,
-                },
-                include: {
-                  tenant: true,
-                },
-              });
-
-              if (userWithTenant && userWithTenant.tenant) {
-                tenantId = userWithTenant.tenantId;
-                userTenant = userWithTenant.tenant;
-                console.log(
-                  `🏢 AUTH: Found user's tenant: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
-                );
-              } else {
-                console.log("🔍 AUTH: User not found or has no tenant, falling back to demo tenant");
-                
-                // Fallback to 'demo' tenant only if user lookup fails
-                const demoTenant = await prisma.tenant.findUnique({
-                  where: { subdomain: "demo" },
-                });
-                if (demoTenant) {
-                  tenantId = demoTenant.id;
-                  userTenant = demoTenant;
-                  console.log(
-                    `🏢 AUTH: Using fallback demo tenant: ${demoTenant.name} (${demoTenant.id})`
-                  );
-                }
-              }
-            } catch (dbError) {
-              console.error(
-                "❌ AUTH: Error during tenant lookup by email:",
-                dbError
-              );
-              return null;
-            }
+            // Tenant lookup will be done after password verification
           }
 
           // Find user by email - if we have tenant context, validate within that tenant
@@ -304,6 +263,51 @@ export const getAuthOptions = (): NextAuthOptions => {
 
           console.log("✅ AUTH: Password valid, updating last login");
 
+          // If no tenant context was provided, lookup tenant by email after successful login
+          if (!userTenant && !tenantId) {
+            console.log("🔍 AUTH: Looking up tenant by email after successful login");
+            try {
+              // Query tenants table for subdomain based on email
+              const userWithTenant = await prisma.user.findFirst({
+                where: {
+                  email: credentials.email,
+                  isActive: true,
+                },
+                include: {
+                  tenant: true,
+                },
+              });
+
+              if (userWithTenant && userWithTenant.tenant) {
+                tenantId = userWithTenant.tenantId;
+                userTenant = userWithTenant.tenant;
+                console.log(
+                  `🏢 AUTH: Found user's tenant: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
+                );
+              } else {
+                console.log("🔍 AUTH: No tenant found for user, setting default to demo");
+                
+                // Set default subdomain to "demo" if query result is empty/null
+                const demoTenant = await prisma.tenant.findUnique({
+                  where: { subdomain: "demo" },
+                });
+                if (demoTenant) {
+                  tenantId = demoTenant.id;
+                  userTenant = demoTenant;
+                  console.log(
+                    `🏢 AUTH: Using default demo tenant: ${demoTenant.name} (${demoTenant.id})`
+                  );
+                }
+              }
+            } catch (dbError) {
+              console.error(
+                "❌ AUTH: Error during tenant lookup by email:",
+                dbError
+              );
+              return null;
+            }
+          }
+
           // Update last login
           await prisma.user.update({
             where: { id: user.id },
@@ -345,8 +349,8 @@ export const getAuthOptions = (): NextAuthOptions => {
             email: user.email,
             name: user.name,
             role: user.role,
-            tenantId: user.tenantId,
-            tenant: user.tenant,
+            tenantId: tenantId || user.tenantId,
+            tenant: userTenant || user.tenant,
           };
         } catch (error) {
           console.error("❌ AUTH: Error during authentication:", error);
