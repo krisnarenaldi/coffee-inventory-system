@@ -56,13 +56,16 @@ export default function Dashboard() {
       if (session?.user?.role === "PLATFORM_ADMIN") {
         const hostname = window.location.hostname;
         let adminUrl;
-        
+
         if (hostname.includes("localhost")) {
           adminUrl = "http://admin.localhost:3000/admin/dashboard";
         } else if (hostname.includes("coffeelogica.com")) {
           adminUrl = "https://admin.coffeelogica.com/admin/dashboard";
         } else {
-          adminUrl = `https://admin.${hostname.split(".").slice(1).join(".")}/admin/dashboard`;
+          adminUrl = `https://admin.${hostname
+            .split(".")
+            .slice(1)
+            .join(".")}/admin/dashboard`;
         }
         window.location.href = adminUrl;
         return;
@@ -89,17 +92,29 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch("/api/dashboard");
-      if (!response.ok) {
+      // Parallel API calls for better performance
+      const [dashboardResponse, warningResponse] = await Promise.all([
+        fetch("/api/dashboard"),
+        fetch("/api/subscription/warning").catch(() => null), // Don't fail if warning fails
+      ]);
+
+      if (!dashboardResponse.ok) {
         throw new Error("Failed to fetch dashboard data");
       }
-      const data = await response.json();
+
+      const data = await dashboardResponse.json();
       setStats(data.stats);
       setRecentBatches(data.recentBatches || []);
       setLowStockIngredients(data.lowStockIngredients || []);
-      
-      // Check subscription warning after loading dashboard data
-      await checkSubscriptionWarning();
+
+      // Handle subscription warning if successful
+      if (warningResponse && warningResponse.ok) {
+        const warningData = await warningResponse.json();
+        setSubscriptionWarning(warningData);
+        if (warningData.shouldWarn) {
+          setShowWarningToast(true);
+        }
+      }
     } catch (error) {
       setError("Failed to load dashboard data");
     } finally {

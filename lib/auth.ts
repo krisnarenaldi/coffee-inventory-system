@@ -171,10 +171,12 @@ export const getAuthOptions = (): NextAuthOptions => {
               });
             }
 
-            console.log(
-              `👤 AUTH: First user lookup for "${credentials.email}":`,
-              user ? `Found (${user.name}, ${user.role})` : "Not found"
-            );
+            if (process.env.NODE_ENV === "development") {
+              console.log(
+                `👤 AUTH: First user lookup for "${credentials.email}":`,
+                user ? `Found (${user.name}, ${user.role})` : "Not found"
+              );
+            }
 
             // If user found and no tenant context was provided, set the tenant info
             if (user && !userTenant) {
@@ -559,13 +561,15 @@ export const getAuthOptions = (): NextAuthOptions => {
               }
             }
 
-            // Log OAuth login activity
-            await logUserLogin(
+            // Log OAuth login activity (async to not block)
+            logUserLogin(
               user.tenantId,
               user.id,
               undefined, // IP address not available in callback
               `OAuth-${account?.provider || "unknown"}`
-            );
+            ).catch((error) => {
+              console.error("Failed to log OAuth login:", error);
+            });
 
             return true;
           } catch (error) {
@@ -602,14 +606,17 @@ export const getAuthOptions = (): NextAuthOptions => {
           token.tenantId = user.tenantId;
           token.tenant = user.tenant;
 
-          // Log credentials login activity
+          // Log credentials login activity (async to not block)
           if (account && account.provider === "credentials") {
-            await logUserLogin(
+            // Use fire-and-forget logging to not block authentication
+            logUserLogin(
               user.tenantId,
               user.id,
               undefined, // IP address not available in callback
               "credentials"
-            );
+            ).catch((error) => {
+              console.error("Failed to log user login:", error);
+            });
           }
         }
         return token;

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { getCachedOrFetch, CacheKeys, CacheTTL } from "./cache";
 
 export interface SubscriptionStatus {
   isActive: boolean;
@@ -24,14 +25,21 @@ export async function validateSubscription(
       );
     }
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { tenantId },
-      select: {
-        status: true,
-        currentPeriodEnd: true,
-        planId: true,
+    // Use cached subscription data with 30 second TTL for performance
+    const subscription = await getCachedOrFetch(
+      CacheKeys.subscription(tenantId),
+      async () => {
+        return await prisma.subscription.findUnique({
+          where: { tenantId },
+          select: {
+            status: true,
+            currentPeriodEnd: true,
+            planId: true,
+          },
+        });
       },
-    });
+      30 * 1000 // 30 seconds cache for subscription data
+    );
 
     if (process.env.NODE_ENV === "development") {
       console.log("🔍 VALIDATE SUBSCRIPTION: Database result:", {

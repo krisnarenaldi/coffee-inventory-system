@@ -75,12 +75,14 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  console.log("🚀 MIDDLEWARE EXECUTING! Path:", request.nextUrl.pathname);
-
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") || "";
 
-  console.log("🔍 Processing request for:", hostname, pathname);
+  // Only log in development
+  if (process.env.NODE_ENV === "development") {
+    console.log("🚀 MIDDLEWARE EXECUTING! Path:", pathname);
+    console.log("🔍 Processing request for:", hostname, pathname);
+  }
 
   // Skip middleware for static assets and API routes that don't need tenant context
   if (pathname.startsWith("/_next/") || pathname.startsWith("/favicon.ico")) {
@@ -91,13 +93,18 @@ export async function middleware(request: NextRequest) {
 
   // Extract subdomain
   const subdomain = extractSubdomain(hostname);
-  console.log("🏢 Extracted subdomain:", subdomain);
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("🏢 Extracted subdomain:", subdomain);
+  }
 
   // For admin subdomain or admin routes, skip tenant resolution
   if (subdomain === "admin" || isAdminRoute(pathname)) {
-    console.log(
-      "🔧 Admin subdomain/route detected, skipping tenant resolution"
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "🔧 Admin subdomain/route detected, skipping tenant resolution"
+      );
+    }
     response.headers.set("X-Tenant-ID", "");
     response.headers.set("X-Tenant-Subdomain", "");
     return response;
@@ -105,9 +112,11 @@ export async function middleware(request: NextRequest) {
 
   // For public routes without subdomain or on admin subdomain, allow access
   if (isPublicRoute(pathname) && (!subdomain || subdomain === "admin")) {
-    console.log(
-      "🌐 Public route without subdomain or on admin subdomain, allowing access"
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "🌐 Public route without subdomain or on admin subdomain, allowing access"
+      );
+    }
     response.headers.set("X-Tenant-ID", "");
     response.headers.set("X-Tenant-Subdomain", "");
     return response;
@@ -118,7 +127,9 @@ export async function middleware(request: NextRequest) {
     const tenant = validateTenant(subdomain);
 
     if (tenant) {
-      console.log("✅ Tenant found:", tenant.name, tenant.id);
+      if (process.env.NODE_ENV === "development") {
+        console.log("✅ Tenant found:", tenant.name, tenant.id);
+      }
 
       // For protected routes, ensure user is authenticated
       if (!isPublicRoute(pathname)) {
@@ -135,14 +146,20 @@ export async function middleware(request: NextRequest) {
       response.headers.set("X-Tenant-ID", tenant.id);
       response.headers.set("X-Tenant-Subdomain", tenant.subdomain);
     } else {
-      console.log("❌ Tenant not found for subdomain:", subdomain);
+      if (process.env.NODE_ENV === "development") {
+        console.log("❌ Tenant not found for subdomain:", subdomain);
+      }
       // Redirect to main domain or show error
       return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
   } else {
     // No subdomain - for non-public routes, redirect to tenant selection or main page
     if (!isPublicRoute(pathname)) {
-      console.log("🔄 No subdomain for protected route, redirecting to signin");
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          "🔄 No subdomain for protected route, redirecting to signin"
+        );
+      }
       return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
 

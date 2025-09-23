@@ -64,6 +64,7 @@ export default function AdminNavigation({
     },
     { name: "Roles & Permissions", href: "/admin/roles", icon: "🔐" },
     { name: "Analytics", href: "/admin/analytics", icon: "📈" },
+    { name: "Performance", href: "/admin/performance", icon: "⚡" },
   ];
 
   const handleLogout = async () => {
