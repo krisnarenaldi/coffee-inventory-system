@@ -93,7 +93,7 @@ export const getAuthOptions = (): NextAuthOptions => {
             // Use tenant context from credentials (passed from signin page)
             let tenantSubdomain = credentials.tenantSubdomain;
 
-            // Treat 'www' as no subdomain (main domain)
+            // Treat 'www' as main domain (no subdomain)
             if (tenantSubdomain === "www") {
               tenantSubdomain = "";
             }
@@ -136,9 +136,49 @@ export const getAuthOptions = (): NextAuthOptions => {
               }
             } else {
               console.log(
-                "🔍 AUTH: No subdomain provided, will lookup user's tenant by email after successful login"
+                "🔍 AUTH: No subdomain provided (main domain), will lookup user's tenant by email first"
               );
-              // Tenant lookup will be done after password verification
+              // For main domain (including www), lookup tenant by email before password verification
+              try {
+                const userWithTenant = await prisma.user.findFirst({
+                  where: {
+                    email: credentials.email,
+                    isActive: true,
+                  },
+                  include: {
+                    tenant: true,
+                  },
+                });
+
+                if (userWithTenant && userWithTenant.tenant) {
+                  tenantId = userWithTenant.tenantId;
+                  userTenant = userWithTenant.tenant;
+                  console.log(
+                    `🏢 AUTH: Found user's tenant for main domain: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
+                  );
+                } else {
+                  console.log(
+                    "🔍 AUTH: No tenant found for user on main domain, setting default to demo"
+                  );
+                  // Set default subdomain to "demo" if query result is empty/null
+                  const demoTenant = await prisma.tenant.findUnique({
+                    where: { subdomain: "demo" },
+                  });
+                  if (demoTenant) {
+                    tenantId = demoTenant.id;
+                    userTenant = demoTenant;
+                    console.log(
+                      `🏢 AUTH: Using default demo tenant for main domain: ${demoTenant.name} (${demoTenant.id})`
+                    );
+                  }
+                }
+              } catch (dbError) {
+                console.error(
+                  "❌ AUTH: Error during tenant lookup by email for main domain:",
+                  dbError
+                );
+                return null;
+              }
             }
 
             // Find user by email - if we have tenant context, validate within that tenant
