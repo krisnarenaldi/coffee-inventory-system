@@ -10,18 +10,18 @@ import {
 import { measureAsync } from "../../../../lib/performance-monitor";
 
 export async function GET(request: NextRequest) {
-  return measureAsync(
-    "dashboard_api",
-    async () => {
-      try {
-        const session = await getServerSession(authOptions);
+  try {
+    const session = await getServerSession(authOptions);
 
-        if (!session?.user?.tenantId) {
-          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+    if (!session?.user?.tenantId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-        const tenantId = session.user.tenantId;
+    const tenantId = session.user.tenantId;
 
+    return measureAsync(
+      "dashboard_api",
+      async () => {
         // Use cached data with fallback to database queries
         const [stats, recentBatches, lowStockIngredients] = await Promise.all([
           // Cache dashboard stats for 2 minutes
@@ -112,14 +112,14 @@ export async function GET(request: NextRequest) {
           },
           CacheConfigs.dashboardCache
         );
-      } catch (error) {
-        console.error("Dashboard API error:", error);
-        return NextResponse.json(
-          { error: "Internal server error" },
-          { status: 500 }
-        );
-      }
-    },
-    { tenantId }
-  );
+      },
+      { tenantId }
+    );
+  } catch (error) {
+    console.error("Dashboard API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
