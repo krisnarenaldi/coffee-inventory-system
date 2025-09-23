@@ -17,10 +17,12 @@ export async function validateSubscription(
   tenantId: string
 ): Promise<SubscriptionStatus> {
   try {
-    console.log(
-      "🔍 VALIDATE SUBSCRIPTION: Starting validation for tenant:",
-      tenantId
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "🔍 VALIDATE SUBSCRIPTION: Starting validation for tenant:",
+        tenantId
+      );
+    }
 
     const subscription = await prisma.subscription.findUnique({
       where: { tenantId },
@@ -31,15 +33,19 @@ export async function validateSubscription(
       },
     });
 
-    console.log("🔍 VALIDATE SUBSCRIPTION: Database result:", {
-      found: !!subscription,
-      status: subscription?.status,
-      currentPeriodEnd: subscription?.currentPeriodEnd,
-      planId: subscription?.planId,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("🔍 VALIDATE SUBSCRIPTION: Database result:", {
+        found: !!subscription,
+        status: subscription?.status,
+        currentPeriodEnd: subscription?.currentPeriodEnd,
+        planId: subscription?.planId,
+      });
+    }
 
     if (!subscription) {
-      console.log("❌ VALIDATE SUBSCRIPTION: No subscription found");
+      if (process.env.NODE_ENV === "development") {
+        console.log("❌ VALIDATE SUBSCRIPTION: No subscription found");
+      }
       return {
         isActive: false,
         isExpired: true,

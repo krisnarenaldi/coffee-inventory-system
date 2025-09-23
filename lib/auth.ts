@@ -57,218 +57,110 @@ declare module "next-auth/jwt" {
 // Dynamic function to get auth options based on request
 export const getAuthOptions = (): NextAuthOptions => {
   // Use environment variable or default to main domain
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://coffeelogica.com';
+  const baseUrl = process.env.NEXTAUTH_URL || "https://coffeelogica.com";
 
   return {
     // adapter: PrismaAdapter(prisma), // Removed: conflicts with JWT strategy
     secret: process.env.NEXTAUTH_SECRET,
     debug: false, // Disable debug logging in production
-  providers: [
-    // Credentials Provider (always available)
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        tenantSubdomain: { label: "Tenant Subdomain", type: "text" },
-      },
-      async authorize(credentials, req) {
-        console.log("🔐 AUTHORIZE FUNCTION CALLED!");
-        console.log("🔐 Authorize function called with credentials:", {
-          email: credentials?.email,
-          hasPassword: !!credentials?.password,
-          tenantSubdomain: credentials?.tenantSubdomain,
-        });
-        console.log("🔐 Full credentials object:", credentials);
-        console.log("🔐 Request object:", req);
-        
-        try {
-          // Remove excessive console logging for better performance
-          if (process.env.NODE_ENV === 'development') {
-            console.log("🔐 AUTH: Credentials received:", {
-              email: credentials?.email,
-              hasPassword: !!credentials?.password,
-              tenantSubdomain: credentials?.tenantSubdomain,
-            });
-          }
-
-          if (!credentials?.email || !credentials?.password) {
-            console.log("❌ AUTH: Missing email or password");
-            return null;
-          }
-
-          // Use tenant context from credentials (passed from signin page)
-          let tenantSubdomain = credentials.tenantSubdomain;
-
-          // Treat 'www' as no subdomain (main domain)
-          if (tenantSubdomain === "www") {
-            tenantSubdomain = "";
-          }
-
-          let tenantId: string | undefined;
-          let userTenant: any = null;
-
-          console.log("🔐 AUTH: Processing tenant subdomain:", tenantSubdomain);
-
-          // If we have a tenant subdomain, find the tenant
-          if (
-            tenantSubdomain &&
-            tenantSubdomain !== "null" &&
-            tenantSubdomain !== ""
-          ) {
-            console.log(
-              `🔍 AUTH: Looking up tenant with subdomain: "${tenantSubdomain}"`
-            );
-            try {
-              const tenant = await prisma.tenant.findUnique({
-                where: { subdomain: tenantSubdomain },
+    providers: [
+      // Credentials Provider (always available)
+      CredentialsProvider({
+        name: "credentials",
+        credentials: {
+          email: { label: "Email", type: "email" },
+          password: { label: "Password", type: "password" },
+          tenantSubdomain: { label: "Tenant Subdomain", type: "text" },
+        },
+        async authorize(credentials, req) {
+          try {
+            // Only log in development for debugging
+            if (process.env.NODE_ENV === "development") {
+              console.log("🔐 AUTH: Credentials received:", {
+                email: credentials?.email,
+                hasPassword: !!credentials?.password,
+                tenantSubdomain: credentials?.tenantSubdomain,
               });
-              tenantId = tenant?.id;
-              userTenant = tenant;
-              console.log(
-                `🏢 AUTH: Tenant lookup for "${tenantSubdomain}":`,
-                tenant ? `Found (${tenant.id})` : "Not found"
-              );
-            } catch (dbError) {
-              console.error(
-                "❌ AUTH: Database error during tenant lookup:",
-                dbError
-              );
+            }
+
+            if (!credentials?.email || !credentials?.password) {
+              if (process.env.NODE_ENV === "development") {
+                console.log("❌ AUTH: Missing email or password");
+              }
               return null;
             }
-          } else {
-            console.log(
-              "🔍 AUTH: No subdomain provided, will lookup user's tenant by email after successful login"
-            );
-            // Tenant lookup will be done after password verification
-          }
 
-          // Find user by email - if we have tenant context, validate within that tenant
-          // If no tenant context (main domain login), find any active user
-          // Special handling for PLATFORM_ADMIN: they can login from admin subdomain
-          let user;
-          if (tenantId && tenantId !== "") {
-            // Use compound unique key when we have tenant context
-            user = await prisma.user.findUnique({
-              where: {
-                tenantId_email: {
-                  tenantId: tenantId,
-                  email: credentials.email,
+            // Use tenant context from credentials (passed from signin page)
+            let tenantSubdomain = credentials.tenantSubdomain;
+
+            // Treat 'www' as no subdomain (main domain)
+            if (tenantSubdomain === "www") {
+              tenantSubdomain = "";
+            }
+
+            let tenantId: string | undefined;
+            let userTenant: any = null;
+
+            if (process.env.NODE_ENV === "development") {
+              console.log(
+                "🔐 AUTH: Processing tenant subdomain:",
+                tenantSubdomain
+              );
+            }
+
+            // If we have a tenant subdomain, find the tenant
+            if (
+              tenantSubdomain &&
+              tenantSubdomain !== "null" &&
+              tenantSubdomain !== ""
+            ) {
+              console.log(
+                `🔍 AUTH: Looking up tenant with subdomain: "${tenantSubdomain}"`
+              );
+              try {
+                const tenant = await prisma.tenant.findUnique({
+                  where: { subdomain: tenantSubdomain },
+                });
+                tenantId = tenant?.id;
+                userTenant = tenant;
+                console.log(
+                  `🏢 AUTH: Tenant lookup for "${tenantSubdomain}":`,
+                  tenant ? `Found (${tenant.id})` : "Not found"
+                );
+              } catch (dbError) {
+                console.error(
+                  "❌ AUTH: Database error during tenant lookup:",
+                  dbError
+                );
+                return null;
+              }
+            } else {
+              console.log(
+                "🔍 AUTH: No subdomain provided, will lookup user's tenant by email after successful login"
+              );
+              // Tenant lookup will be done after password verification
+            }
+
+            // Find user by email - if we have tenant context, validate within that tenant
+            // If no tenant context (main domain login), find any active user
+            // Special handling for PLATFORM_ADMIN: they can login from admin subdomain
+            let user;
+            if (tenantId && tenantId !== "") {
+              // Use compound unique key when we have tenant context
+              user = await prisma.user.findUnique({
+                where: {
+                  tenantId_email: {
+                    tenantId: tenantId,
+                    email: credentials.email,
+                  },
                 },
-              },
-              include: {
-                tenant: true,
-              },
-            });
-          } else {
-            // Use findFirst when no tenant context
-            user = await prisma.user.findFirst({
-              where: {
-                email: credentials.email,
-                isActive: true,
-              },
-              include: {
-                tenant: true,
-              },
-            });
-          }
-
-          console.log(
-            `👤 AUTH: First user lookup for "${credentials.email}":`,
-            user ? `Found (${user.name}, ${user.role})` : "Not found"
-          );
-
-          // If user found and no tenant context was provided, set the tenant info
-          if (user && !userTenant) {
-            userTenant = user.tenant;
-            tenantId = user.tenantId;
-            console.log(
-              `🏢 AUTH: User's tenant discovered: ${userTenant.name} (${userTenant.subdomain})`
-            );
-          }
-
-          // If no user found and we're on admin subdomain, try to find PLATFORM_ADMIN user
-          if (!user && tenantSubdomain === "admin") {
-            user = await prisma.user.findFirst({
-              where: {
-                email: credentials.email,
-                isActive: true,
-                role: "PLATFORM_ADMIN",
-              },
-              include: {
-                tenant: true,
-              },
-            });
-          }
-
-          // Additional validation: if we have tenant subdomain, verify it matches
-          // Exception: PLATFORM_ADMIN users can login from admin subdomain
-          // Skip validation if no subdomain provided (main domain login)
-
-          if (
-            user &&
-            tenantSubdomain &&
-            tenantSubdomain !== "" &&
-            tenantSubdomain !== "null" &&
-            user.tenant?.subdomain !== tenantSubdomain &&
-            !(user.role === "PLATFORM_ADMIN" && tenantSubdomain === "admin")
-          ) {
-            console.log(
-              `❌ AUTH: Tenant mismatch - user tenant: ${user.tenant?.subdomain}, request subdomain: ${tenantSubdomain}`
-            );
-            return null;
-          }
-
-          console.log("✅ AUTH: Tenant validation passed");
-
-          if (!user || !user.password) {
-            console.log("❌ AUTH: User not found or no password");
-            return null;
-          }
-
-          console.log(
-            "✅ AUTH: User found with password, proceeding with validation"
-          );
-
-          // Check if the user's tenant is active
-          console.log(
-            `🏢 AUTH: Checking tenant status: ${user.tenant?.status}`
-          );
-          if (
-            !user.tenant ||
-            user.tenant.status === "CANCELLED" ||
-            user.tenant.status === "SUSPENDED"
-          ) {
-            console.log("❌ AUTH: Tenant is inactive or not found");
-            return null;
-          }
-
-          console.log("✅ AUTH: Tenant is active, checking password");
-
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-
-          console.log(
-            `🔐 AUTH: Password validation result: ${
-              isPasswordValid ? "✅ Valid" : "❌ Invalid"
-            }`
-          );
-
-          if (!isPasswordValid) {
-            console.log("❌ AUTH: Authentication failed - invalid password");
-            return null;
-          }
-
-          console.log("✅ AUTH: Password valid, updating last login");
-
-          // If no tenant context was provided, lookup tenant by email after successful login
-          if (!userTenant && !tenantId) {
-            console.log("🔍 AUTH: Looking up tenant by email after successful login");
-            try {
-              // Query tenants table for subdomain based on email
-              const userWithTenant = await prisma.user.findFirst({
+                include: {
+                  tenant: true,
+                },
+              });
+            } else {
+              // Use findFirst when no tenant context
+              user = await prisma.user.findFirst({
                 where: {
                   email: credentials.email,
                   isActive: true,
@@ -277,243 +169,382 @@ export const getAuthOptions = (): NextAuthOptions => {
                   tenant: true,
                 },
               });
+            }
 
-              if (userWithTenant && userWithTenant.tenant) {
-                tenantId = userWithTenant.tenantId;
-                userTenant = userWithTenant.tenant;
-                console.log(
-                  `🏢 AUTH: Found user's tenant: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
-                );
-              } else {
-                console.log("🔍 AUTH: No tenant found for user, setting default to demo");
-                
-                // Set default subdomain to "demo" if query result is empty/null
-                const demoTenant = await prisma.tenant.findUnique({
-                  where: { subdomain: "demo" },
-                });
-                if (demoTenant) {
-                  tenantId = demoTenant.id;
-                  userTenant = demoTenant;
-                  console.log(
-                    `🏢 AUTH: Using default demo tenant: ${demoTenant.name} (${demoTenant.id})`
-                  );
-                }
-              }
-            } catch (dbError) {
-              console.error(
-                "❌ AUTH: Error during tenant lookup by email:",
-                dbError
+            console.log(
+              `👤 AUTH: First user lookup for "${credentials.email}":`,
+              user ? `Found (${user.name}, ${user.role})` : "Not found"
+            );
+
+            // If user found and no tenant context was provided, set the tenant info
+            if (user && !userTenant) {
+              userTenant = user.tenant;
+              tenantId = user.tenantId;
+              console.log(
+                `🏢 AUTH: User's tenant discovered: ${userTenant.name} (${userTenant.subdomain})`
+              );
+            }
+
+            // If no user found and we're on admin subdomain, try to find PLATFORM_ADMIN user
+            if (!user && tenantSubdomain === "admin") {
+              user = await prisma.user.findFirst({
+                where: {
+                  email: credentials.email,
+                  isActive: true,
+                  role: "PLATFORM_ADMIN",
+                },
+                include: {
+                  tenant: true,
+                },
+              });
+            }
+
+            // Additional validation: if we have tenant subdomain, verify it matches
+            // Exception: PLATFORM_ADMIN users can login from admin subdomain
+            // Skip validation if no subdomain provided (main domain login)
+
+            if (
+              user &&
+              tenantSubdomain &&
+              tenantSubdomain !== "" &&
+              tenantSubdomain !== "null" &&
+              user.tenant?.subdomain !== tenantSubdomain &&
+              !(user.role === "PLATFORM_ADMIN" && tenantSubdomain === "admin")
+            ) {
+              console.log(
+                `❌ AUTH: Tenant mismatch - user tenant: ${user.tenant?.subdomain}, request subdomain: ${tenantSubdomain}`
               );
               return null;
             }
-          }
 
-          // Update last login
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { lastLogin: new Date() },
-          });
+            console.log("✅ AUTH: Tenant validation passed");
 
-          // Check subscription status and throw error if expired
-          try {
-            const subscriptionStatus = await validateSubscription(
-              user.tenantId
-            );
-            if (!subscriptionStatus.isActive) {
-              console.log(
-                `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - throwing error`
-              );
-              // Throw specific error that can be caught by frontend
-              throw new Error("SUBSCRIPTION_EXPIRED");
+            if (!user || !user.password) {
+              console.log("❌ AUTH: User not found or no password");
+              return null;
             }
-          } catch (error) {
-            console.error(
-              "Error validating subscription during authorization:",
-              error
+
+            console.log(
+              "✅ AUTH: User found with password, proceeding with validation"
             );
-            // If it's already a subscription expired error, re-throw it
+
+            // Check if the user's tenant is active
+            console.log(
+              `🏢 AUTH: Checking tenant status: ${user.tenant?.status}`
+            );
             if (
-              error instanceof Error &&
-              error.message === "SUBSCRIPTION_EXPIRED"
+              !user.tenant ||
+              user.tenant.status === "CANCELLED" ||
+              user.tenant.status === "SUSPENDED"
             ) {
-              throw error;
+              console.log("❌ AUTH: Tenant is inactive or not found");
+              return null;
             }
-            // For other errors, assume expired for security
-            throw new Error("SUBSCRIPTION_EXPIRED");
-          }
 
-          console.log("✅ AUTH: Authentication successful for:", user.email);
+            console.log("✅ AUTH: Tenant is active, checking password");
 
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            tenantId: tenantId || user.tenantId,
-            tenant: userTenant || user.tenant,
-          };
-        } catch (error) {
-          console.error("❌ AUTH: Error during authentication:", error);
-          // If it's a subscription expired error, re-throw it so NextAuth can handle it
-          if (
-            error instanceof Error &&
-            error.message === "SUBSCRIPTION_EXPIRED"
-          ) {
-            throw error;
-          }
-          return null;
-        }
-      },
-    }),
+            const isPasswordValid = await bcrypt.compare(
+              credentials.password,
+              user.password
+            );
 
-    // OAuth Providers (only if environment variables are available)
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        authorization: {
-          params: {
-            prompt: "consent",
-            access_type: "offline",
-            response_type: "code",
-          },
-        },
-      })
-    ] : []),
+            console.log(
+              `🔐 AUTH: Password validation result: ${
+                isPasswordValid ? "✅ Valid" : "❌ Invalid"
+              }`
+            );
 
-    ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET ? [
-      AzureADProvider({
-        clientId: process.env.AZURE_AD_CLIENT_ID,
-        clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
-        tenantId: process.env.AZURE_AD_TENANT_ID,
-        authorization: {
-          params: {
-            scope: "openid profile email User.Read",
-          },
-        },
-      })
-    ] : []),
+            if (!isPasswordValid) {
+              console.log("❌ AUTH: Authentication failed - invalid password");
+              return null;
+            }
 
-    ...(process.env.OKTA_CLIENT_ID && process.env.OKTA_CLIENT_SECRET && process.env.OKTA_ISSUER ? [
-       OktaProvider({
-         clientId: process.env.OKTA_CLIENT_ID,
-         clientSecret: process.env.OKTA_CLIENT_SECRET,
-         issuer: process.env.OKTA_ISSUER,
-         authorization: {
-           params: {
-             scope: "openid profile email",
-           },
-         },
-       })
-     ] : [])
-  ],
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  callbacks: {
-    async signIn({ user, account, profile }) {
-      // Handle OAuth sign-ins
-      if (account?.provider !== "credentials") {
-        try {
-          // Check if user exists in our database
-          const existingUser = await prisma.user.findFirst({
-            where: {
-              email: user.email!,
-              isActive: true,
-            },
-            include: {
-              tenant: true,
-            },
-          });
+            console.log("✅ AUTH: Password valid, updating last login");
 
-          if (!existingUser) {
-            // For OAuth, we need to determine which tenant this user belongs to
-            // This could be based on email domain or other logic
-            const emailDomain = user.email!.split("@")[1];
-
-            // Try to find a tenant that allows this domain
-            const tenant = await prisma.tenant.findFirst({
-              where: {
-                AND: [
-                  {
-                    OR: [
-                      { domain: emailDomain },
-                      { status: "ACTIVE" }, // Fallback to any active tenant for demo
-                    ],
+            // If no tenant context was provided, lookup tenant by email after successful login
+            if (!userTenant && !tenantId) {
+              console.log(
+                "🔍 AUTH: Looking up tenant by email after successful login"
+              );
+              try {
+                // Query tenants table for subdomain based on email
+                const userWithTenant = await prisma.user.findFirst({
+                  where: {
+                    email: credentials.email,
+                    isActive: true,
                   },
-                  { status: "ACTIVE" }, // Ensure tenant is active
-                ],
-              },
-            });
+                  include: {
+                    tenant: true,
+                  },
+                });
 
-            if (!tenant) {
-              console.log(`No tenant found for domain: ${emailDomain}`);
-              return false; // Reject sign-in
+                if (userWithTenant && userWithTenant.tenant) {
+                  tenantId = userWithTenant.tenantId;
+                  userTenant = userWithTenant.tenant;
+                  console.log(
+                    `🏢 AUTH: Found user's tenant: ${userWithTenant.tenant.name} (subdomain: ${userWithTenant.tenant.subdomain})`
+                  );
+                } else {
+                  console.log(
+                    "🔍 AUTH: No tenant found for user, setting default to demo"
+                  );
+
+                  // Set default subdomain to "demo" if query result is empty/null
+                  const demoTenant = await prisma.tenant.findUnique({
+                    where: { subdomain: "demo" },
+                  });
+                  if (demoTenant) {
+                    tenantId = demoTenant.id;
+                    userTenant = demoTenant;
+                    console.log(
+                      `🏢 AUTH: Using default demo tenant: ${demoTenant.name} (${demoTenant.id})`
+                    );
+                  }
+                }
+              } catch (dbError) {
+                console.error(
+                  "❌ AUTH: Error during tenant lookup by email:",
+                  dbError
+                );
+                return null;
+              }
             }
 
-            // Create user account for OAuth
-            const newUser = await prisma.user.create({
-              data: {
-                email: user.email!,
-                name: user.name || profile?.name || user.email!.split("@")[0],
-                tenantId: tenant.id,
-                role: "STAFF", // Default role for OAuth users
-                isActive: true,
-                emailVerified: new Date(), // OAuth emails are considered verified
-                lastLogin: new Date(),
-              },
-              include: {
-                tenant: true,
-              },
-            });
-
-            // Update user object for JWT
-            user.id = newUser.id;
-            user.role = newUser.role;
-            user.tenantId = newUser.tenantId;
-            user.tenant = newUser.tenant;
-          } else {
-            // Check if the existing user's tenant is active
-            if (
-              !existingUser.tenant ||
-              existingUser.tenant.status === "CANCELLED" ||
-              existingUser.tenant.status === "SUSPENDED"
-            ) {
-              console.log(
-                `User's tenant is not active: ${existingUser.tenant?.status}`
-              );
-              return false; // Reject sign-in
-            }
-
-            // Update existing user's last login
+            // Update last login
             await prisma.user.update({
-              where: { id: existingUser.id },
+              where: { id: user.id },
               data: { lastLogin: new Date() },
             });
 
-            // Update user object for JWT
-            user.id = existingUser.id;
-            user.role = existingUser.role;
-            user.tenantId = existingUser.tenantId;
-            user.tenant = existingUser.tenant;
-          }
-
-          // Check subscription expiration for OAuth users
-          if (user.tenantId) {
+            // Check subscription status and throw error if expired
             try {
               const subscriptionStatus = await validateSubscription(
                 user.tenantId
               );
               if (!subscriptionStatus.isActive) {
                 console.log(
-                  `OAuth sign-in rejected: tenant ${user.tenant?.subdomain} subscription is expired or inactive`
+                  `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - throwing error`
                 );
-                // Use the tenant subdomain to construct the full URL
+                // Throw specific error that can be caught by frontend
+                throw new Error("SUBSCRIPTION_EXPIRED");
+              }
+            } catch (error) {
+              console.error(
+                "Error validating subscription during authorization:",
+                error
+              );
+              // If it's already a subscription expired error, re-throw it
+              if (
+                error instanceof Error &&
+                error.message === "SUBSCRIPTION_EXPIRED"
+              ) {
+                throw error;
+              }
+              // For other errors, assume expired for security
+              throw new Error("SUBSCRIPTION_EXPIRED");
+            }
+
+            console.log("✅ AUTH: Authentication successful for:", user.email);
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              tenantId: tenantId || user.tenantId,
+              tenant: userTenant || user.tenant,
+            };
+          } catch (error) {
+            console.error("❌ AUTH: Error during authentication:", error);
+            // If it's a subscription expired error, re-throw it so NextAuth can handle it
+            if (
+              error instanceof Error &&
+              error.message === "SUBSCRIPTION_EXPIRED"
+            ) {
+              throw error;
+            }
+            return null;
+          }
+        },
+      }),
+
+      // OAuth Providers (only if environment variables are available)
+      ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+        ? [
+            GoogleProvider({
+              clientId: process.env.GOOGLE_CLIENT_ID,
+              clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+              authorization: {
+                params: {
+                  prompt: "consent",
+                  access_type: "offline",
+                  response_type: "code",
+                },
+              },
+            }),
+          ]
+        : []),
+
+      ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET
+        ? [
+            AzureADProvider({
+              clientId: process.env.AZURE_AD_CLIENT_ID,
+              clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+              tenantId: process.env.AZURE_AD_TENANT_ID,
+              authorization: {
+                params: {
+                  scope: "openid profile email User.Read",
+                },
+              },
+            }),
+          ]
+        : []),
+
+      ...(process.env.OKTA_CLIENT_ID &&
+      process.env.OKTA_CLIENT_SECRET &&
+      process.env.OKTA_ISSUER
+        ? [
+            OktaProvider({
+              clientId: process.env.OKTA_CLIENT_ID,
+              clientSecret: process.env.OKTA_CLIENT_SECRET,
+              issuer: process.env.OKTA_ISSUER,
+              authorization: {
+                params: {
+                  scope: "openid profile email",
+                },
+              },
+            }),
+          ]
+        : []),
+    ],
+    session: {
+      strategy: "jwt",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      updateAge: 24 * 60 * 60, // 24 hours
+    },
+    jwt: {
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    },
+    callbacks: {
+      async signIn({ user, account, profile }) {
+        // Handle OAuth sign-ins
+        if (account?.provider !== "credentials") {
+          try {
+            // Check if user exists in our database
+            const existingUser = await prisma.user.findFirst({
+              where: {
+                email: user.email!,
+                isActive: true,
+              },
+              include: {
+                tenant: true,
+              },
+            });
+
+            if (!existingUser) {
+              // For OAuth, we need to determine which tenant this user belongs to
+              // This could be based on email domain or other logic
+              const emailDomain = user.email!.split("@")[1];
+
+              // Try to find a tenant that allows this domain
+              const tenant = await prisma.tenant.findFirst({
+                where: {
+                  AND: [
+                    {
+                      OR: [
+                        { domain: emailDomain },
+                        { status: "ACTIVE" }, // Fallback to any active tenant for demo
+                      ],
+                    },
+                    { status: "ACTIVE" }, // Ensure tenant is active
+                  ],
+                },
+              });
+
+              if (!tenant) {
+                console.log(`No tenant found for domain: ${emailDomain}`);
+                return false; // Reject sign-in
+              }
+
+              // Create user account for OAuth
+              const newUser = await prisma.user.create({
+                data: {
+                  email: user.email!,
+                  name: user.name || profile?.name || user.email!.split("@")[0],
+                  tenantId: tenant.id,
+                  role: "STAFF", // Default role for OAuth users
+                  isActive: true,
+                  emailVerified: new Date(), // OAuth emails are considered verified
+                  lastLogin: new Date(),
+                },
+                include: {
+                  tenant: true,
+                },
+              });
+
+              // Update user object for JWT
+              user.id = newUser.id;
+              user.role = newUser.role;
+              user.tenantId = newUser.tenantId;
+              user.tenant = newUser.tenant;
+            } else {
+              // Check if the existing user's tenant is active
+              if (
+                !existingUser.tenant ||
+                existingUser.tenant.status === "CANCELLED" ||
+                existingUser.tenant.status === "SUSPENDED"
+              ) {
+                console.log(
+                  `User's tenant is not active: ${existingUser.tenant?.status}`
+                );
+                return false; // Reject sign-in
+              }
+
+              // Update existing user's last login
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: { lastLogin: new Date() },
+              });
+
+              // Update user object for JWT
+              user.id = existingUser.id;
+              user.role = existingUser.role;
+              user.tenantId = existingUser.tenantId;
+              user.tenant = existingUser.tenant;
+            }
+
+            // Check subscription expiration for OAuth users
+            if (user.tenantId) {
+              try {
+                const subscriptionStatus = await validateSubscription(
+                  user.tenantId
+                );
+                if (!subscriptionStatus.isActive) {
+                  console.log(
+                    `OAuth sign-in rejected: tenant ${user.tenant?.subdomain} subscription is expired or inactive`
+                  );
+                  // Use the tenant subdomain to construct the full URL
+                  const tenantSubdomain = user.tenant?.subdomain;
+                  const baseUrl =
+                    process.env.NODE_ENV === "production"
+                      ? "https://www.coffeelogica.com"
+                      : "http://localhost:3000";
+
+                  if (
+                    tenantSubdomain &&
+                    process.env.NODE_ENV !== "production"
+                  ) {
+                    return `http://${tenantSubdomain}.localhost:3000/subscription?expired=true`;
+                  } else {
+                    return `${baseUrl}/subscription?expired=true`;
+                  }
+                }
+              } catch (error) {
+                console.error(
+                  "Error validating subscription during OAuth sign-in:",
+                  error
+                );
+                // Use the tenant subdomain to construct the full URL for error case
                 const tenantSubdomain = user.tenant?.subdomain;
                 const baseUrl =
                   process.env.NODE_ENV === "production"
@@ -521,116 +552,98 @@ export const getAuthOptions = (): NextAuthOptions => {
                     : "http://localhost:3000";
 
                 if (tenantSubdomain && process.env.NODE_ENV !== "production") {
-                  return `http://${tenantSubdomain}.localhost:3000/subscription?expired=true`;
+                  return `http://${tenantSubdomain}.localhost:3000/subscription?error=validation_failed`;
                 } else {
-                  return `${baseUrl}/subscription?expired=true`;
+                  return `${baseUrl}/subscription?error=validation_failed`;
                 }
               }
-            } catch (error) {
-              console.error(
-                "Error validating subscription during OAuth sign-in:",
-                error
-              );
-              // Use the tenant subdomain to construct the full URL for error case
-              const tenantSubdomain = user.tenant?.subdomain;
-              const baseUrl =
-                process.env.NODE_ENV === "production"
-                  ? "https://www.coffeelogica.com"
-                  : "http://localhost:3000";
-
-              if (tenantSubdomain && process.env.NODE_ENV !== "production") {
-                return `http://${tenantSubdomain}.localhost:3000/subscription?error=validation_failed`;
-              } else {
-                return `${baseUrl}/subscription?error=validation_failed`;
-              }
             }
+
+            // Log OAuth login activity
+            await logUserLogin(
+              user.tenantId,
+              user.id,
+              undefined, // IP address not available in callback
+              `OAuth-${account?.provider || "unknown"}`
+            );
+
+            return true;
+          } catch (error) {
+            console.error("OAuth sign-in error:", error);
+            return false;
+          }
+        }
+
+        // For credentials sign-in, validate tenant context
+        if (account?.provider === "credentials") {
+          // The user object should already have tenant information from the authorize function
+          // Additional validation can be added here if needed
+          if (
+            user.tenant &&
+            (user.tenant.status === "CANCELLED" ||
+              user.tenant.status === "SUSPENDED")
+          ) {
+            console.log(
+              `Credentials sign-in rejected: tenant ${user.tenant.subdomain} is ${user.tenant.status}`
+            );
+            return false;
           }
 
-          // Log OAuth login activity
-          await logUserLogin(
-            user.tenantId,
-            user.id,
-            undefined, // IP address not available in callback
-            `OAuth-${account?.provider || "unknown"}`
-          );
+          // Subscription expiration is now handled in the authorize function
+          // Allow sign-in to proceed normally
+        }
 
-          return true;
+        return true; // Allow sign-in
+      },
+
+      async jwt({ token, user, account }) {
+        if (user) {
+          token.role = user.role;
+          token.tenantId = user.tenantId;
+          token.tenant = user.tenant;
+
+          // Log credentials login activity
+          if (account && account.provider === "credentials") {
+            await logUserLogin(
+              user.tenantId,
+              user.id,
+              undefined, // IP address not available in callback
+              "credentials"
+            );
+          }
+        }
+        return token;
+      },
+
+      async session({ session, token }) {
+        if (token && session.user) {
+          session.user.id = token.sub!;
+          session.user.role = token.role;
+          session.user.tenantId = token.tenantId;
+          session.user.tenant = token.tenant;
+        }
+        return session;
+      },
+
+      async redirect({ url, baseUrl }) {
+        // Default redirect behavior with subdomain support
+        try {
+          if (url.startsWith("/")) return `${baseUrl}${url}`;
+          else if (new URL(url).origin === baseUrl) return url;
+          return baseUrl;
         } catch (error) {
-          console.error("OAuth sign-in error:", error);
-          return false;
+          console.error("Error in redirect callback:", error);
+          // Fallback to default behavior
+          if (url.startsWith("/")) return `${baseUrl}${url}`;
+          else if (new URL(url).origin === baseUrl) return url;
+          return baseUrl;
         }
-      }
-
-      // For credentials sign-in, validate tenant context
-      if (account?.provider === "credentials") {
-        // The user object should already have tenant information from the authorize function
-        // Additional validation can be added here if needed
-        if (
-          user.tenant &&
-          (user.tenant.status === "CANCELLED" ||
-            user.tenant.status === "SUSPENDED")
-        ) {
-          console.log(
-            `Credentials sign-in rejected: tenant ${user.tenant.subdomain} is ${user.tenant.status}`
-          );
-          return false;
-        }
-
-        // Subscription expiration is now handled in the authorize function
-        // Allow sign-in to proceed normally
-      }
-
-      return true; // Allow sign-in
+      },
     },
-
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.role = user.role;
-        token.tenantId = user.tenantId;
-        token.tenant = user.tenant;
-
-        // Log credentials login activity
-        if (account && account.provider === "credentials") {
-          await logUserLogin(
-            user.tenantId,
-            user.id,
-            undefined, // IP address not available in callback
-            "credentials"
-          );
-        }
-      }
-      return token;
+    pages: {
+      signIn: "/auth/signin",
     },
-
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub!;
-        session.user.role = token.role;
-        session.user.tenantId = token.tenantId;
-        session.user.tenant = token.tenant;
-      }
-      return session;
-    },
-
-    async redirect({ url, baseUrl }) {
-      // Default redirect behavior with subdomain support
-      try {
-        if (url.startsWith("/")) return `${baseUrl}${url}`;
-        else if (new URL(url).origin === baseUrl) return url;
-        return baseUrl;
-      } catch (error) {
-        console.error("Error in redirect callback:", error);
-        // Fallback to default behavior
-        if (url.startsWith("/")) return `${baseUrl}${url}`;
-        else if (new URL(url).origin === baseUrl) return url;
-        return baseUrl;
-      }
-    },
-  },
-  pages: {
-    signIn: "/auth/signin",
-  },
-};
+  };
 };
 
 // Keep the original authOptions for backward compatibility
