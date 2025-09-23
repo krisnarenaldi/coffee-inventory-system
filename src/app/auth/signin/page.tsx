@@ -69,16 +69,38 @@ function SignInForm() {
     setError("");
 
     try {
+      // Extract subdomain from current URL as fallback
+      const currentHostname = window.location.hostname;
+      const currentParts = currentHostname.split(".");
+      let detectedSubdomain = tenantSubdomain;
+
+      // If tenantSubdomain is not set, try to detect it from current URL
+      if (
+        !detectedSubdomain &&
+        currentParts.length >= 3 &&
+        currentParts[currentParts.length - 2] === "coffeelogica" &&
+        currentParts[currentParts.length - 1] === "com"
+      ) {
+        detectedSubdomain = currentParts[0];
+        if (detectedSubdomain === "www" || detectedSubdomain === "admin") {
+          detectedSubdomain = "demo"; // Only use demo as fallback for www/admin
+        }
+      } else if (!detectedSubdomain) {
+        detectedSubdomain = "demo"; // Final fallback
+      }
+
       console.log("🔐 SIGNIN: Attempting login with:", {
         email,
         hasPassword: !!password,
-        tenantSubdomain: tenantSubdomain || "demo",
+        tenantSubdomain: detectedSubdomain,
+        originalTenantSubdomain: tenantSubdomain,
+        currentHostname,
       });
 
       const result = await signIn("credentials", {
         email,
         password,
-        tenantSubdomain: tenantSubdomain || "demo",
+        tenantSubdomain: detectedSubdomain,
         redirect: false,
       });
 
@@ -111,7 +133,7 @@ function SignInForm() {
 
         // For failed sign-in attempts, check if it might be due to subscription expiration
         // by attempting to validate the user's subscription
-        if (tenantSubdomain) {
+        if (detectedSubdomain && detectedSubdomain !== "demo") {
           try {
             const response = await fetch("/api/subscription/status", {
               method: "POST",
@@ -120,7 +142,7 @@ function SignInForm() {
               },
               body: JSON.stringify({
                 email,
-                tenantSubdomain,
+                tenantSubdomain: detectedSubdomain,
               }),
             });
 
