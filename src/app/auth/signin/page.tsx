@@ -177,16 +177,13 @@ function SignInForm() {
 
         setError("Invalid email or password");
       } else if (result?.ok) {
-        // Wait a bit for the session to be properly set
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Get the session to check tenant info with retry logic
+        // Optimized session retrieval - reduce delays for better performance
         let session = await getSession();
         let retries = 0;
 
-        // Retry getting session if it's not available yet (race condition fix)
-        while (!session?.user && retries < 3) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        // Retry getting session if it's not available yet (reduced delays)
+        while (!session?.user && retries < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 50)); // Reduced from 200ms to 50ms
           session = await getSession();
           retries++;
         }

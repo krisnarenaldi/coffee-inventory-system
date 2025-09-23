@@ -4,7 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import OktaProvider from "next-auth/providers/okta";
-import bcrypt from "bcryptjs";
+import { comparePassword } from "./password-utils";
 import { prisma } from "./prisma";
 import { logUserLogin } from "./activity-logger";
 import { validateSubscription } from "./subscription-validation";
@@ -245,16 +245,21 @@ export const getAuthOptions = (): NextAuthOptions => {
 
             console.log("✅ AUTH: Tenant is active, checking password");
 
-            const isPasswordValid = await bcrypt.compare(
+            // Measure password validation time for performance monitoring
+            const passwordStartTime = Date.now();
+            const isPasswordValid = await comparePassword(
               credentials.password,
               user.password
             );
+            const passwordTime = Date.now() - passwordStartTime;
 
-            console.log(
-              `🔐 AUTH: Password validation result: ${
-                isPasswordValid ? "✅ Valid" : "❌ Invalid"
-              }`
-            );
+            if (process.env.NODE_ENV === "development") {
+              console.log(
+                `🔐 AUTH: Password validation took ${passwordTime}ms - Result: ${
+                  isPasswordValid ? "✅ Valid" : "❌ Invalid"
+                }`
+              );
+            }
 
             if (!isPasswordValid) {
               console.log("❌ AUTH: Authentication failed - invalid password");
@@ -312,17 +317,30 @@ export const getAuthOptions = (): NextAuthOptions => {
               }
             }
 
-            // Update last login
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { lastLogin: new Date() },
-            });
+            // Update last login (async to not block authentication)
+            prisma.user
+              .update({
+                where: { id: user.id },
+                data: { lastLogin: new Date() },
+              })
+              .catch((error) => {
+                console.error("Failed to update last login:", error);
+              });
 
-            // Check subscription status and throw error if expired
+            // Check subscription status and throw error if expired (optimized)
             try {
+              const subscriptionStartTime = Date.now();
               const subscriptionStatus = await validateSubscription(
                 user.tenantId
               );
+              const subscriptionTime = Date.now() - subscriptionStartTime;
+
+              if (process.env.NODE_ENV === "development") {
+                console.log(
+                  `📋 AUTH: Subscription validation took ${subscriptionTime}ms`
+                );
+              }
+
               if (!subscriptionStatus.isActive) {
                 console.log(
                   `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - throwing error`
