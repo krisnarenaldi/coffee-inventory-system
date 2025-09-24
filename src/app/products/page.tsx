@@ -85,7 +85,9 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [packagingTypes, setPackagingTypes] = useState<PackagingType[]>([]);
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -122,7 +124,7 @@ export default function ProductsPage() {
   // Add Escape key listener for modals
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (showDeleteModal) {
           setShowDeleteModal(false);
           setDeleteProductId(null);
@@ -146,9 +148,9 @@ export default function ProductsPage() {
       }
     };
 
-    document.addEventListener('keydown', handleEscapeKey);
+    document.addEventListener("keydown", handleEscapeKey);
     return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [showDeleteModal, showForm]);
 
@@ -233,7 +235,9 @@ export default function ProductsPage() {
       const response = await fetch("/api/storage-locations");
       if (response.ok) {
         const data = await response.json();
-        setStorageLocations(data.filter((location: StorageLocation) => location.isActive));
+        setStorageLocations(
+          data.filter((location: StorageLocation) => location.isActive)
+        );
       }
     } catch (err) {
       console.error("Failed to fetch storage locations:", err);
@@ -242,10 +246,10 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Prevent duplicate submissions
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     setError("");
     setSuccess("");
@@ -259,9 +263,13 @@ export default function ProductsPage() {
       const submitData = {
         ...formData,
         batchId: formData.batchId === "" ? undefined : formData.batchId,
-        packagingDate: formData.packagingDate === "" ? undefined : formData.packagingDate,
+        packagingDate:
+          formData.packagingDate === "" ? undefined : formData.packagingDate,
         lotNumber: formData.lotNumber === "" ? undefined : formData.lotNumber,
-        storageLocation: formData.storageLocation === "" ? undefined : formData.storageLocation,
+        storageLocation:
+          formData.storageLocation === ""
+            ? undefined
+            : formData.storageLocation,
         quantity: Number(formData.quantity),
         shelfLife:
           formData.shelfLife === "" ? undefined : Number(formData.shelfLife),
@@ -383,573 +391,583 @@ export default function ProductsPage() {
           subtitle="Manage your finished coffee products inventory"
         />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-4">
-        <div className="flex justify-between items-center mb-8">
-          <button
-            onClick={() => {
-              setEditingProduct(null);
-              resetForm();
-              setFormData((prev) => ({
-                ...prev,
-                lotNumber: generateLotNumber(),
-                packagingDate: new Date().toISOString().split("T")[0],
-              }));
-              setShowForm(true);
-            }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Add Coffee Product
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search Products
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, lot number..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="">All Statuses</option>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Packaging
-              </label>
-              <select
-                value={packagingFilter}
-                onChange={(e) => setPackagingFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="">All Packaging</option>
-                {packagingTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Roast Batch
-              </label>
-              <select
-                value={batchFilter}
-                onChange={(e) => setBatchFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="">All Batches</option>
-                {batches.map((batch) => (
-                  <option key={batch.id} value={batch.id}>
-                    {batch.batchNumber} - {batch.recipe.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sort By
-              </label>
-              <select
-                value={`${sortBy}-${sortOrder}`}
-                onChange={(e) => {
-                  const [field, order] = e.target.value.split("-");
-                  setSortBy(field);
-                  setSortOrder(order);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="createdAt-desc">Newest First</option>
-                <option value="createdAt-asc">Oldest First</option>
-                <option value="name-asc">Name A-Z</option>
-                <option value="name-desc">Name Z-A</option>
-                <option value="packagingDate-desc">Latest Packaging</option>
-                <option value="quantity-desc">Highest Quantity</option>
-              </select>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-4">
+          <div className="flex justify-between items-center mb-8">
+            <button
+              onClick={() => {
+                setEditingProduct(null);
+                resetForm();
+                setFormData((prev) => ({
+                  ...prev,
+                  lotNumber: generateLotNumber(),
+                  packagingDate: new Date().toISOString().split("T")[0],
+                }));
+                setShowForm(true);
+              }}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              Add Coffee Product
+            </button>
           </div>
-        </div>
 
-        {/* Error/Success Messages */}
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {success}
-          </div>
-        )}
-
-        {/* Products Table */}
-        <div className="bg-white shadow rounded-lg overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Roast Batch
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Packaging
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          {/* Filters */}
+          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search Products
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name, lot number..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="">All Statuses</option>
+                  {Object.entries(statusLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Packaging
+                </label>
+                <select
+                  value={packagingFilter}
+                  onChange={(e) => setPackagingFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="">All Packaging</option>
+                  {packagingTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Roast Batch
+                </label>
+                <select
+                  value={batchFilter}
+                  onChange={(e) => setBatchFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="">All Batches</option>
+                  {batches.map((batch) => (
+                    <option key={batch.id} value={batch.id}>
+                      {batch.batchNumber} - {batch.recipe.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sort By
+                </label>
+                <select
+                  value={`${sortBy}-${sortOrder}`}
+                  onChange={(e) => {
+                    const [field, order] = e.target.value.split("-");
+                    setSortBy(field);
+                    setSortOrder(order);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="createdAt-desc">Newest First</option>
+                  <option value="createdAt-asc">Oldest First</option>
+                  <option value="name-asc">Name A-Z</option>
+                  <option value="name-desc">Name Z-A</option>
+                  <option value="packagingDate-desc">Latest Packaging</option>
+                  <option value="quantity-desc">Highest Quantity</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+              {success}
+            </div>
+          )}
+
+          {/* Products Table */}
+          <div className="bg-white shadow rounded-lg overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Roast Batch
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Packaging
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  {/*<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Lot Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 min-w-[128px]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {product.name}
-                      </div>
-                      {product.storageLocation && (
-                        <div className="text-xs text-gray-500">
-                          📍 {product.storageLocation}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.batch ? (
+                </th>*/}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 min-w-[128px]">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {products.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="font-medium">
-                          {product.batch.batchNumber}
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.name}
                         </div>
-                        <div className="text-xs text-gray-400">
-                          {product.batch.recipe.name}
-                          {product.batch.recipe.style &&
-                            ` (${product.batch.recipe.style})`}
-                        </div>
+                        {product.storageLocation && (
+                          <div className="text-xs text-gray-500">
+                            📍 {product.storageLocation}
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">
-                        {product.packagingType?.name || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {product.batch ? (
+                        <div>
+                          <div className="font-medium">
+                            {product.batch.batchNumber}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {product.batch.recipe.name}
+                            {product.batch.recipe.style &&
+                              ` (${product.batch.recipe.style})`}
+                          </div>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm text-gray-900">
+                          {product.packagingType?.name || "N/A"}
+                        </div>
+                        {product.packagingDate && (
+                          <div className="text-xs text-gray-500">
+                            Packaged:{" "}
+                            {new Date(
+                              product.packagingDate
+                            ).toLocaleDateString()}
+                          </div>
+                        )}
+                        {product.shelfLife && product.packagingDate && (
+                          <div className="text-xs text-gray-500">
+                            Expires:{" "}
+                            {calculateExpiryDate(
+                              product.packagingDate,
+                              product.shelfLife
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {product.packagingDate && (
-                        <div className="text-xs text-gray-500">
-                          Packaged:{" "}
-                          {new Date(product.packagingDate).toLocaleDateString()}
-                        </div>
-                      )}
-                      {product.shelfLife && product.packagingDate && (
-                        <div className="text-xs text-gray-500">
-                          Expires:{" "}
-                          {calculateExpiryDate(
-                            product.packagingDate,
-                            product.shelfLife
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {product.quantity} kg
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        statusColors[
-                          product.status as keyof typeof statusColors
-                        ] || "bg-gray-100 text-gray-800"
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {product.quantity} kg
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          statusColors[
+                            product.status as keyof typeof statusColors
+                          ] || "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {statusLabels[
+                          product.status as keyof typeof statusLabels
+                        ] || product.status}
+                      </span>
+                    </td>
+                    {/*} <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {product.lotNumber || "-"}
+                    </td>
+                    */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium min-w-[120px]">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => {
+                            setEditingProduct(product);
+                            setFormData({
+                              batchId: product.batch?.id || "",
+                              name: product.name,
+                              packagingTypeId: product.packagingType?.id || "",
+                              packagingDate: product.packagingDate
+                                ? product.packagingDate.split("T")[0]
+                                : "",
+                              lotNumber: product.lotNumber || "",
+                              quantity: product.quantity,
+                              shelfLife: product.shelfLife || "",
+                              storageLocation: product.storageLocation || "",
+                              status: product.status,
+                            });
+                            setShowForm(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 transition-colors cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id, product.name)}
+                          className="text-red-600 hover:text-red-900 transition-colors cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {products.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No coffee products found.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-2 border text-sm font-medium rounded-md cursor-pointer ${
+                        page === currentPage
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      {statusLabels[
-                        product.status as keyof typeof statusLabels
-                      ] || product.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.lotNumber || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium min-w-[120px]">
-                    <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => {
-                          setEditingProduct(product);
-                          setFormData({
-                            batchId: product.batch?.id || "",
-                            name: product.name,
-                            packagingTypeId: product.packagingType?.id || "",
-                            packagingDate: product.packagingDate
-                              ? product.packagingDate.split("T")[0]
-                              : "",
-                            lotNumber: product.lotNumber || "",
-                            quantity: product.quantity,
-                            shelfLife: product.shelfLife || "",
-                            storageLocation: product.storageLocation || "",
-                            status: product.status,
-                          });
-                          setShowForm(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-900 transition-colors cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id, product.name)}
-                        className="text-red-600 hover:text-red-900 transition-colors cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {products.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No coffee products found.</p>
+                      {page}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-center">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-2 border text-sm font-medium rounded-md cursor-pointer ${
-                      page === currentPage
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                )
-              )}
-              <button
-                onClick={() =>
-                  setCurrentPage(Math.min(totalPages, currentPage + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
-              >
-                Next
-              </button>
+        {/* Add/Edit Product Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {editingProduct
+                    ? "Edit Coffee Product"
+                    : "Add New Coffee Product"}
+                </h3>
+
+                {/* Error Message Display */}
+                {error && (
+                  <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Product Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        required
+                        placeholder="e.g., Ethiopian Single Origin - Light Roast"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Roast Batch
+                      </label>
+                      <select
+                        value={formData.batchId}
+                        onChange={(e) =>
+                          setFormData({ ...formData, batchId: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      >
+                        <option value="">
+                          Select a roast batch (optional)
+                        </option>
+                        {batches.map((batch) => (
+                          <option key={batch.id} value={batch.id}>
+                            {batch.batchNumber} - {batch.recipe.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Packaging Type *
+                      </label>
+                      <select
+                        value={formData.packagingTypeId}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            packagingTypeId: e.target.value,
+                          })
+                        }
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      >
+                        <option value="">Select packaging type...</option>
+                        {packagingTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity (kg) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.quantity}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            quantity: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      >
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Packaging Date
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.packagingDate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            packagingDate: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Shelf Life (days)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.shelfLife}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            shelfLife:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value),
+                          })
+                        }
+                        placeholder="e.g., 365"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Lot Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.lotNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            lotNumber: e.target.value,
+                          })
+                        }
+                        placeholder="Auto-generated if empty"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Storage Location
+                    </label>
+                    <select
+                      value={formData.storageLocation}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          storageLocation: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">Select Storage Location</option>
+                      {storageLocations.map((location) => (
+                        <option key={location.id} value={location.name}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForm(false);
+                        setEditingProduct(null);
+                        resetForm();
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className={`px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center min-w-[120px] ${
+                        isSubmitting
+                          ? "bg-blue-400 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                      } text-white`}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          {editingProduct ? "Updating..." : "Creating..."}
+                        </>
+                      ) : editingProduct ? (
+                        "Update Product"
+                      ) : (
+                        "Create Product"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Add/Edit Product Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingProduct
-                  ? "Edit Coffee Product"
-                  : "Add New Coffee Product"}
-              </h3>
-              
-              {/* Error Message Display */}
-              {error && (
-                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Product Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      required
-                      placeholder="e.g., Ethiopian Single Origin - Light Roast"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Roast Batch
-                    </label>
-                    <select
-                      value={formData.batchId}
-                      onChange={(e) =>
-                        setFormData({ ...formData, batchId: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="">Select a roast batch (optional)</option>
-                      {batches.map((batch) => (
-                        <option key={batch.id} value={batch.id}>
-                          {batch.batchNumber} - {batch.recipe.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Packaging Type *
-                    </label>
-                    <select
-                      value={formData.packagingTypeId}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          packagingTypeId: e.target.value,
-                        })
-                      }
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="">Select packaging type...</option>
-                      {packagingTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantity (kg) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.quantity}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          quantity: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      {Object.entries(statusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Packaging Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.packagingDate}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          packagingDate: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Shelf Life (days)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.shelfLife}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          shelfLife:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value),
-                        })
-                      }
-                      placeholder="e.g., 365"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lot Number
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.lotNumber}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lotNumber: e.target.value })
-                      }
-                      placeholder="Auto-generated if empty"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Storage Location
-                  </label>
-                  <select
-                    value={formData.storageLocation}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        storageLocation: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    <option value="">Select Storage Location</option>
-                    {storageLocations.map((location) => (
-                      <option key={location.id} value={location.name}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingProduct(null);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center min-w-[120px] ${
-                      isSubmitting
-                        ? "bg-blue-400 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
-                    } text-white`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        {editingProduct ? "Updating..." : "Creating..."}
-                      </>
-                    ) : (
-                      editingProduct ? "Update Product" : "Create Product"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={cancelDelete}
-        onConfirm={confirmDelete}
-        title="Delete Product"
-        message="Are you sure you want to delete this product?"
-        itemName={deleteProductName}
-        isDeleting={isDeleting}
-      />
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={cancelDelete}
+          onConfirm={confirmDelete}
+          title="Delete Product"
+          message="Are you sure you want to delete this product?"
+          itemName={deleteProductName}
+          isDeleting={isDeleting}
+        />
       </div>
     </ProtectedPage>
   );
