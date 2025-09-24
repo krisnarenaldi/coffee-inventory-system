@@ -153,18 +153,40 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
   } else {
-    // No subdomain - for non-public routes, redirect to tenant selection or main page
+    // No subdomain - check if user is authenticated for protected routes
     if (!isPublicRoute(pathname)) {
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          "🔄 No subdomain for protected route, redirecting to signin"
-        );
-      }
-      return NextResponse.redirect(new URL("/auth/signin", request.url));
-    }
+      const token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
 
-    response.headers.set("X-Tenant-ID", "");
-    response.headers.set("X-Tenant-Subdomain", "");
+      if (!token) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "🔄 No subdomain and no token for protected route, redirecting to signin"
+          );
+        }
+        return NextResponse.redirect(new URL("/auth/signin", request.url));
+      }
+
+      // User is authenticated on main domain - set tenant context from token
+      if (token.tenantId && token.tenant?.subdomain) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "✅ Authenticated user on main domain, setting tenant context:",
+            token.tenant.subdomain
+          );
+        }
+        response.headers.set("X-Tenant-ID", token.tenantId);
+        response.headers.set("X-Tenant-Subdomain", token.tenant.subdomain);
+      } else {
+        response.headers.set("X-Tenant-ID", "");
+        response.headers.set("X-Tenant-Subdomain", "");
+      }
+    } else {
+      response.headers.set("X-Tenant-ID", "");
+      response.headers.set("X-Tenant-Subdomain", "");
+    }
   }
 
   return response;

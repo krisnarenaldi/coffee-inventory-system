@@ -217,13 +217,12 @@ function SignInForm() {
 
         if (isMainDomain && session?.user?.tenantSubdomain) {
           console.log(
-            "🔄 SIGNIN: Redirecting to tenant subdomain:",
-            session.user.tenantSubdomain
+            "🔄 SIGNIN: Main domain login successful, staying on main domain"
           );
 
-          // Redirect to user's tenant subdomain
-          const tenantUrl = `https://${session.user.tenantSubdomain}.coffeelogica.com/dashboard`;
-          window.location.href = tenantUrl;
+          // Instead of redirecting to subdomain, just redirect to dashboard on main domain
+          // The middleware will handle tenant context via headers
+          router.push("/dashboard");
           return;
         }
 
