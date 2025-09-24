@@ -12,17 +12,26 @@ function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | React.ReactNode>("");
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
+  const [isMainDomain, setIsMainDomain] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  // Extract tenant subdomain from current URL
+  // Extract tenant subdomain from current URL and determine if main domain
   useEffect(() => {
     if (typeof window !== "undefined") {
       const hostname = window.location.hostname;
-
-      // Remove port if present
       const cleanHostname = hostname.split(":")[0];
+
+      // Check if this is the main domain
+      const mainDomain =
+        cleanHostname === "www.coffeelogica.com" ||
+        cleanHostname === "coffeelogica.com";
+      setIsMainDomain(mainDomain);
+
+      if (mainDomain) {
+        return; // Don't set tenant subdomain for main domain
+      }
 
       // Skip IP addresses
       if (/^\d+\.\d+\.\d+\.\d+$/.test(cleanHostname)) {
@@ -87,12 +96,56 @@ function SignInForm() {
     setError("");
 
     try {
-      // Extract subdomain from current URL as fallback
       const currentHostname = window.location.hostname;
+      const isMainDomain =
+        currentHostname === "www.coffeelogica.com" ||
+        currentHostname === "coffeelogica.com";
+
+      // Main domain: Email-only tenant discovery
+      if (isMainDomain) {
+        if (!email) {
+          setError("Please enter your email address");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("🔍 SIGNIN: Finding tenant for email:", email);
+
+        // Find user's tenant by email
+        const response = await fetch("/api/auth/find-tenant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tenantSubdomain) {
+            console.log("🏢 SIGNIN: Found tenant:", data.tenantSubdomain);
+            // Redirect to tenant subdomain for password entry
+            window.location.href = `https://${
+              data.tenantSubdomain
+            }.coffeelogica.com/auth/signin?email=${encodeURIComponent(
+              email
+            )}&from=main`;
+            return;
+          } else {
+            setError("No account found with this email address");
+          }
+        } else {
+          setError(
+            "Unable to find your workspace. Please check your email address."
+          );
+        }
+
+        setIsLoading(false);
+        return;
+      }
+
+      // Tenant subdomain: Full authentication
       const currentParts = currentHostname.split(".");
       let detectedSubdomain = tenantSubdomain;
 
-      // If tenantSubdomain is not set, try to detect it from current URL
       if (
         !detectedSubdomain &&
         currentParts.length >= 3 &&
@@ -101,17 +154,16 @@ function SignInForm() {
       ) {
         detectedSubdomain = currentParts[0];
         if (detectedSubdomain === "www" || detectedSubdomain === "admin") {
-          detectedSubdomain = ""; // Empty string for main domain - let auth system find user's tenant
+          detectedSubdomain = "";
         }
       } else if (!detectedSubdomain) {
-        detectedSubdomain = ""; // Empty string - let auth system find user's tenant
+        detectedSubdomain = "";
       }
 
       console.log("🔐 SIGNIN: Attempting login with:", {
         email,
         hasPassword: !!password,
         tenantSubdomain: detectedSubdomain,
-        originalTenantSubdomain: tenantSubdomain,
         currentHostname,
       });
 
@@ -332,17 +384,23 @@ function SignInForm() {
         <div className="max-w-md w-full space-y-8">
           <div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Sign in to your account
+              {isMainDomain ? "Find Your Workspace" : "Sign in to your account"}
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              Or{" "}
-              <Link
-                href="/auth/signup"
-                className="font-medium text-amber-600 hover:text-amber-500"
-              >
-                create a new account
-              </Link>
-            </p>
+            {isMainDomain ? (
+              <p className="mt-2 text-center text-sm text-gray-600">
+                Enter your email address to find your workspace
+              </p>
+            ) : (
+              <p className="mt-2 text-center text-sm text-gray-600">
+                Or{" "}
+                <Link
+                  href="/auth/signup"
+                  className="font-medium text-amber-600 hover:text-amber-500"
+                >
+                  create a new account
+                </Link>
+              </p>
+            )}
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-md shadow-sm -space-y-px">
@@ -356,30 +414,34 @@ function SignInForm() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
+                  className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 ${
+                    isMainDomain ? "rounded-md" : "rounded-t-md"
+                  } focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm`}
                   style={{ backgroundColor: "#fef6e9" }}
                   placeholder="Email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                  style={{ backgroundColor: "#fef6e9" }}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+              {!isMainDomain && (
+                <div>
+                  <label htmlFor="password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
+                    style={{ backgroundColor: "#fef6e9" }}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {error && (
@@ -388,14 +450,16 @@ function SignInForm() {
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-amber-600 hover:text-amber-500"
-              >
-                Forgot your password?
-              </Link>
-            </div>
+            {!isMainDomain && (
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-amber-600 hover:text-amber-500"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            )}
 
             <div>
               <button
@@ -403,7 +467,13 @@ function SignInForm() {
                 disabled={isLoading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading
+                  ? isMainDomain
+                    ? "Finding workspace..."
+                    : "Signing in..."
+                  : isMainDomain
+                  ? "Find My Workspace"
+                  : "Sign in"}
               </button>
             </div>
 
