@@ -1,5 +1,4 @@
 import { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import AzureADProvider from "next-auth/providers/azure-ad";
@@ -30,6 +29,7 @@ declare module "next-auth" {
     role: UserRole;
     tenantId: string;
     tenant?: any;
+    tenantSubdomain?: string;
     subscriptionExpired?: boolean;
   }
 
@@ -41,6 +41,7 @@ declare module "next-auth" {
       role: UserRole;
       tenantId: string;
       tenant?: any;
+      tenantSubdomain?: string;
     };
   }
 }
@@ -742,6 +743,7 @@ export const getAuthOptions = (): NextAuthOptions => {
           session.user.role = token.role;
           session.user.tenantId = token.tenantId;
           session.user.tenant = token.tenant;
+          session.user.tenantSubdomain = token.tenant?.subdomain;
         }
         return session;
       },

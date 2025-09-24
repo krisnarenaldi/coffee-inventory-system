@@ -209,8 +209,25 @@ function SignInForm() {
           return;
         }
 
-        // Always redirect to dashboard after successful login
-        // No need to redirect to tenant subdomains as the middleware handles tenant isolation
+        // Redirect to user's tenant subdomain if logging in from main domain
+        const currentHost = window.location.host;
+        const isMainDomain =
+          currentHost === "www.coffeelogica.com" ||
+          currentHost === "coffeelogica.com";
+
+        if (isMainDomain && session?.user?.tenantSubdomain) {
+          console.log(
+            "🔄 SIGNIN: Redirecting to tenant subdomain:",
+            session.user.tenantSubdomain
+          );
+
+          // Redirect to user's tenant subdomain
+          const tenantUrl = `https://${session.user.tenantSubdomain}.coffeelogica.com/dashboard`;
+          window.location.href = tenantUrl;
+          return;
+        }
+
+        // For subdomain logins or when no tenant subdomain, redirect to dashboard
         router.push(callbackUrl);
       }
     } catch (error) {
