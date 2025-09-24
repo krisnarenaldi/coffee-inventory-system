@@ -604,35 +604,37 @@ export default function ProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {product.lotNumber || "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => {
-                        setEditingProduct(product);
-                        setFormData({
-                          batchId: product.batch?.id || "",
-                          name: product.name,
-                          packagingTypeId: product.packagingType?.id || "",
-                          packagingDate: product.packagingDate
-                            ? product.packagingDate.split("T")[0]
-                            : "",
-                          lotNumber: product.lotNumber || "",
-                          quantity: product.quantity,
-                          shelfLife: product.shelfLife || "",
-                          storageLocation: product.storageLocation || "",
-                          status: product.status,
-                        });
-                        setShowForm(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-900 cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id, product.name)}
-                      className="text-red-600 hover:text-red-900 cursor-pointer"
-                    >
-                      Delete
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => {
+                          setEditingProduct(product);
+                          setFormData({
+                            batchId: product.batch?.id || "",
+                            name: product.name,
+                            packagingTypeId: product.packagingType?.id || "",
+                            packagingDate: product.packagingDate
+                              ? product.packagingDate.split("T")[0]
+                              : "",
+                            lotNumber: product.lotNumber || "",
+                            quantity: product.quantity,
+                            shelfLife: product.shelfLife || "",
+                            storageLocation: product.storageLocation || "",
+                            status: product.status,
+                          });
+                          setShowForm(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-900 transition-colors cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id, product.name)}
+                        className="text-red-600 hover:text-red-900 transition-colors cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
