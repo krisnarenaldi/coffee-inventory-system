@@ -511,8 +511,11 @@ export const getAuthOptions = (): NextAuthOptions => {
           sameSite: "lax",
           path: "/",
           secure: process.env.NODE_ENV === "production",
-          // Remove domain setting to let NextAuth handle it automatically
-          // This should fix Firefox compatibility issues
+          // Set domain to work across subdomains
+          domain:
+            process.env.NODE_ENV === "production"
+              ? ".coffeelogica.com"
+              : undefined,
         },
       },
       callbackUrl: {
@@ -525,7 +528,11 @@ export const getAuthOptions = (): NextAuthOptions => {
           sameSite: "lax",
           path: "/",
           secure: process.env.NODE_ENV === "production",
-          // Remove domain setting
+          // Set domain to work across subdomains
+          domain:
+            process.env.NODE_ENV === "production"
+              ? ".coffeelogica.com"
+              : undefined,
         },
       },
       csrfToken: {
@@ -749,8 +756,27 @@ export const getAuthOptions = (): NextAuthOptions => {
       },
 
       async redirect({ url, baseUrl }) {
-        // Default redirect behavior with subdomain support
+        console.log("🔄 AUTH REDIRECT: url =", url, "baseUrl =", baseUrl);
+
+        // Handle main domain to tenant subdomain redirect
         try {
+          const urlObj = new URL(url, baseUrl);
+          const baseUrlObj = new URL(baseUrl);
+
+          // If redirecting to dashboard from main domain, check if we should redirect to tenant subdomain
+          if (
+            urlObj.pathname === "/dashboard" &&
+            (baseUrlObj.hostname === "www.coffeelogica.com" ||
+              baseUrlObj.hostname === "coffeelogica.com")
+          ) {
+            // We need to get the user's tenant subdomain from the token
+            // This is tricky in the redirect callback, so we'll handle it in the signin page instead
+            console.log(
+              "🏢 AUTH REDIRECT: Dashboard redirect from main domain"
+            );
+          }
+
+          // Default redirect behavior
           if (url.startsWith("/")) return `${baseUrl}${url}`;
           else if (new URL(url).origin === baseUrl) return url;
           return baseUrl;
