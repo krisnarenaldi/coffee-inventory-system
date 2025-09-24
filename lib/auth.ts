@@ -814,11 +814,12 @@ export const canManageInventory = (userRole: UserRole): boolean => {
     "MANAGER",
     "BREWMASTER",
     "WAREHOUSE_STAFF",
+    "STAFF",
   ]);
 };
 
 export const canManageProducts = (userRole: UserRole): boolean => {
-  return hasRole(userRole, ["ADMIN", "MANAGER", "BREWMASTER"]);
+  return hasRole(userRole, ["ADMIN", "MANAGER", "BREWMASTER", "STAFF"]);
 };
 
 export const canManagePackagingTypes = (userRole: UserRole): boolean => {
