@@ -527,7 +527,7 @@ export default function ProductsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Lot Number
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                   Actions
                 </th>
               </tr>
@@ -604,7 +604,7 @@ export default function ProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {product.lotNumber || "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium min-w-[120px]">
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => {
