@@ -63,6 +63,24 @@ function SignInForm() {
     }
   }, []);
 
+  // Handle email pre-fill from main domain redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get("email");
+    const fromMain = urlParams.get("from");
+
+    if (emailParam && fromMain === "main") {
+      console.log("📧 SIGNIN: Pre-filling email from main domain redirect");
+      setEmail(emailParam);
+      // Show a helpful message
+      setError(
+        <div className="text-blue-600">
+          Please enter your password to access your tenant dashboard.
+        </div>
+      );
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { SignJWT } from "jose";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,30 +18,15 @@ export async function GET(request: NextRequest) {
     const tenantSubdomain = token.tenant.subdomain;
     console.log("🔄 TENANT REDIRECT: Redirecting to tenant:", tenantSubdomain);
 
-    // Create the tenant URL
-    const tenantUrl = `https://${tenantSubdomain}.coffeelogica.com/dashboard`;
-    
-    // Create a response that redirects to the tenant subdomain
-    const response = NextResponse.redirect(tenantUrl);
-    
-    // Copy session cookies to the new domain
-    const sessionCookie = request.cookies.get("next-auth.session-token") || 
-                         request.cookies.get("__Secure-next-auth.session-token");
-    
-    if (sessionCookie) {
-      // Set the session cookie for the tenant subdomain
-      response.cookies.set({
-        name: sessionCookie.name,
-        value: sessionCookie.value,
-        domain: ".coffeelogica.com", // Allow cookie to work across subdomains
-        path: "/",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      });
-    }
+    // Simply redirect to tenant subdomain signin with email pre-filled
+    // User will need to enter password again for security
+    const tenantUrl = `https://${tenantSubdomain}.coffeelogica.com/auth/signin?email=${encodeURIComponent(
+      token.email || ""
+    )}&from=main`;
 
-    return response;
+    console.log("🔐 TENANT REDIRECT: Created secure redirect token");
+
+    return NextResponse.redirect(tenantUrl);
   } catch (error) {
     console.error("❌ TENANT REDIRECT: Error:", error);
     return NextResponse.redirect(new URL("/auth/signin", request.url));

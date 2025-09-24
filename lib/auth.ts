@@ -511,11 +511,8 @@ export const getAuthOptions = (): NextAuthOptions => {
           sameSite: "lax",
           path: "/",
           secure: process.env.NODE_ENV === "production",
-          // Set domain to work across subdomains
-          domain:
-            process.env.NODE_ENV === "production"
-              ? ".coffeelogica.com"
-              : undefined,
+          // Remove domain setting for better security - each subdomain gets its own cookies
+          // domain: undefined, // Each subdomain will have isolated cookies
         },
       },
       callbackUrl: {
@@ -528,11 +525,8 @@ export const getAuthOptions = (): NextAuthOptions => {
           sameSite: "lax",
           path: "/",
           secure: process.env.NODE_ENV === "production",
-          // Set domain to work across subdomains
-          domain:
-            process.env.NODE_ENV === "production"
-              ? ".coffeelogica.com"
-              : undefined,
+          // Remove domain setting for better security - each subdomain gets its own cookies
+          // domain: undefined, // Each subdomain will have isolated cookies
         },
       },
       csrfToken: {
