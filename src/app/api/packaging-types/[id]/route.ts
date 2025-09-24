@@ -119,6 +119,15 @@ export async function PUT(
         tenantId: session.user.tenantId,
       },
       data: validatedData,
+      // Return the updated object for optimized client-side updates
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     return NextResponse.json(updatedPackagingType);

@@ -86,7 +86,13 @@ export default function PackagingTypesPage() {
     try {
       setLoading(true);
       const url = showInactive ? "/api/packaging-types?includeInactive=true" : "/api/packaging-types";
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        // Add cache control for better performance
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch packaging types");
       }
@@ -104,9 +110,21 @@ export default function PackagingTypesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setFormErrors({});
     setError("");
     setSuccess("");
+    setFormErrors({});
+
+    // Client-side validation
+    const errors: { [key: string]: string } = {};
+    if (!formData.name.trim()) {
+      errors.name = "Name is required";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const url = editingPackagingType
@@ -124,28 +142,27 @@ export default function PackagingTypesPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 400 && errorData.details) {
-          const errors: Record<string, string> = {};
-          errorData.details.forEach((detail: any) => {
-            if (detail.path) {
-              errors[detail.path[0]] = detail.message;
-            }
-          });
-          setFormErrors(errors);
-        } else {
-          throw new Error(errorData.error || "Failed to save packaging type");
-        }
-        return;
+        throw new Error(errorData.error || "Failed to save packaging type");
       }
 
-      await fetchPackagingTypes();
+      // Optimized: Only fetch if we're not editing or if we need to refresh the list
+      if (!editingPackagingType || showInactive) {
+        await fetchPackagingTypes();
+      } else {
+        // For edits, update the local state directly for better performance
+        const updatedPackagingType = await response.json();
+        setPackagingTypes(prev => 
+          prev.map(pt => pt.id === updatedPackagingType.id ? updatedPackagingType : pt)
+        );
+      }
+
       setSuccess(
         editingPackagingType
           ? "Packaging type updated successfully!"
           : "Packaging type created successfully!"
       );
 
-      // Reset form without clearing success message
+      // Reset form
       setFormData({
         name: "",
         description: "",

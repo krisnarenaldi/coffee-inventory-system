@@ -12,14 +12,7 @@ export const prisma =
       db: {
         url:
           process.env.DATABASE_URL +
-          "?pgbouncer=true&connection_limit=10&pool_timeout=20&connect_timeout=10",
-      },
-    },
-    // Add connection pool configuration
-    __internal: {
-      engine: {
-        connectTimeout: 10000, // 10 seconds
-        queryTimeout: 30000, // 30 seconds
+          "?pgbouncer=true&connection_limit=20&pool_timeout=10&connect_timeout=5&statement_cache_size=100",
       },
     },
   });

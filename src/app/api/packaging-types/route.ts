@@ -103,6 +103,15 @@ export async function POST(request: NextRequest) {
         description: validatedData.description || null,
         isActive: validatedData.isActive,
       },
+      // Return the created object for optimized client-side updates
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     return NextResponse.json(packagingType, { status: 201 });
