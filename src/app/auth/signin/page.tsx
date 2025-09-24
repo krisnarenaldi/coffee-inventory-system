@@ -83,10 +83,10 @@ function SignInForm() {
       ) {
         detectedSubdomain = currentParts[0];
         if (detectedSubdomain === "www" || detectedSubdomain === "admin") {
-          detectedSubdomain = "demo"; // Only use demo as fallback for www/admin
+          detectedSubdomain = ""; // Empty string for main domain - let auth system find user's tenant
         }
       } else if (!detectedSubdomain) {
-        detectedSubdomain = "demo"; // Final fallback
+        detectedSubdomain = ""; // Empty string - let auth system find user's tenant
       }
 
       console.log("🔐 SIGNIN: Attempting login with:", {

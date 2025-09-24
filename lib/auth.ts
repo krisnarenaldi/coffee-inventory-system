@@ -75,13 +75,13 @@ export const getAuthOptions = (): NextAuthOptions => {
         async authorize(credentials, req) {
           try {
             // Only log in development for debugging
-            if (process.env.NODE_ENV === "development") {
-              console.log("🔐 AUTH: Credentials received:", {
-                email: credentials?.email,
-                hasPassword: !!credentials?.password,
-                tenantSubdomain: credentials?.tenantSubdomain,
-              });
-            }
+            // Always log authentication attempts for debugging
+            console.log("🔐 AUTH: Credentials received:", {
+              email: credentials?.email,
+              hasPassword: !!credentials?.password,
+              tenantSubdomain: credentials?.tenantSubdomain,
+              timestamp: new Date().toISOString(),
+            });
 
             if (!credentials?.email || !credentials?.password) {
               if (process.env.NODE_ENV === "development") {
@@ -101,12 +101,11 @@ export const getAuthOptions = (): NextAuthOptions => {
             let tenantId: string | undefined;
             let userTenant: any = null;
 
-            if (process.env.NODE_ENV === "development") {
-              console.log(
-                "🔐 AUTH: Processing tenant subdomain:",
-                tenantSubdomain
-              );
-            }
+            console.log(
+              "🔐 AUTH: Processing tenant subdomain:",
+              `"${tenantSubdomain}"`,
+              `(original: "${credentials.tenantSubdomain}")`
+            );
 
             // If we have a tenant subdomain, find the tenant
             if (
@@ -140,6 +139,9 @@ export const getAuthOptions = (): NextAuthOptions => {
               );
               // For main domain (including www), lookup tenant by email before password verification
               try {
+                console.log(
+                  `🔍 AUTH: Searching for user with email: ${credentials.email}`
+                );
                 const userWithTenant = await prisma.user.findFirst({
                   where: {
                     email: credentials.email,
@@ -150,6 +152,28 @@ export const getAuthOptions = (): NextAuthOptions => {
                   },
                 });
 
+                console.log(
+                  `👤 AUTH: User lookup result:`,
+                  userWithTenant
+                    ? {
+                        id: userWithTenant.id,
+                        email: userWithTenant.email,
+                        name: userWithTenant.name,
+                        isActive: userWithTenant.isActive,
+                        tenantId: userWithTenant.tenantId,
+                        hasPassword: !!userWithTenant.password,
+                        tenant: userWithTenant.tenant
+                          ? {
+                              id: userWithTenant.tenant.id,
+                              name: userWithTenant.tenant.name,
+                              subdomain: userWithTenant.tenant.subdomain,
+                              status: userWithTenant.tenant.status,
+                            }
+                          : null,
+                      }
+                    : "Not found"
+                );
+
                 if (userWithTenant && userWithTenant.tenant) {
                   tenantId = userWithTenant.tenantId;
                   userTenant = userWithTenant.tenant;
@@ -158,19 +182,9 @@ export const getAuthOptions = (): NextAuthOptions => {
                   );
                 } else {
                   console.log(
-                    "🔍 AUTH: No tenant found for user on main domain, setting default to demo"
+                    "❌ AUTH: No user found or user has no tenant - authentication will fail"
                   );
-                  // Set default subdomain to "demo" if query result is empty/null
-                  const demoTenant = await prisma.tenant.findUnique({
-                    where: { subdomain: "demo" },
-                  });
-                  if (demoTenant) {
-                    tenantId = demoTenant.id;
-                    userTenant = demoTenant;
-                    console.log(
-                      `🏢 AUTH: Using default demo tenant for main domain: ${demoTenant.name} (${demoTenant.id})`
-                    );
-                  }
+                  return null; // Don't fallback to demo, just fail
                 }
               } catch (dbError) {
                 console.error(
