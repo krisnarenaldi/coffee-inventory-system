@@ -71,10 +71,8 @@ function CheckoutContent() {
   useEffect(() => {
     // Load Midtrans Snap script
     const script = document.createElement("script");
-    script.src =
-      process.env.NODE_ENV === "production"
-        ? "https://app.midtrans.com/snap/snap.js"
-        : "https://app.sandbox.midtrans.com/snap/snap.js";
+    // Force sandbox mode for testing (even in production environment)
+    script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
     script.setAttribute(
       "data-client-key",
       process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""

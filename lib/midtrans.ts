@@ -2,14 +2,14 @@ import { CoreApi, Snap } from 'midtrans-client';
 
 // Initialize Midtrans Core API
 const coreApi = new CoreApi({
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction: false, // Use sandbox for testing
   serverKey: process.env.MIDTRANS_SERVER_KEY!,
   clientKey: process.env.MIDTRANS_CLIENT_KEY!,
 });
 
 // Initialize Midtrans Snap
 const snap = new Snap({
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction: false, // Use sandbox for testing
   serverKey: process.env.MIDTRANS_SERVER_KEY!,
   clientKey: process.env.MIDTRANS_CLIENT_KEY!,
 });
@@ -96,11 +96,28 @@ export async function createSnapToken(parameter: MidtransParameter): Promise<str
  */
 export async function getTransactionStatus(orderId: string) {
   try {
-    const statusResponse = await coreApi.transaction.status(orderId);
-    return statusResponse;
+    // Use direct HTTP request since TypeScript definitions are incomplete
+    const serverKey = process.env.MIDTRANS_SERVER_KEY!;
+    const auth = Buffer.from(serverKey + ':').toString('base64');
+    const baseUrl = false ? 'https://api.midtrans.com' : 'https://api.sandbox.midtrans.com'; // Using sandbox
+    
+    const response = await fetch(`${baseUrl}/v2/${orderId}/status`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${auth}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error getting transaction status:', error);
-    throw new Error('Failed to get transaction status');
+    throw error;
   }
 }
 
