@@ -1,21 +1,27 @@
-'use client';
+"use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { CheckCircle, CreditCard, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { CheckCircle, CreditCard, Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface SubscriptionPlan {
   id: string;
   name: string;
   description: string;
   price: number;
-  interval: 'MONTHLY' | 'YEARLY';
+  interval: "MONTHLY" | "YEARLY";
   features: string[];
 }
 
@@ -39,23 +45,23 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-  
+
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
-  
-  const planId = searchParams.get('plan');
-  const billingCycle = searchParams.get('cycle') || 'monthly';
+
+  const planId = searchParams.get("plan");
+  const billingCycle = searchParams.get("cycle") || "monthly";
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
       return;
     }
 
     if (!planId) {
-      router.push('/pricing');
+      router.push("/pricing");
       return;
     }
 
@@ -64,11 +70,15 @@ function CheckoutContent() {
 
   useEffect(() => {
     // Load Midtrans Snap script
-    const script = document.createElement('script');
-    script.src = process.env.NODE_ENV === 'production' 
-      ? 'https://app.midtrans.com/snap/snap.js' 
-      : 'https://app.sandbox.midtrans.com/snap/snap.js';
-    script.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '');
+    const script = document.createElement("script");
+    script.src =
+      process.env.NODE_ENV === "production"
+        ? "https://app.midtrans.com/snap/snap.js"
+        : "https://app.sandbox.midtrans.com/snap/snap.js";
+    script.setAttribute(
+      "data-client-key",
+      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""
+    );
     document.head.appendChild(script);
 
     return () => {
@@ -79,29 +89,31 @@ function CheckoutContent() {
   const fetchPlan = async () => {
     try {
       const response = await fetch(`/api/subscription/plans`);
-      if (!response.ok) throw new Error('Failed to fetch plans');
-      
+      if (!response.ok) throw new Error("Failed to fetch plans");
+
       const plans = await response.json();
-      
+
       // Try to find plan by exact ID first
       let selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planId);
-      
+
       // If not found and planId doesn't end with '-plan', try adding '-plan' suffix
-      if (!selectedPlan && planId && !planId.endsWith('-plan')) {
+      if (!selectedPlan && planId && !planId.endsWith("-plan")) {
         const planIdWithSuffix = `${planId}-plan`;
-        selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planIdWithSuffix);
+        selectedPlan = plans.find(
+          (p: SubscriptionPlan) => p.id === planIdWithSuffix
+        );
       }
-      
+
       if (!selectedPlan) {
-        toast.error('Subscription plan not found');
-        router.push('/pricing');
+        toast.error("Subscription plan not found");
+        router.push("/pricing");
         return;
       }
 
       setPlan(selectedPlan);
     } catch (error) {
-      console.error('Error fetching plan:', error);
-      toast.error('Failed to load subscription plan');
+      console.error("Error fetching plan:", error);
+      toast.error("Failed to load subscription plan");
     } finally {
       setLoading(false);
     }
@@ -109,18 +121,18 @@ function CheckoutContent() {
 
   const revertToFreePlan = async () => {
     try {
-      const response = await fetch('/api/subscription/revert-to-free', {
-        method: 'POST',
+      const response = await fetch("/api/subscription/revert-to-free", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        console.error('Failed to revert to free plan');
+        console.error("Failed to revert to free plan");
       }
     } catch (error) {
-      console.error('Error reverting to free plan:', error);
+      console.error("Error reverting to free plan:", error);
     }
   };
 
@@ -129,10 +141,10 @@ function CheckoutContent() {
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/checkout/create-token', {
-        method: 'POST',
+      const response = await fetch("/api/checkout/create-token", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           planId: plan.id,
@@ -142,7 +154,7 @@ function CheckoutContent() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to create payment token');
+        throw new Error(error.error || "Failed to create payment token");
       }
 
       const data: CheckoutData = await response.json();
@@ -151,31 +163,30 @@ function CheckoutContent() {
       // Open Midtrans Snap payment popup
       window.snap.pay(data.snapToken, {
         onSuccess: (result: any) => {
-          console.log('Payment success:', result);
-          toast.success('Payment successful!');
+          console.log("Payment success:", result);
+          toast.success("Payment successful!");
           router.push(`/checkout/success?order_id=${data.orderId}`);
         },
         onPending: (result: any) => {
-          console.log('Payment pending:', result);
-          toast.info('Payment is being processed...');
+          console.log("Payment pending:", result);
+          toast.info("Payment is being processed...");
           router.push(`/checkout/pending?order_id=${data.orderId}`);
         },
         onError: (result: any) => {
-          console.error('Payment error:', result);
-          toast.error('Payment failed. Please try again.');
+          console.error("Payment error:", result);
+          toast.error("Payment failed. Please try again.");
           router.push(`/checkout/error?order_id=${data.orderId}`);
         },
         onClose: () => {
-          console.log('Payment popup closed');
-          toast.info('Payment cancelled');
+          console.log("Payment popup closed");
+          toast.info("Payment cancelled");
           // When user abandons checkout, revert to free plan
           revertToFreePlan();
         },
       });
-
     } catch (error) {
-      console.error('Error creating payment:', error);
-      toast.error(error instanceof Error ? error.message : 'Payment failed');
+      console.error("Error creating payment:", error);
+      toast.error(error instanceof Error ? error.message : "Payment failed");
     } finally {
       setProcessing(false);
     }
@@ -197,8 +208,10 @@ function CheckoutContent() {
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Plan Not Found</h2>
-              <p className="text-gray-600 mb-4">The selected subscription plan could not be found.</p>
-              <Button onClick={() => router.push('/pricing')}>
+              <p className="text-gray-600 mb-4">
+                The selected subscription plan could not be found.
+              </p>
+              <Button onClick={() => router.push("/pricing")}>
                 Back to Pricing
               </Button>
             </div>
@@ -208,16 +221,20 @@ function CheckoutContent() {
     );
   }
 
-  const isYearly = billingCycle === 'yearly';
+  const isYearly = billingCycle === "yearly";
   const displayPrice = plan.price;
-  const billingText = isYearly ? 'per year' : 'per month';
+  const billingText = isYearly ? "per year" : "per month";
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Complete Your Subscription</h1>
-          <p className="text-gray-600 mt-2">Review your order and proceed with payment</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Complete Your Subscription
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Review your order and proceed with payment
+          </p>
         </div>
 
         <div className="space-y-6">
@@ -235,12 +252,12 @@ function CheckoutContent() {
                   <h3 className="font-semibold text-lg">{plan.name}</h3>
                   <p className="text-gray-600 text-sm">{plan.description}</p>
                   <Badge variant="outline" className="mt-2">
-                    {isYearly ? 'Yearly' : 'Monthly'} Billing
+                    {isYearly ? "Yearly" : "Monthly"} Billing
                   </Badge>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold">
-                    Rp {displayPrice.toLocaleString('id-ID')}
+                    Rp {displayPrice.toLocaleString("id-ID")}
                   </div>
                   <div className="text-sm text-gray-600">{billingText}</div>
                 </div>
@@ -264,7 +281,7 @@ function CheckoutContent() {
 
               <div className="flex justify-between items-center font-semibold text-lg">
                 <span>Total</span>
-                <span>Rp {displayPrice.toLocaleString('id-ID')}</span>
+                <span>Rp {displayPrice.toLocaleString("id-ID")}</span>
               </div>
             </CardContent>
           </Card>
@@ -285,17 +302,20 @@ function CheckoutContent() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium">Multiple Payment Options</span>
+                    <span className="font-medium">
+                      Multiple Payment Options
+                    </span>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Credit Card, Bank Transfer, E-Wallet, and more payment methods available
+                    Credit Card, Bank Transfer, E-Wallet, and more payment
+                    methods available
                   </p>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handlePayment}
                   disabled={processing}
-                  className="w-full"
+                  className="w-full cursor-pointer"
                   size="lg"
                 >
                   {processing ? (
@@ -306,24 +326,24 @@ function CheckoutContent() {
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
-                      Pay Rp {displayPrice.toLocaleString('id-ID')}
+                      Pay Rp {displayPrice.toLocaleString("id-ID")}
                     </>
                   )}
                 </Button>
 
                 <p className="text-xs text-gray-500 text-center">
-                  By proceeding, you agree to our Terms of Service and Privacy Policy.
-                  Your subscription will auto-renew unless cancelled.
+                  By proceeding, you agree to our Terms of Service and Privacy
+                  Policy. Your subscription will auto-renew unless cancelled.
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Back to Pricing */}
-          <div className="text-center">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push('/pricing')}
+          <div className="text-center cursor-pointer">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/pricing")}
               disabled={processing}
             >
               Back to Pricing
@@ -337,14 +357,16 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading checkout...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading checkout...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <CheckoutContent />
     </Suspense>
   );
