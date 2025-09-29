@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://app.sandbox.midtrans.com https://app.midtrans.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google-analytics.com; font-src 'self'; connect-src 'self' https: https://www.google-analytics.com https://analytics.google.com https://api.sandbox.midtrans.com https://api.midtrans.com; frame-ancestors 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://app.sandbox.midtrans.com https://app.midtrans.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google-analytics.com; font-src 'self'; connect-src 'self' https: https://www.google-analytics.com https://analytics.google.com https://api.sandbox.midtrans.com https://api.midtrans.com; frame-src 'self' https://app.sandbox.midtrans.com https://app.midtrans.com; frame-ancestors 'self';",
           },
         ],
       },
