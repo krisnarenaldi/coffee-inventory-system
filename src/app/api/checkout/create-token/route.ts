@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Determine origin (current subdomain) for callbacks, fallback to NEXTAUTH_URL
+    const origin = request.nextUrl.origin || process.env.NEXTAUTH_URL || '';
+
     // Prepare Midtrans parameters
     const midtransParams: MidtransParameter = {
       transaction_details: {
@@ -93,9 +96,9 @@ export async function POST(request: NextRequest) {
         secure: true,
       },
       callbacks: {
-        finish: `${process.env.NEXTAUTH_URL}/checkout/success?order_id=${orderId}`,
-        error: `${process.env.NEXTAUTH_URL}/checkout/error?order_id=${orderId}`,
-        pending: `${process.env.NEXTAUTH_URL}/checkout/pending?order_id=${orderId}`,
+        finish: `${origin}/checkout/success?order_id=${orderId}`,
+        error: `${origin}/checkout/error?order_id=${orderId}`,
+        pending: `${origin}/checkout/pending?order_id=${orderId}`,
       },
       expiry: {
         start_time: new Date().toISOString(),

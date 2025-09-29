@@ -71,12 +71,15 @@ function CheckoutContent() {
   useEffect(() => {
     // Load Midtrans Snap script
     const script = document.createElement("script");
-    // Force sandbox mode for testing (even in production environment)
-    script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-    script.setAttribute(
-      "data-client-key",
-      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""
-    );
+    const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
+    const inferredProd = clientKey ? !clientKey.startsWith("SB-") : false;
+    const isProd = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
+      ? process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true"
+      : inferredProd;
+    script.src = isProd
+      ? "https://app.midtrans.com/snap/snap.js"
+      : "https://app.sandbox.midtrans.com/snap/snap.js";
+    script.setAttribute("data-client-key", clientKey);
     document.head.appendChild(script);
 
     return () => {

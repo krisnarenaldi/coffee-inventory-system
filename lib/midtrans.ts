@@ -1,17 +1,28 @@
 import { CoreApi, Snap } from 'midtrans-client';
 
 // Initialize Midtrans Core API
+const serverKey = process.env.MIDTRANS_SERVER_KEY!;
+const clientKey = process.env.MIDTRANS_CLIENT_KEY!;
+
+// Determine environment:
+// Priority 1: explicit flag MIDTRANS_IS_PRODUCTION === 'true'
+// Fallback: infer from key prefixes (Sandbox keys usually start with 'SB-')
+const inferredIsProd = serverKey ? !serverKey.startsWith('SB-') : false;
+const isProduction = process.env.MIDTRANS_IS_PRODUCTION
+  ? process.env.MIDTRANS_IS_PRODUCTION === 'true'
+  : inferredIsProd;
+
 const coreApi = new CoreApi({
-  isProduction: false, // Use sandbox for testing
-  serverKey: process.env.MIDTRANS_SERVER_KEY!,
-  clientKey: process.env.MIDTRANS_CLIENT_KEY!,
+  isProduction,
+  serverKey,
+  clientKey,
 });
 
 // Initialize Midtrans Snap
 const snap = new Snap({
-  isProduction: false, // Use sandbox for testing
-  serverKey: process.env.MIDTRANS_SERVER_KEY!,
-  clientKey: process.env.MIDTRANS_CLIENT_KEY!,
+  isProduction,
+  serverKey,
+  clientKey,
 });
 
 export interface MidtransTransactionDetails {
@@ -99,7 +110,7 @@ export async function getTransactionStatus(orderId: string) {
     // Use direct HTTP request since TypeScript definitions are incomplete
     const serverKey = process.env.MIDTRANS_SERVER_KEY!;
     const auth = Buffer.from(serverKey + ':').toString('base64');
-    const baseUrl = false ? 'https://api.midtrans.com' : 'https://api.sandbox.midtrans.com'; // Using sandbox
+    const baseUrl = isProduction ? 'https://api.midtrans.com' : 'https://api.sandbox.midtrans.com';
     
     const response = await fetch(`${baseUrl}/v2/${orderId}/status`, {
       method: 'GET',
