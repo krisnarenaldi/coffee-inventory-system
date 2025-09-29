@@ -133,8 +133,10 @@ function SignUpContent() {
       // Handle different plan flows
       if (data.requiresCheckout) {
         // For paid plans, redirect to checkout page
+        // Convert plan name to plan ID format (e.g., "starter" -> "starter-plan")
+        const planId = selectedPlan ? `${selectedPlan}-plan` : 'starter-plan';
         setTimeout(() => {
-          router.push(`/checkout?plan=${selectedPlan}`);
+          router.push(`/checkout?plan=${planId}&cycle=monthly`);
         }, 2000);
       } else {
         // For free plan, redirect to sign-in page

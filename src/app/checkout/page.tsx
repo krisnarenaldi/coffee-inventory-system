@@ -82,7 +82,15 @@ function CheckoutContent() {
       if (!response.ok) throw new Error('Failed to fetch plans');
       
       const plans = await response.json();
-      const selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planId);
+      
+      // Try to find plan by exact ID first
+      let selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planId);
+      
+      // If not found and planId doesn't end with '-plan', try adding '-plan' suffix
+      if (!selectedPlan && planId && !planId.endsWith('-plan')) {
+        const planIdWithSuffix = `${planId}-plan`;
+        selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planIdWithSuffix);
+      }
       
       if (!selectedPlan) {
         toast.error('Subscription plan not found');
