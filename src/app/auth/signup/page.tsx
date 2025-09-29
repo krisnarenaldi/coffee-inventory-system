@@ -129,12 +129,21 @@ function SignUpContent() {
       }
 
       setSuccess(true);
-      // Redirect to sign-in page after successful registration
-      setTimeout(() => {
-        router.push(
-          "/auth/signin?message=Registration successful. Please sign in."
-        );
-      }, 2000);
+      
+      // Handle different plan flows
+      if (data.requiresCheckout) {
+        // For paid plans, redirect to checkout page
+        setTimeout(() => {
+          router.push(`/checkout?plan=${selectedPlan}`);
+        }, 2000);
+      } else {
+        // For free plan, redirect to sign-in page
+        setTimeout(() => {
+          router.push(
+            "/auth/signin?message=Registration successful. Please sign in."
+          );
+        }, 2000);
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Registration failed");
     } finally {

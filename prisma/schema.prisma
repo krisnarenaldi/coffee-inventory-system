@@ -30,6 +30,7 @@ model Tenant {
   subscription         Subscription?
   suppliers            Supplier[]
   settings             TenantSetting[]
+  transactions         Transaction[]
   usage                Usage[]
   users                User[]
 
@@ -66,6 +67,7 @@ model SubscriptionPlan {
   maxProducts         Int?            @map("maxproducts")
   maxRecipes          Int?            @map("maxrecipes")
   subscriptions       Subscription[]
+  transactions        Transaction[]
 
   @@map("subscription_plans")
 }
@@ -78,8 +80,9 @@ model Subscription {
   stripeSubscriptionId String?            @map("stripesubscriptionid")
   status               SubscriptionStatus
   currentPeriodStart   DateTime           @map("currentperiodstart")
-  currentPeriodEnd     DateTime           @map("currentperiodend")
+  currentPeriodEnd     DateTime?          @map("currentperiodend")
   cancelAtPeriodEnd    Boolean            @default(false) @map("cancelatperiodend")
+  intendedPlan         String?            @map("intendedplan")
   createdAt            DateTime           @default(now()) @map("createdat")
   updatedAt            DateTime           @updatedAt @map("updatedat")
   plan                 SubscriptionPlan   @relation(fields: [planId], references: [id])
@@ -87,6 +90,30 @@ model Subscription {
 
   @@index([planId], map: "subscriptions_planId_idx")
   @@map("subscriptions")
+}
+
+model Transaction {
+  id                 String            @id @default(cuid())
+  userId             String            @map("userid")
+  tenantId           String            @map("tenantid")
+  subscriptionPlanId String            @map("subscriptionplanid")
+  amount             Decimal
+  currency           String            @default("IDR")
+  billingCycle       String            @map("billingcycle")
+  status             TransactionStatus @default(PENDING)
+  paymentMethod      String            @map("paymentmethod")
+  paymentGatewayId   String?           @map("paymentgatewayid")
+  metadata           Json?
+  createdAt          DateTime          @default(now()) @map("createdat")
+  updatedAt          DateTime          @updatedAt @map("updatedat")
+  user               User              @relation(fields: [userId], references: [id])
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscriptionPlan   SubscriptionPlan  @relation(fields: [subscriptionPlanId], references: [id])
+
+  @@index([userId], map: "transactions_userId_idx")
+  @@index([tenantId], map: "transactions_tenantId_idx")
+  @@index([subscriptionPlanId], map: "transactions_subscriptionPlanId_idx")
+  @@map("transactions")
 }
 
 model Usage {
@@ -121,6 +148,7 @@ model User {
   inventoryAdjustments InventoryAdjustment[]
   sessions             Session[]
   shipmentsReceived    Shipment[]
+  transactions         Transaction[]
   userRoles            UserRoleAssignment[]
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -575,6 +603,16 @@ enum SubscriptionStatus {
   INCOMPLETE_EXPIRED
   TRIALING
   UNPAID
+  PENDING_CHECKOUT
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
 }
 
 enum UserRole {

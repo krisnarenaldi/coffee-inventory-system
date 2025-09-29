@@ -96,7 +96,7 @@ export default function RecipesPage() {
   // Add Escape key listener for modals
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (showDeleteModal) {
           setShowDeleteModal(false);
           setDeleteRecipeData(null);
@@ -110,9 +110,9 @@ export default function RecipesPage() {
       }
     };
 
-    document.addEventListener('keydown', handleEscapeKey);
+    document.addEventListener("keydown", handleEscapeKey);
     return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [showDeleteModal, showForm]);
 
@@ -248,7 +248,9 @@ export default function RecipesPage() {
       } else {
         const errorData = await response.json();
         if (response.status === 403) {
-          setError("Recipe limit reached. You have reached the maximum number of recipes allowed for your subscription plan.");
+          setError(
+            "Recipe limit reached. You have reached the maximum number of recipes allowed for your subscription plan."
+          );
         } else if (errorData.details) {
           const errorMessages = errorData.details
             .map((detail: any) => detail.message)
@@ -590,7 +592,7 @@ export default function RecipesPage() {
                       {recipe.style || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {recipe.expectedYield} L
+                      {recipe.expectedYield} kg
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {recipe.ingredients.length} ingredients
@@ -689,14 +691,14 @@ export default function RecipesPage() {
                     ? "Edit Roast Profile"
                     : "Add New Roast Profile"}
                 </h3>
-                
+
                 {/* Error Message in Modal */}
                 {error && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
                     {error}
                   </div>
                 )}
-                
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>

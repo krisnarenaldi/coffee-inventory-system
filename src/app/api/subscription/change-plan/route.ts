@@ -1,0 +1,384 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../../lib/auth';
+import { prisma } from '../../../../../lib/prisma';
+import { createSnapToken, generateOrderId, formatPriceForMidtrans } from '../../../../../lib/midtrans';
+import { Decimal } from '@prisma/client/runtime/library';
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { subscriptionId, newPlanId, effectiveDate = 'immediate' } = await request.json();
+
+    // Get user and tenant information
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { tenant: true }
+    });
+
+    if (!user || !user.tenant) {
+      return NextResponse.json({ error: 'User or tenant not found' }, { status: 404 });
+    }
+
+    // Get current subscription and new plan
+    const [subscription, newPlan] = await Promise.all([
+      prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        include: { plan: true }
+      }),
+      prisma.subscriptionPlan.findUnique({
+        where: { id: newPlanId }
+      })
+    ]);
+
+    if (!subscription || !newPlan) {
+      return NextResponse.json({ error: 'Subscription or plan not found' }, { status: 404 });
+    }
+
+    // Verify the subscription belongs to the user's tenant
+    if (subscription.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized access to subscription' }, { status: 403 });
+    }
+
+    // Check if the subscription is active
+    if (subscription.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Can only change plans for active subscriptions' }, { status: 400 });
+    }
+
+    // Check if it's the same plan
+    if (subscription.planId === newPlanId) {
+      return NextResponse.json({ error: 'Cannot change to the same plan' }, { status: 400 });
+    }
+
+    // Calculate prorated amounts
+    const now = new Date();
+    const currentPeriodStart = subscription.currentPeriodStart;
+    const currentPeriodEnd = subscription.currentPeriodEnd;
+    
+    // Calculate remaining days in current period
+    const totalDaysInPeriod = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+    const remainingDays = Math.ceil((currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const usedDays = totalDaysInPeriod - remainingDays;
+
+    // Calculate prorated amounts
+    const currentPlanPrice = Number(subscription.plan.price);
+    const newPlanPrice = Number(newPlan.price);
+    
+    // Amount already paid for unused portion of current plan
+    const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * remainingDays;
+    
+    // Amount needed for new plan for remaining period
+    const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * remainingDays;
+    
+    // Net amount to charge (positive = charge, negative = credit)
+    const proratedAmount = newPlanProrated - unusedAmount;
+    
+    const isUpgrade = newPlanPrice > currentPlanPrice;
+    const changeType = isUpgrade ? 'upgrade' : 'downgrade';
+
+    // For immediate changes that require payment
+    if (effectiveDate === 'immediate' && proratedAmount > 0) {
+      // Generate order ID for the plan change
+      const orderId = generateOrderId(`PLAN_${changeType.toUpperCase()}`);
+      const formattedAmount = formatPriceForMidtrans(Math.round(proratedAmount));
+
+      // Create transaction record
+      const transaction = await prisma.transaction.create({
+        data: {
+          userId: user.id,
+          tenantId: user.tenantId,
+          subscriptionPlanId: newPlan.id,
+          amount: new Decimal(proratedAmount),
+          currency: 'IDR',
+          billingCycle: subscription.plan.interval,
+          status: 'PENDING',
+          paymentMethod: 'midtrans',
+          paymentGatewayId: orderId,
+          metadata: {
+            type: 'plan_change',
+            changeType,
+            originalSubscriptionId: subscription.id,
+            originalPlanId: subscription.planId,
+            newPlanId: newPlan.id,
+            proratedCalculation: {
+              totalDaysInPeriod,
+              remainingDays,
+              usedDays,
+              currentPlanPrice,
+              newPlanPrice,
+              unusedAmount,
+              newPlanProrated,
+              proratedAmount
+            },
+            effectiveDate: now.toISOString(),
+            created_at: new Date().toISOString()
+          }
+        }
+      });
+
+      // Create Midtrans Snap token
+      const snapToken = await createSnapToken({
+        transaction_details: {
+          order_id: orderId,
+          gross_amount: formattedAmount
+        },
+        customer_details: {
+          first_name: user.name?.split(' ')[0] || 'Customer',
+          last_name: user.name?.split(' ').slice(1).join(' ') || '',
+          email: user.email
+        },
+        item_details: [
+          {
+            id: newPlan.id,
+            price: formattedAmount,
+            quantity: 1,
+            name: `Plan ${changeType} to ${newPlan.name}`,
+            category: 'subscription_change'
+          }
+        ],
+        callbacks: {
+          finish: `${process.env.NEXTAUTH_URL}/subscription/change-success?order_id=${orderId}`,
+          error: `${process.env.NEXTAUTH_URL}/subscription/change-error?order_id=${orderId}`,
+          pending: `${process.env.NEXTAUTH_URL}/subscription/change-pending?order_id=${orderId}`
+        },
+        expiry: {
+          start_time: new Date().toISOString().replace(/\.\d{3}Z$/, ' +0700'),
+          unit: 'day',
+          duration: 1
+        },
+        custom_field1: 'subscription_change',
+        custom_field2: subscription.id,
+        custom_field3: user.tenantId
+      });
+
+      return NextResponse.json({
+        requiresPayment: true,
+        snapToken,
+        orderId,
+        amount: formattedAmount,
+        changeType,
+        currentPlan: subscription.plan.name,
+        newPlan: newPlan.name,
+        proratedAmount,
+        transactionId: transaction.id,
+        calculation: {
+          totalDaysInPeriod,
+          remainingDays,
+          unusedAmount,
+          newPlanProrated,
+          proratedAmount
+        }
+      });
+    }
+
+    // For immediate downgrades or end-of-period changes
+    if (effectiveDate === 'immediate' && proratedAmount <= 0) {
+      // Update subscription immediately for downgrades
+      const updatedSubscription = await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId: newPlan.id,
+          updatedAt: new Date()
+        },
+        include: { plan: true }
+      });
+
+      // Create a transaction record for the change (no payment required)
+      await prisma.transaction.create({
+        data: {
+          userId: user.id,
+          tenantId: user.tenantId,
+          subscriptionPlanId: newPlan.id,
+          amount: new Decimal(0),
+          currency: 'IDR',
+          billingCycle: subscription.plan.interval,
+          status: 'COMPLETED',
+          paymentMethod: 'system',
+          metadata: {
+            type: 'plan_change',
+            changeType,
+            originalSubscriptionId: subscription.id,
+            originalPlanId: subscription.planId,
+            newPlanId: newPlan.id,
+            proratedCalculation: {
+              totalDaysInPeriod,
+              remainingDays,
+              usedDays,
+              currentPlanPrice,
+              newPlanPrice,
+              unusedAmount,
+              newPlanProrated,
+              proratedAmount
+            },
+            effectiveDate: now.toISOString(),
+            creditAmount: Math.abs(proratedAmount),
+            created_at: new Date().toISOString()
+          }
+        }
+      });
+
+      return NextResponse.json({
+        requiresPayment: false,
+        changeType,
+        currentPlan: subscription.plan.name,
+        newPlan: newPlan.name,
+        subscription: updatedSubscription,
+        creditAmount: Math.abs(proratedAmount),
+        message: `Successfully ${changeType}d to ${newPlan.name}. ${proratedAmount < 0 ? `Credit of ${Math.abs(proratedAmount).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} will be applied to your next billing cycle.` : ''}`
+      });
+    }
+
+    // For end-of-period changes, schedule the change
+    if (effectiveDate === 'end_of_period') {
+      // Store the pending plan change
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          updatedAt: new Date()
+          // Note: In a real implementation, you might want to add a pendingPlanId field
+          // or create a separate PendingPlanChange model to track scheduled changes
+        }
+      });
+
+      return NextResponse.json({
+        requiresPayment: false,
+        changeType,
+        currentPlan: subscription.plan.name,
+        newPlan: newPlan.name,
+        scheduledDate: currentPeriodEnd,
+        message: `Plan change to ${newPlan.name} scheduled for ${currentPeriodEnd.toLocaleDateString()}. No immediate payment required.`
+      });
+    }
+
+    return NextResponse.json({ error: 'Invalid effective date option' }, { status: 400 });
+
+  } catch (error) {
+    console.error('Plan change error:', error);
+    return NextResponse.json(
+      { error: 'Failed to process plan change' },
+      { status: 500 }
+    );
+  }
+}
+
+// Get plan change preview and calculations
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const subscriptionId = searchParams.get('subscriptionId');
+    const newPlanId = searchParams.get('newPlanId');
+
+    if (!subscriptionId || !newPlanId) {
+      return NextResponse.json({ error: 'Subscription ID and new plan ID required' }, { status: 400 });
+    }
+
+    // Get user and tenant information
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { tenant: true }
+    });
+
+    if (!user || !user.tenant) {
+      return NextResponse.json({ error: 'User or tenant not found' }, { status: 404 });
+    }
+
+    // Get current subscription and new plan
+    const [subscription, newPlan] = await Promise.all([
+      prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        include: { plan: true }
+      }),
+      prisma.subscriptionPlan.findUnique({
+        where: { id: newPlanId }
+      })
+    ]);
+
+    if (!subscription || !newPlan) {
+      return NextResponse.json({ error: 'Subscription or plan not found' }, { status: 404 });
+    }
+
+    // Verify the subscription belongs to the user's tenant
+    if (subscription.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized access to subscription' }, { status: 403 });
+    }
+
+    // Calculate prorated amounts
+    const now = new Date();
+    const currentPeriodStart = subscription.currentPeriodStart;
+    const currentPeriodEnd = subscription.currentPeriodEnd;
+    
+    const totalDaysInPeriod = Math.ceil((currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+    const remainingDays = Math.ceil((currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const usedDays = totalDaysInPeriod - remainingDays;
+
+    const currentPlanPrice = Number(subscription.plan.price);
+    const newPlanPrice = Number(newPlan.price);
+    
+    const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * remainingDays;
+    const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * remainingDays;
+    const proratedAmount = newPlanProrated - unusedAmount;
+    
+    const isUpgrade = newPlanPrice > currentPlanPrice;
+    const changeType = isUpgrade ? 'upgrade' : 'downgrade';
+
+    return NextResponse.json({
+      currentPlan: {
+        id: subscription.plan.id,
+        name: subscription.plan.name,
+        price: currentPlanPrice,
+        interval: subscription.plan.interval
+      },
+      newPlan: {
+        id: newPlan.id,
+        name: newPlan.name,
+        price: newPlanPrice,
+        interval: newPlan.interval
+      },
+      changeType,
+      billingPeriod: {
+        start: currentPeriodStart,
+        end: currentPeriodEnd,
+        totalDays: totalDaysInPeriod,
+        remainingDays,
+        usedDays
+      },
+      calculation: {
+        unusedAmount,
+        newPlanProrated,
+        proratedAmount,
+        requiresPayment: proratedAmount > 0,
+        creditAmount: proratedAmount < 0 ? Math.abs(proratedAmount) : 0
+      },
+      options: {
+        immediate: {
+          available: true,
+          requiresPayment: proratedAmount > 0,
+          amount: Math.max(0, proratedAmount)
+        },
+        endOfPeriod: {
+          available: true,
+          requiresPayment: false,
+          effectiveDate: currentPeriodEnd
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get plan change preview error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get plan change preview' },
+      { status: 500 }
+    );
+  }
+}

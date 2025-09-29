@@ -36,11 +36,13 @@ export async function GET(request: NextRequest) {
         {
           name: {
             contains: search,
+            mode: 'insensitive',
           },
         },
         {
           contactPerson: {
             contains: search,
+            mode: 'insensitive',
           },
         },
       ]

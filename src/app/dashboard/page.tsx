@@ -44,6 +44,10 @@ export default function Dashboard() {
     daysRemaining: number;
   } | null>(null);
   const [showWarningToast, setShowWarningToast] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<{
+    hasPendingCheckout: boolean;
+    intendedPlan?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -93,9 +97,10 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       // Parallel API calls for better performance
-      const [dashboardResponse, warningResponse] = await Promise.all([
+      const [dashboardResponse, warningResponse, checkoutResponse] = await Promise.all([
         fetch("/api/dashboard"),
         fetch("/api/subscription/warning").catch(() => null), // Don't fail if warning fails
+        fetch("/api/subscription/pending-checkout").catch(() => null), // Don't fail if checkout check fails
       ]);
 
       if (!dashboardResponse.ok) {
@@ -114,6 +119,12 @@ export default function Dashboard() {
         if (warningData.shouldWarn) {
           setShowWarningToast(true);
         }
+      }
+
+      // Handle pending checkout check if successful
+      if (checkoutResponse && checkoutResponse.ok) {
+        const checkoutData = await checkoutResponse.json();
+        setPendingCheckout(checkoutData);
       }
     } catch (error) {
       setError("Failed to load dashboard data");
@@ -155,6 +166,53 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={`Welcome back, ${session?.user?.name}`}
       />
+
+      {/* Pending Checkout Warning */}
+      {pendingCheckout?.hasPendingCheckout && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Complete Your Subscription
+                </h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>
+                    You have an incomplete checkout for the{" "}
+                    <span className="font-semibold capitalize">
+                      {pendingCheckout.intendedPlan}
+                    </span>{" "}
+                    plan. Complete your payment to activate your subscription.
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <div className="-mx-2 -my-1.5 flex">
+                    <Link
+                      href={`/checkout?plan=${pendingCheckout.intendedPlan}`}
+                      className="bg-yellow-50 px-2 py-1.5 rounded-md text-sm font-medium text-yellow-800 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-yellow-50 focus:ring-yellow-600"
+                    >
+                      Complete Payment
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-4">

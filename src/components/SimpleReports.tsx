@@ -465,7 +465,7 @@ export function SimpleReports({ onUpgradeClick }: SimpleReportsProps) {
             </div>
             <button
               onClick={onUpgradeClick}
-              className="px-6 py-3 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              className="px-6 py-3 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors cursor-pointer"
             >
               Upgrade Plan
             </button>

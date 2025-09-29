@@ -110,15 +110,43 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create subscription for the tenant
-      const subscription = await tx.subscription.create({
-        data: {
+      // Determine subscription configuration based on plan
+      let subscriptionData: any;
+      if (plan === 'free') {
+        // Free plan: no expiration (null currentPeriodEnd)
+        subscriptionData = {
           tenantId: tenant.id,
           planId: selectedPlan.id,
-          status: 'TRIALING',
+          status: 'ACTIVE',
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
-        },
+          currentPeriodEnd: null, // Forever access for free plan
+          intendedPlan: 'free',
+        };
+      } else if (plan === 'starter' || plan === 'professional') {
+        // Paid plans: set as pending checkout initially
+        subscriptionData = {
+          tenantId: tenant.id,
+          planId: 'free-plan', // Start with free plan until payment is completed
+          status: 'PENDING_CHECKOUT',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: null, // Will be set after successful payment
+          intendedPlan: plan,
+        };
+      } else {
+        // Default to free plan
+        subscriptionData = {
+          tenantId: tenant.id,
+          planId: selectedPlan.id,
+          status: 'ACTIVE',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: null,
+          intendedPlan: 'free',
+        };
+      }
+
+      // Create subscription for the tenant
+      const subscription = await tx.subscription.create({
+        data: subscriptionData,
       });
 
       // Create admin user
@@ -220,6 +248,11 @@ export async function POST(request: NextRequest) {
           email: result.user.email,
           role: result.user.role,
         },
+        subscription: {
+          status: result.subscription.status,
+          intendedPlan: (result.subscription as any).intendedPlan,
+        },
+        requiresCheckout: plan === 'starter' || plan === 'professional',
       },
       { status: 201 }
     );
