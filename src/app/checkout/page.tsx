@@ -343,10 +343,10 @@ function CheckoutContent() {
           <div className="text-center cursor-pointer">
             <Button
               variant="outline"
-              onClick={() => router.push("/pricing")}
+              onClick={() => router.push("/dashboard")}
               disabled={processing}
             >
-              Back to Pricing
+              Back to Dashboard
             </Button>
           </div>
         </div>
