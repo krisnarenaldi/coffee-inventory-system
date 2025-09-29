@@ -69,8 +69,11 @@ export async function validateSubscription(
       : false;
 
     // Check if subscription is active and not expired
+    // Allow PENDING_CHECKOUT users with free-plan to login (they've been reverted to free tier)
     const isActive =
-      subscription.status === "ACTIVE" || subscription.status === "TRIALING";
+      subscription.status === "ACTIVE" || 
+      subscription.status === "TRIALING" ||
+      (subscription.status === "PENDING_CHECKOUT" && subscription.planId === "free-plan");
 
     return {
       isActive: isActive && !isExpired,
