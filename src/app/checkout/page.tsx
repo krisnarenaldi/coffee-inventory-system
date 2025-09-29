@@ -139,8 +139,10 @@ function CheckoutContent() {
   const handlePayment = async () => {
     if (!plan) return;
 
+    console.log("🚀 Starting payment process for plan:", plan.id, "billing cycle:", billingCycle);
     setProcessing(true);
     try {
+      console.log("📡 Making request to /api/checkout/create-token");
       const response = await fetch("/api/checkout/create-token", {
         method: "POST",
         headers: {
@@ -152,40 +154,52 @@ function CheckoutContent() {
         }),
       });
 
+      console.log("📡 Response status:", response.status);
+      
       if (!response.ok) {
         const error = await response.json();
+        console.error("❌ API Error:", error);
         throw new Error(error.error || "Failed to create payment token");
       }
 
       const data: CheckoutData = await response.json();
+      console.log("✅ Payment token created:", { orderId: data.orderId, hasSnapToken: !!data.snapToken });
       setCheckoutData(data);
 
+      // Check if Midtrans Snap is loaded
+      if (!window.snap) {
+        console.error("❌ Midtrans Snap not loaded");
+        toast.error("Payment system not ready. Please refresh the page.");
+        return;
+      }
+
+      console.log("💳 Opening Midtrans payment popup");
       // Open Midtrans Snap payment popup
       window.snap.pay(data.snapToken, {
         onSuccess: (result: any) => {
-          console.log("Payment success:", result);
+          console.log("✅ Payment success:", result);
           toast.success("Payment successful!");
           router.push(`/checkout/success?order_id=${data.orderId}`);
         },
         onPending: (result: any) => {
-          console.log("Payment pending:", result);
+          console.log("⏳ Payment pending:", result);
           toast.info("Payment is being processed...");
           router.push(`/checkout/pending?order_id=${data.orderId}`);
         },
         onError: (result: any) => {
-          console.error("Payment error:", result);
+          console.error("❌ Payment error:", result);
           toast.error("Payment failed. Please try again.");
           router.push(`/checkout/error?order_id=${data.orderId}`);
         },
         onClose: () => {
-          console.log("Payment popup closed");
+          console.log("🚪 Payment popup closed");
           toast.info("Payment cancelled");
           // When user abandons checkout, revert to free plan
           revertToFreePlan();
         },
       });
     } catch (error) {
-      console.error("Error creating payment:", error);
+      console.error("❌ Error creating payment:", error);
       toast.error(error instanceof Error ? error.message : "Payment failed");
     } finally {
       setProcessing(false);
