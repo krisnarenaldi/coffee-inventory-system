@@ -4,6 +4,20 @@ import { authOptions } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/prisma';
 import { createSnapToken, generateOrderId, formatPriceForMidtrans, MidtransParameter } from '../../../../../lib/midtrans';
 
+// Midtrans expects 'yyyy-MM-dd HH:mm:ss Z' (eg '2020-06-09 15:07:00 +0700')
+function formatMidtransStartTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const yyyy = date.getUTCFullYear();
+  const MM = pad(date.getUTCMonth() + 1);
+  const dd = pad(date.getUTCDate());
+  const HH = pad(date.getUTCHours());
+  const mm = pad(date.getUTCMinutes());
+  const ss = pad(date.getUTCSeconds());
+  // Use UTC offset explicitly
+  const offset = '+0000';
+  return `${yyyy}-${MM}-${dd} ${HH}:${mm}:${ss} ${offset}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -101,7 +115,7 @@ export async function POST(request: NextRequest) {
         pending: `${origin}/checkout/pending?order_id=${orderId}`,
       },
       expiry: {
-        start_time: new Date().toISOString(),
+        start_time: formatMidtransStartTime(new Date()),
         unit: 'minute',
         duration: 30,
       },
