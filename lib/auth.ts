@@ -321,7 +321,49 @@ export const getAuthOptions = (): NextAuthOptions => {
               return null;
             }
 
-            console.log("✅ AUTH: Password valid, updating last login");
+            console.log("✅ AUTH: Password valid, handling pending checkout if needed");
+
+            // On second login attempt, if subscription is still PENDING_CHECKOUT with a non-expiring period,
+            // automatically revert the plan to Free so the user can access the app.
+            // This avoids reliance on a cron job to clean up incomplete checkouts.
+            try {
+              const [subscription, freePlan] = await Promise.all([
+                prisma.subscription.findUnique({
+                  where: { tenantId: user.tenantId },
+                }),
+                prisma.subscriptionPlan.findFirst({
+                  where: { name: "Free" },
+                }),
+              ]);
+
+              if (
+                subscription &&
+                (subscription as any).status === "PENDING_CHECKOUT" &&
+                (subscription as any).currentPeriodEnd == null &&
+                // Treat non-null lastLogin as "second or subsequent" login attempt
+                (user as any).lastLogin != null &&
+                freePlan &&
+                (subscription as any).planId !== (freePlan as any).id
+              ) {
+                await prisma.subscription.update({
+                  where: { tenantId: user.tenantId },
+                  data: {
+                    planId: (freePlan as any).id,
+                    currentPeriodEnd: null as any,
+                  },
+                });
+                console.log(
+                  "🔄 AUTH: Reverted PENDING_CHECKOUT subscription to Free plan on second login"
+                );
+              }
+            } catch (revertError) {
+              console.error(
+                "❌ AUTH: Failed reverting to Free plan on second login:",
+                revertError
+              );
+            }
+
+            console.log("✅ AUTH: Pending checkout handling complete, updating last login");
 
             // If no tenant context was provided, lookup tenant by email after successful login
             if (!userTenant && !tenantId) {
