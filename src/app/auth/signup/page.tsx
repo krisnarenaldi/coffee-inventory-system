@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -129,15 +130,38 @@ function SignUpContent() {
       }
 
       setSuccess(true);
-      
+
       // Handle different plan flows
       if (data.requiresCheckout) {
-        // For paid plans, redirect to checkout page
-        // Convert plan name to plan ID format (e.g., "starter" -> "starter-plan")
+        // For paid plans, first sign in the newly registered user, then redirect to checkout
         const planId = selectedPlan ? `${selectedPlan}-plan` : 'starter-plan';
-        setTimeout(() => {
+        try {
+          const signinResult = await signIn("credentials", {
+            redirect: false,
+            email: formData.email,
+            password: formData.password,
+            tenantSubdomain: formData.subdomain,
+          });
+
+          if (signinResult?.error) {
+            // If auto sign-in fails, fall back to sign-in page
+            router.push(
+              `/auth/signin?message=Registration successful. Please sign in to continue checkout.&email=${encodeURIComponent(
+                formData.email
+              )}`
+            );
+            return;
+          }
+
           router.push(`/checkout?plan=${planId}&cycle=monthly`);
-        }, 2000);
+        } catch (e) {
+          // Fallback in case signIn throws
+          router.push(
+            `/auth/signin?message=Registration successful. Please sign in to continue checkout.&email=${encodeURIComponent(
+              formData.email
+            )}`
+          );
+        }
       } else {
         // For free plan, redirect to sign-in page
         setTimeout(() => {
