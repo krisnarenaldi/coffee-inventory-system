@@ -226,6 +226,8 @@ export async function DELETE(
     }
 
     const resolvedParams = await params;
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === 'true';
     // Check if tenant exists
     const tenant = await prisma.tenant.findUnique({
       where: { id: resolvedParams.tenantId },
@@ -247,33 +249,42 @@ export async function DELETE(
       );
     }
 
-    // Prevent deletion of tenants with data (safety measure)
-    if (tenant._count.users > 0 || tenant._count.batches > 0) {
+    // Prevent deletion of tenants with data unless force flag is provided
+    if (!force && (tenant._count.users > 0 || tenant._count.batches > 0)) {
       return NextResponse.json(
-        { error: 'Cannot delete tenant with existing users or batches. Please migrate or remove data first.' },
+        { error: 'Cannot delete tenant with existing users or batches. Pass force=true to cascade delete.' },
         { status: 400 }
       );
     }
 
     // Delete tenant and related data in transaction
     await prisma.$transaction(async (tx) => {
-      // Delete tenant settings
-      await tx.tenantSetting.deleteMany({
-        where: { tenantId: params.tenantId }
-      });
+      // Proactively delete commonly related resources; most have FK onDelete: Cascade
+      await tx.alert.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.schedule.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.inventoryAdjustment.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.shipmentItem.deleteMany({ where: { shipment: { tenantId: params.tenantId } } });
+      await tx.shipment.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.product.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.batch.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.recipeIngredient.deleteMany({ where: { recipe: { tenantId: params.tenantId } } });
+      await tx.recipe.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.packagingType.deleteMany({ where: { products: { some: { tenantId: params.tenantId } } } });
+      await tx.storageLocation.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.supplier.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.ingredient.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.activityLog.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.usage.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.transaction.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.user.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.rolePermission.deleteMany({ where: { role: { tenantId: params.tenantId } } });
+      await tx.userRoleAssignment.deleteMany({ where: { role: { tenantId: params.tenantId } } });
+      await tx.role.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.tenantSetting.deleteMany({ where: { tenantId: params.tenantId } });
+      await tx.subscription.deleteMany({ where: { tenantId: params.tenantId } });
 
-      // Delete subscription
-      await tx.subscription.deleteMany({
-        where: { tenantId: params.tenantId }
-      });
-
-      // Delete audit logs (if audit log model exists)
-      // Note: Audit log cleanup would be implemented when audit model is available
-
-      // Finally delete the tenant
-      await tx.tenant.delete({
-        where: { id: params.tenantId }
-      });
+      // Finally delete the tenant; remaining relations should cascade
+      await tx.tenant.delete({ where: { id: params.tenantId } });
     });
 
     return NextResponse.json({

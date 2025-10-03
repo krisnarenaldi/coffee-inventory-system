@@ -74,6 +74,9 @@ export default function TenantsAdminPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -273,6 +276,40 @@ export default function TenantsAdminPage() {
       fetchTenants();
     } catch (error: any) {
       setError(error.message);
+    }
+  };
+
+  const openDeleteModal = (tenant: Tenant) => {
+    setTenantToDelete(tenant);
+    setConfirmDeleteName("");
+  };
+
+  const closeDeleteModal = () => {
+    setTenantToDelete(null);
+    setConfirmDeleteName("");
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tenantToDelete) return;
+    if (confirmDeleteName !== tenantToDelete.name) {
+      setError("Type the tenant name to confirm deletion.");
+      return;
+    }
+    try {
+      setIsDeleting(true);
+      const response = await fetch(`/api/admin/tenants/${tenantToDelete.id}?force=true`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete tenant");
+      }
+      closeDeleteModal();
+      await fetchTenants();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -508,6 +545,14 @@ export default function TenantsAdminPage() {
                         >
                           View
                         </button>
+                        {session?.user?.role === "PLATFORM_ADMIN" && (
+                          <button
+                            onClick={() => openDeleteModal(tenant)}
+                            className="text-red-600 hover:text-red-800 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -516,6 +561,43 @@ export default function TenantsAdminPage() {
             </table>
           </div>
         </div>
+
+        {tenantToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-900">Delete Tenant</h2>
+              <p className="mt-2 text-gray-700">
+                This will permanently delete tenant <span className="font-semibold">{tenantToDelete.name}</span> and all associated data (users, ingredients, batches, subscriptions, etc.). This action cannot be undone.
+              </p>
+              <p className="mt-3 text-gray-700">
+                To confirm, type the tenant name exactly: <span className="font-semibold">{tenantToDelete.name}</span>
+              </p>
+              <input
+                type="text"
+                value={confirmDeleteName}
+                onChange={(e) => setConfirmDeleteName(e.target.value)}
+                className="mt-3 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                placeholder="Type tenant name to confirm"
+              />
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={closeDeleteModal}
+                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                  disabled={isDeleting || confirmDeleteName !== tenantToDelete.name}
+                >
+                  {isDeleting ? "Deleting..." : "Delete Permanently"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Success Modal */}
         {showSuccessModal && createdTenantInfo && (
