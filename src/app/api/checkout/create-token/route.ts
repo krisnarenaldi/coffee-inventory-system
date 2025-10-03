@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
     // Create transaction record in database
     const transaction = await prisma.transaction.create({
       data: {
-        id: orderId,
+        // Store Midtrans order id in paymentGatewayId, keep internal id auto-generated
+        paymentGatewayId: orderId,
         userId: user.id,
         tenantId: user.tenantId,
         subscriptionPlanId: planId,
