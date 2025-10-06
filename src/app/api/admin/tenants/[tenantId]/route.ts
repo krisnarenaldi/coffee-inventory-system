@@ -258,6 +258,7 @@ export async function DELETE(
     }
 
     // Delete tenant and related data in transaction
+    // Increase interactive transaction timeout to accommodate cascade deletes on larger tenants
     await prisma.$transaction(async (tx) => {
       // Proactively delete commonly related resources; most have FK onDelete: Cascade
       await tx.alert.deleteMany({ where: { tenantId: params.tenantId } });
@@ -285,7 +286,7 @@ export async function DELETE(
 
       // Finally delete the tenant; remaining relations should cascade
       await tx.tenant.delete({ where: { id: params.tenantId } });
-    });
+    }, { timeout: 20000, maxWait: 5000 });
 
     return NextResponse.json({
       message: 'Tenant deleted successfully'

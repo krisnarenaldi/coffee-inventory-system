@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,6 +10,34 @@ import { Button } from "@/components/ui/button";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileError, setReconcileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function reconcile() {
+      if (!orderId) return;
+      try {
+        setReconciling(true);
+        setReconcileError(null);
+        const res = await fetch("/api/checkout/reconcile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to reconcile order status");
+        }
+        // No UI change needed; dashboard will reflect status on next load
+      } catch (e: any) {
+        console.error("Reconcile error:", e);
+        setReconcileError(e.message || "Unable to reconcile order");
+      } finally {
+        setReconciling(false);
+      }
+    }
+    reconcile();
+  }, [orderId]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -35,6 +63,12 @@ function SuccessContent() {
                 <div>No order reference provided.</div>
               )}
             </div>
+            {reconciling && (
+              <div className="text-xs text-gray-500">Reconciling payment status...</div>
+            )}
+            {reconcileError && (
+              <div className="text-xs text-red-600">{reconcileError}</div>
+            )}
             <div className="pt-2">
               <Link href="/dashboard">
                 <Button className="cursor-pointer">Continue to Dashboard</Button>
