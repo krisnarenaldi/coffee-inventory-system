@@ -58,6 +58,8 @@ function SubscriptionContent() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState<string>("");
+  const [effectiveDate, setEffectiveDate] = useState<"immediate" | "end_of_period">("immediate");
+  const [actionMessage, setActionMessage] = useState<null | { type: "success" | "error"; text: string }>(null);
   const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(
     null
   );
@@ -229,25 +231,77 @@ function SubscriptionContent() {
     if (!selectedPlan) return;
 
     try {
-      const response = await fetch("/api/subscription/upgrade", {
+      // Determine selected plan details and compare price
+      const chosenPlan = availablePlans.find((p) => p.id === selectedPlan);
+      if (!chosenPlan || !subscription) return;
+
+      // Prevent no-op if same plan
+      if (chosenPlan.id === subscription.plan.id) {
+        setActionMessage({ type: "error", text: "You are already on this plan." });
+        return;
+      }
+
+      const currentPrice = parseFloat(String(subscription.plan.price));
+      const newPrice = parseFloat(String(chosenPlan.price));
+      const isUpgrade = newPrice > currentPrice;
+
+      if (isUpgrade) {
+        // Use upgrade endpoint for true upgrades (will redirect to checkout)
+        const response = await fetch("/api/subscription/upgrade", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ planId: selectedPlan }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setActionMessage({ type: "error", text: data?.error || "Failed to start upgrade." });
+          return;
+        }
+
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+          return;
+        }
+
+        // No checkout URL returned; refresh and close modal
+        await fetchSubscriptionData();
+        setShowUpgradeModal(false);
+        setActionMessage({ type: "success", text: "Upgrade initialized." });
+        return;
+      }
+
+      // Downgrade or lateral change: call change-plan endpoint
+      const response = await fetch("/api/subscription/change-plan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ planId: selectedPlan }),
+        body: JSON.stringify({
+          subscriptionId: subscription.id,
+          newPlanId: selectedPlan,
+          effectiveDate,
+        }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          await fetchSubscriptionData();
-          setShowUpgradeModal(false);
-        }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setActionMessage({ type: "error", text: data?.error || "Failed to change plan." });
+        return;
       }
+
+      if (data?.subscription) {
+        setSubscription(data.subscription);
+      } else {
+        await fetchSubscriptionData();
+      }
+      setShowUpgradeModal(false);
+      setActionMessage({ type: "success", text: data?.message || "Plan updated successfully." });
     } catch (error) {
       console.error("Error upgrading subscription:", error);
+      setActionMessage({ type: "error", text: "Unexpected error. Please try again." });
     }
   };
 
@@ -384,6 +438,32 @@ function SubscriptionContent() {
                     : subscriptionMessage}
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Feedback */}
+        {actionMessage && (
+          <div
+            className={`${
+              actionMessage.type === "success"
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+            } border rounded-lg p-4 mb-6`}
+          >
+            <div className="flex items-center">
+              {actionMessage.type === "success" ? (
+                <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+              )}
+              <p
+                className={`text-sm ${
+                  actionMessage.type === "success" ? "text-green-800" : "text-red-800"
+                }`}
+              >
+                {actionMessage.text}
+              </p>
             </div>
           </div>
         )}
@@ -705,6 +785,34 @@ function SubscriptionContent() {
                     </div>
                   ))
                 )}
+              </div>
+              {/* Effective Date Options */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  When should the change take effect?
+                </label>
+                <div className="flex items-center space-x-6">
+                  <label className="inline-flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name="effectiveDate"
+                      value="immediate"
+                      checked={effectiveDate === "immediate"}
+                      onChange={() => setEffectiveDate("immediate")}
+                    />
+                    <span className="text-sm text-gray-700">Change now</span>
+                  </label>
+                  <label className="inline-flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name="effectiveDate"
+                      value="end_of_period"
+                      checked={effectiveDate === "end_of_period"}
+                      onChange={() => setEffectiveDate("end_of_period")}
+                    />
+                    <span className="text-sm text-gray-700">At end of current period</span>
+                  </label>
+                </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
