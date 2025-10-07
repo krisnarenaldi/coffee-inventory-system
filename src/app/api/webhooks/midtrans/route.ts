@@ -97,6 +97,8 @@ async function handleSuccessfulPayment(transaction: any, notification: any) {
           currentPeriodStart: startDate,
           currentPeriodEnd: endDate,
           status: 'ACTIVE',
+          intendedPlan: null,
+          cancelAtPeriodEnd: false,
           stripeCustomerId: null, // Clear Stripe data since we're using Midtrans
           stripeSubscriptionId: null,
           updatedAt: new Date()
@@ -111,6 +113,7 @@ async function handleSuccessfulPayment(transaction: any, notification: any) {
           currentPeriodStart: startDate,
           currentPeriodEnd: endDate,
           status: 'ACTIVE',
+          intendedPlan: null,
           stripeCustomerId: null,
           stripeSubscriptionId: null,
           cancelAtPeriodEnd: false,
