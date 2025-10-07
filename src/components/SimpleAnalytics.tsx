@@ -85,10 +85,13 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center max-w-md mx-auto">
             <div className="text-amber-500 text-4xl mb-4">📊</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics Not Available</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Analytics Not Available
+            </h2>
             <p className="text-gray-600 mb-6">
-              Analytics and reporting features are not included in your current plan. 
-              Upgrade to access detailed insights about your brewery operations.
+              Analytics and reporting features are not included in your current
+              plan. Upgrade to access detailed insights about your brewery
+              operations.
             </p>
             <button
               onClick={onUpgradeClick}
@@ -100,7 +103,7 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
         </div>
       );
     }
-    
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -256,12 +259,16 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Change</span>
-                  <span className={`font-semibold ${
-                    data.production.thisMonth >= data.production.lastMonth
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}>
-                    {data.production.thisMonth >= data.production.lastMonth ? '+' : ''}
+                  <span
+                    className={`font-semibold ${
+                      data.production.thisMonth >= data.production.lastMonth
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {data.production.thisMonth >= data.production.lastMonth
+                      ? "+"
+                      : ""}
                     {data.production.thisMonth - data.production.lastMonth}
                   </span>
                 </div>
@@ -280,7 +287,8 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
                   Unlock Advanced Analytics
                 </h3>
                 <p className="text-gray-600 mt-1">
-                  Get detailed trends, alerts, advanced reports, and more insights
+                  Get detailed trends, alerts, advanced reports, and more
+                  insights
                 </p>
                 <ul className="text-sm text-gray-500 mt-2 space-y-1">
                   <li>• Detailed trend analysis and forecasting</li>
@@ -293,7 +301,7 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
             </div>
             <button
               onClick={onUpgradeClick}
-              className="px-6 py-3 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              className="px-6 py-3 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors cursor-pointer"
             >
               Upgrade Plan
             </button>

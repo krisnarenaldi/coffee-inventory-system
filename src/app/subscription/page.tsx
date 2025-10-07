@@ -426,7 +426,7 @@ function SubscriptionContent() {
                   >
                     {subscription.status}
                   </span>
-                  {subscription.cancelAtPeriodEnd && (
+                  {subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
                     <p className="mt-2 text-sm text-red-600 flex items-center">
                       <AlertTriangle className="h-4 w-4 mr-1" />
                       Cancels on{" "}
@@ -461,12 +461,15 @@ function SubscriptionContent() {
                         >
                           Upgrade Plan
                         </button>
-                        <button
-                          onClick={handleCancelSubscription}
-                          className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
-                        >
-                          Cancel Subscription
-                        </button>
+                        {subscription.plan?.id !== "free-plan" &&
+                          (subscription.plan?.name?.toLowerCase() || "") !== "free" && (
+                            <button
+                              onClick={handleCancelSubscription}
+                              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
+                            >
+                              Cancel Subscription
+                            </button>
+                          )}
                       </>
                     ) : (
                       <button

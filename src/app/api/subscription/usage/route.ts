@@ -38,38 +38,8 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // Record usage metrics for historical tracking (simplified approach)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Check if today's usage records already exist
-    const existingUsage = await prisma.usage.findMany({
-      where: {
-        tenantId,
-        date: today,
-        metric: {
-          in: ['users', 'ingredients', 'batches']
-        }
-      }
-    });
-
-    // Only create records if they don't exist for today
-    const metricsToCreate = [];
-    if (!existingUsage.find(u => u.metric === 'users')) {
-      metricsToCreate.push({ tenantId, metric: 'users', value: userCount, date: today });
-    }
-    if (!existingUsage.find(u => u.metric === 'ingredients')) {
-      metricsToCreate.push({ tenantId, metric: 'ingredients', value: ingredientCount, date: today });
-    }
-    if (!existingUsage.find(u => u.metric === 'batches')) {
-      metricsToCreate.push({ tenantId, metric: 'batches', value: batchCount, date: today });
-    }
-
-    if (metricsToCreate.length > 0) {
-      await prisma.usage.createMany({
-        data: metricsToCreate
-      });
-    }
+    // Note: Avoid writing on GET to prevent FK errors when tenant records are missing.
+    // Historical tracking should be handled by a scheduled job or explicit POST.
 
     const usage = {
       users: userCount,

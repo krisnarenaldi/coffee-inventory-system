@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: {
         tenantId: session.user.tenantId
       },
@@ -37,10 +37,49 @@ export async function GET(request: NextRequest) {
     });
 
     if (!subscription) {
-      return NextResponse.json(
-        { error: 'No subscription found' },
-        { status: 404 }
-      );
+      // Initialize a free subscription if none exists for the tenant
+      const freePlan = await prisma.subscriptionPlan.findFirst({
+        where: { name: 'Free', isActive: true },
+      });
+
+      if (!freePlan) {
+        return NextResponse.json(
+          { error: 'Free plan not found' },
+          { status: 404 }
+        );
+      }
+
+      await prisma.subscription.create({
+        data: {
+          tenantId: session.user.tenantId,
+          planId: freePlan.id,
+          status: 'ACTIVE' as any,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: null as any,
+          cancelAtPeriodEnd: false,
+          intendedPlan: 'free',
+        },
+      });
+
+      // Re-fetch with plan details included
+      subscription = await prisma.subscription.findUnique({
+        where: { tenantId: session.user.tenantId },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              price: true,
+              interval: true,
+              maxUsers: true,
+              maxIngredients: true,
+              maxBatches: true,
+              features: true,
+            },
+          },
+        },
+      });
     }
 
     return NextResponse.json(subscription);
