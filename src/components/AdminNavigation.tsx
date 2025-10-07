@@ -20,6 +20,23 @@ export default function AdminNavigation({
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Close dropdown when clicking outside — must be declared before any early return
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Prevent hydration mismatch by not rendering until session is loaded
   if (status === "loading") {
     return (
@@ -37,23 +54,6 @@ export default function AdminNavigation({
     );
   }
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsProfileDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   const adminNavigationItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
     { name: "Tenants", href: "/admin/tenants", icon: "🏢" },
@@ -65,6 +65,7 @@ export default function AdminNavigation({
     { name: "Roles & Permissions", href: "/admin/roles", icon: "🔐" },
     { name: "Analytics", href: "/admin/analytics", icon: "📈" },
     { name: "Performance", href: "/admin/performance", icon: "⚡" },
+    { name: "Transactions", href: "/admin/transactions", icon: "💰" },
   ];
 
   const handleLogout = async () => {
