@@ -134,7 +134,7 @@ function SignUpContent() {
       // Handle different plan flows
       if (data.requiresCheckout) {
         // For paid plans, first sign in the newly registered user, then redirect to checkout
-        const planId = selectedPlan ? `${selectedPlan}-plan` : 'starter-plan';
+        const planId = selectedPlan ? `${selectedPlan}-plan` : "starter-plan";
         try {
           const signinResult = await signIn("credentials", {
             redirect: false,
@@ -196,7 +196,8 @@ function SignUpContent() {
               Registration Successful!
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              Your brewery account has been created. Redirecting to sign in...
+              Your brewery account has been created. Please do not close the
+              browser. Redirecting to sign in...
             </p>
           </div>
         </div>
