@@ -18,7 +18,9 @@ export default function AdminNavigation({
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const moreDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside — must be declared before any early return
   useEffect(() => {
@@ -28,6 +30,12 @@ export default function AdminNavigation({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsProfileDropdownOpen(false);
+      }
+      if (
+        moreDropdownRef.current &&
+        !moreDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsMoreOpen(false);
       }
     };
 
@@ -68,6 +76,10 @@ export default function AdminNavigation({
     { name: "Transactions", href: "/admin/transactions", icon: "💰" },
   ];
 
+  const PRIMARY_COUNT = 5;
+  const primaryItems = adminNavigationItems.slice(0, PRIMARY_COUNT);
+  const moreItems = adminNavigationItems.slice(PRIMARY_COUNT);
+
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/auth/signin" });
   };
@@ -92,13 +104,13 @@ export default function AdminNavigation({
               </Link>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:ml-6 md:flex md:space-x-4">
-              {adminNavigationItems.map((item) => (
+            {/* Desktop Navigation with More dropdown */}
+            <div className="hidden lg:ml-4 lg:flex lg:space-x-2">
+              {primaryItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
+                  className={`inline-flex items-center px-2 py-2 border-b-2 text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
                     isActive(item.href)
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -108,11 +120,60 @@ export default function AdminNavigation({
                   {item.name}
                 </Link>
               ))}
+
+              {moreItems.length > 0 && (
+                <div className="relative" ref={moreDropdownRef}>
+                  <button
+                    onClick={() => setIsMoreOpen((prev) => !prev)}
+                    className={`inline-flex items-center px-2 py-2 border-b-2 text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
+                      isMoreOpen
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    }`}
+                  >
+                    <span className="mr-2">➕</span>
+                    More
+                    <svg
+                      className={`ml-2 h-4 w-4 transition-transform duration-200 ${
+                        isMoreOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {isMoreOpen && (
+                    <div className="absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="py-1">
+                        {moreItems.map((item) => (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                            onClick={() => setIsMoreOpen(false)}
+                          >
+                            <span className="mr-2">{item.icon}</span>
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* User Menu */}
-          <div className="hidden md:flex md:items-center md:ml-20 lg:ml-24">
+          <div className="hidden md:flex md:items-center md:ml-8 lg:ml-12">
             <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs text-indigo-700">
               {session?.user?.role}
             </span>
