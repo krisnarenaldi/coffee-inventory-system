@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if it's actually an upgrade (higher price)
-    const isUpgrade = newPlan.price > currentSubscription.plan.price;
-    const isDowngrade = newPlan.price < currentSubscription.plan.price;
+    const isUpgrade = Number(newPlan.price) > Number(currentSubscription.plan.price);
     const isSamePlan = planId === currentSubscription.planId;
 
     if (isSamePlan) {
@@ -74,48 +73,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, we'll simulate immediate plan change
-    // In production, this would integrate with Stripe or another payment processor
-    const updatedSubscription = await prisma.subscription.update({
-      where: {
-        tenantId: session.user.tenantId
-      },
-      data: {
-        planId: newPlan.id,
-        status: 'ACTIVE',
-        cancelAtPeriodEnd: false,
-        // For upgrades, extend the current period
-        // For downgrades, apply at next billing cycle
-        currentPeriodEnd: isUpgrade 
-          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Extend 30 days for upgrade
-          : currentSubscription.currentPeriodEnd, // Keep current end date for downgrade
-        updatedAt: new Date()
-      },
-      include: {
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            price: true,
-            interval: true,
-            maxUsers: true,
-            maxIngredients: true,
-            maxBatches: true,
-            features: true
-          }
-        }
-      }
-    });
+    // Enforce checkout for upgrades: do NOT change plan immediately
+    if (isUpgrade) {
+      // Mark subscription as pending checkout and remember intended plan
+      await prisma.subscription.update({
+        where: { tenantId: session.user.tenantId },
+        data: {
+          status: 'PENDING_CHECKOUT' as any,
+          intendedPlan: newPlan.id,
+          updatedAt: new Date(),
+        },
+      });
 
-    // Log the subscription change for audit purposes
-    console.log(`Subscription ${isUpgrade ? 'upgraded' : 'changed'} for tenant ${session.user.tenantId} from ${currentSubscription.plan.name} to ${newPlan.name}`);
+      const cycle = (newPlan.interval || 'MONTHLY').toString().toLowerCase();
+      const checkoutUrl = `/checkout?plan=${newPlan.id}&cycle=${cycle}`;
 
-    return NextResponse.json({
-      message: `Subscription ${isUpgrade ? 'upgraded' : isDowngrade ? 'downgraded' : 'changed'} successfully`,
-      subscription: updatedSubscription,
-      changeType: isUpgrade ? 'upgrade' : isDowngrade ? 'downgrade' : 'change'
-    });
+      return NextResponse.json({
+        message: 'Upgrade requires payment. Redirecting to checkout.',
+        checkoutUrl,
+        requiresPayment: true,
+      });
+    }
+
+    // For non-upgrade changes, do not allow immediate changes here
+    // Clients should use the change-plan endpoint for downgrades or lateral changes
+    return NextResponse.json(
+      { error: 'Only upgrades are supported via this endpoint. Use change-plan for other modifications.' },
+      { status: 400 }
+    );
+
+    // (No immediate subscription change performed here to prevent unpaid upgrades)
   } catch (error) {
     console.error('Error upgrading subscription:', error);
     return NextResponse.json(

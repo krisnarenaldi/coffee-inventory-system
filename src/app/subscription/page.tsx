@@ -406,7 +406,7 @@ function SubscriptionContent() {
                         {subscription.plan.name}
                       </h3>
                       <p className="text-gray-600">
-                        ${subscription.plan.price}/
+                        Rp {subscription.plan.price}/
                         {subscription.plan.interval.toLowerCase()}
                       </p>
                     </div>
@@ -426,15 +426,16 @@ function SubscriptionContent() {
                   >
                     {subscription.status}
                   </span>
-                  {subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center">
-                      <AlertTriangle className="h-4 w-4 mr-1" />
-                      Cancels on{" "}
-                      {new Date(
-                        subscription.currentPeriodEnd
-                      ).toLocaleDateString()}
-                    </p>
-                  )}
+                  {subscription.cancelAtPeriodEnd &&
+                    subscription.currentPeriodEnd && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        Cancels on{" "}
+                        {new Date(
+                          subscription.currentPeriodEnd
+                        ).toLocaleDateString()}
+                      </p>
+                    )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
@@ -462,7 +463,8 @@ function SubscriptionContent() {
                           Upgrade Plan
                         </button>
                         {subscription.plan?.id !== "free-plan" &&
-                          (subscription.plan?.name?.toLowerCase() || "") !== "free" && (
+                          (subscription.plan?.name?.toLowerCase() || "") !==
+                            "free" && (
                             <button
                               onClick={handleCancelSubscription}
                               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
