@@ -200,7 +200,7 @@ export default function AnalyticsPage() {
   const isDemoTenant = session?.user?.email === "admin@demo.coffeeshop";
   if (!hasAdvancedAnalytics && !isDemoTenant) {
     return (
-      <SimpleAnalytics onUpgradeClick={() => router.push("/subscription")} />
+      <SimpleAnalytics onUpgradeClick={() => router.push("/subscription?src=feature_gate_analytics")} />
     );
   }
 

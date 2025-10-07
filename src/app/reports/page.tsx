@@ -300,7 +300,7 @@ export default function ReportsPage() {
   // Show simple reports for starter plan users
   if (!hasAdvancedReports) {
     const handleUpgradeClick = () => {
-      router.push("/subscription");
+      router.push("/subscription?src=feature_gate_reports");
     };
 
     return <SimpleReports onUpgradeClick={handleUpgradeClick} />;

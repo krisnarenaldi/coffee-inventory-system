@@ -266,6 +266,16 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
 
           {/* User Menu */}
           <div className="hidden xl:ml-6 xl:flex xl:items-center space-x-3">
+            {/* Upgrade CTA for free users */}
+            {!hasBasicReports && (
+              <Link
+                href="/subscription?src=nav"
+                className="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 bg-white rounded-md text-sm font-medium hover:bg-amber-50 transition-colors cursor-pointer"
+              >
+                <span className="mr-1">🚀</span>
+                Upgrade
+              </Link>
+            )}
             {/* User Info */}
             <div className="text-xs text-gray-700 whitespace-nowrap">
               <span className="hidden 2xl:inline">Welcome, </span>
@@ -397,6 +407,16 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             </div>
           </div>
           <div className="mt-3 space-y-1">
+            {!hasBasicReports && (
+              <Link
+                href="/subscription?src=nav_mobile"
+                className="block mx-4 mb-2 px-4 py-2 text-base font-medium text-amber-700 border border-amber-200 rounded-md bg-white hover:bg-amber-50"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <span className="mr-2">🚀</span>
+                Upgrade
+              </Link>
+            )}
             <Link
               href="/profile"
               className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"

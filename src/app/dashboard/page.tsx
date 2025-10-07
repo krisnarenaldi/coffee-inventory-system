@@ -48,6 +48,8 @@ export default function Dashboard() {
     hasPendingCheckout: boolean;
     intendedPlan?: string;
   } | null>(null);
+  const [hasBasicReports, setHasBasicReports] = useState(false);
+  const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -133,6 +135,37 @@ export default function Dashboard() {
     }
   };
 
+  // Decide whether to show an upgrade banner for free users (caps impressions daily)
+  useEffect(() => {
+    const decideBanner = async () => {
+      if (status !== "authenticated" || !session?.user?.tenantId) return;
+      try {
+        const resp = await fetch("/api/subscription/features?feature=basicReports");
+        const data = await resp.json();
+        const hasBasic = !!data?.hasAccess;
+        setHasBasicReports(hasBasic);
+
+        if (!hasBasic) {
+          const today = new Date().toISOString().slice(0, 10);
+          const dismissedDate = localStorage.getItem("upgradeBannerDismissedDate");
+          if (dismissedDate !== today) {
+            setShowUpgradeBanner(true);
+            localStorage.setItem("upgradeBannerLastShownDate", today);
+          }
+        }
+      } catch (e) {
+        // Fail silently; banner is non-critical
+      }
+    };
+    decideBanner();
+  }, [status, session?.user?.tenantId]);
+
+  const dismissUpgradeBanner = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem("upgradeBannerDismissedDate", today);
+    setShowUpgradeBanner(false);
+  };
+
   if (status === "loading" || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -166,6 +199,43 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={`Welcome back, ${session?.user?.name}`}
       />
+
+      {/* Upgrade Banner for Free Users */}
+      {!hasBasicReports && showUpgradeBanner && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2l2.39 4.84 5.34.78-3.86 3.76.91 5.32L10 14.77l-4.78 2.53.91-5.32L2.27 7.62l5.34-.78L10 2z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-amber-800">Unlock More with Starter & Professional</h3>
+                  <p className="mt-1 text-sm text-amber-700">
+                    Access detailed reports, higher limits, and advanced analytics.
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <Link
+                  href="/subscription?src=dashboard_banner"
+                  className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-amber-600 hover:bg-amber-700"
+                >
+                  Upgrade
+                </Link>
+                <button
+                  onClick={dismissUpgradeBanner}
+                  className="text-amber-700 hover:text-amber-900 text-sm"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pending Checkout Warning */}
       {pendingCheckout?.hasPendingCheckout && (
