@@ -297,9 +297,12 @@ export default function TenantsAdminPage() {
     }
     try {
       setIsDeleting(true);
-      const response = await fetch(`/api/admin/tenants/${tenantToDelete.id}?force=true`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/tenants/${tenantToDelete.id}?force=true`,
+        {
+          method: "DELETE",
+        }
+      );
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Failed to delete tenant");
@@ -334,15 +337,15 @@ export default function TenantsAdminPage() {
   // Get effective status - prioritize subscription status over tenant status
   const getEffectiveStatus = (tenant: Tenant) => {
     // If tenant is suspended or cancelled, that takes priority
-    if (tenant.status === 'SUSPENDED' || tenant.status === 'CANCELLED') {
+    if (tenant.status === "SUSPENDED" || tenant.status === "CANCELLED") {
       return tenant.status;
     }
-    
+
     // If tenant is active, show subscription status if available
     if (tenant.subscription && tenant.subscription.status) {
       return tenant.subscription.status;
     }
-    
+
     // Fallback to tenant status
     return tenant.status;
   };
@@ -490,7 +493,7 @@ export default function TenantsAdminPage() {
                             {tenant.subscription.plan.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            ${tenant.subscription.plan.price}/month
+                            Rp {tenant.subscription.plan.price}/month
                           </div>
                           <div className="text-xs text-gray-400">
                             Expires:{" "}
@@ -565,12 +568,18 @@ export default function TenantsAdminPage() {
         {tenantToDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900">Delete Tenant</h2>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Delete Tenant
+              </h2>
               <p className="mt-2 text-gray-700">
-                This will permanently delete tenant <span className="font-semibold">{tenantToDelete.name}</span> and all associated data (users, ingredients, batches, subscriptions, etc.). This action cannot be undone.
+                This will permanently delete tenant{" "}
+                <span className="font-semibold">{tenantToDelete.name}</span> and
+                all associated data (users, ingredients, batches, subscriptions,
+                etc.). This action cannot be undone.
               </p>
               <p className="mt-3 text-gray-700">
-                To confirm, type the tenant name exactly: <span className="font-semibold">{tenantToDelete.name}</span>
+                To confirm, type the tenant name exactly:{" "}
+                <span className="font-semibold">{tenantToDelete.name}</span>
               </p>
               <input
                 type="text"
@@ -590,7 +599,9 @@ export default function TenantsAdminPage() {
                 <button
                   onClick={handleConfirmDelete}
                   className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                  disabled={isDeleting || confirmDeleteName !== tenantToDelete.name}
+                  disabled={
+                    isDeleting || confirmDeleteName !== tenantToDelete.name
+                  }
                 >
                   {isDeleting ? "Deleting..." : "Delete Permanently"}
                 </button>

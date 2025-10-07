@@ -127,7 +127,7 @@ export default function TenantDetailPage() {
     try {
       setUpdating(true);
       setError(""); // Clear any previous errors
-      
+
       const response = await fetch(`/api/admin/tenants/${params.tenantId}`, {
         method: "DELETE",
       });
@@ -187,15 +187,15 @@ export default function TenantDetailPage() {
   // Get effective status - prioritize subscription status over tenant status
   const getEffectiveStatus = (tenant: any) => {
     // If tenant is suspended or cancelled, that takes priority
-    if (tenant.status === 'SUSPENDED' || tenant.status === 'CANCELLED') {
+    if (tenant.status === "SUSPENDED" || tenant.status === "CANCELLED") {
       return tenant.status;
     }
-    
+
     // If tenant is active, show subscription status if available
     if (tenant.subscription && tenant.subscription.status) {
       return tenant.subscription.status;
     }
-    
+
     // Fallback to tenant status
     return tenant.status;
   };
@@ -411,7 +411,7 @@ export default function TenantDetailPage() {
                           Price
                         </label>
                         <p className="text-sm text-gray-900">
-                          ${tenant.subscription.plan.price}/
+                          Rp {tenant.subscription.plan.price}/
                           {tenant.subscription.plan.interval.toLowerCase()}
                         </p>
                       </div>
