@@ -107,6 +107,23 @@ export async function middleware(request: NextRequest) {
     }
     response.headers.set("X-Tenant-ID", "");
     response.headers.set("X-Tenant-Subdomain", "");
+
+    // Enforce authentication on protected routes even on admin subdomain
+    if (!isPublicRoute(pathname)) {
+      const token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+
+      if (!token) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "🔒 Admin subdomain protected route without token, redirecting to signin"
+          );
+        }
+        return NextResponse.redirect(new URL("/auth/signin", request.url));
+      }
+    }
     return response;
   }
 
