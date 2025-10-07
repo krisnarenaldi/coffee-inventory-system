@@ -179,6 +179,14 @@ export async function getSubscriptionMessage(
 ): Promise<string | null> {
   const subscriptionStatus = await validateSubscription(tenantId);
 
+  // Do not show an error for free plan users.
+  // Free plan and any ACTIVE plan may have no currentPeriodEnd by design.
+  if (subscriptionStatus.status === "ACTIVE") {
+    return null;
+  }
+
+  // If there's no current period end and it's not a free active plan,
+  // treat as missing or inactive subscription.
   if (!subscriptionStatus.currentPeriodEnd) {
     return "No active subscription found. Please subscribe to continue using the service.";
   }
