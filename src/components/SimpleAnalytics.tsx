@@ -291,11 +291,11 @@ export function SimpleAnalytics({ onUpgradeClick }: SimpleAnalyticsProps) {
                   insights
                 </p>
                 <ul className="text-sm text-gray-500 mt-2 space-y-1">
-                  <li>• Detailed trend analysis and forecasting</li>
+                  {/*<li>• Detailed trend analysis and forecasting</li>*/}
                   <li>• Real-time alerts and notifications</li>
                   <li>• Advanced inventory and production reports</li>
                   <li>• Roast consistency analysis</li>
-                  <li>• Yield and waste tracking</li>
+                  {/*<li>• Yield and waste tracking</li>*/}
                 </ul>
               </div>
             </div>

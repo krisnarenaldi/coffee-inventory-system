@@ -458,7 +458,7 @@ export function SimpleReports({ onUpgradeClick }: SimpleReportsProps) {
                   <li>• Detailed inventory valuation and risk analysis</li>
                   <li>• Roast consistency and quality reports</li>
                   <li>• Yield analysis and waste tracking</li>
-                  <li>• Historical trends and forecasting</li>
+                  {/*<li>• Historical trends and forecasting</li>*/}
                   <li>• Export reports to PDF and Excel</li>
                 </ul>
               </div>
