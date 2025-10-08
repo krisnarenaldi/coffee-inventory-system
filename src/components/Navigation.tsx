@@ -24,6 +24,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasAdvancedAnalytics, setHasAdvancedAnalytics] = useState(false);
   const [hasBasicReports, setHasBasicReports] = useState(false);
+  const [featuresChecked, setFeaturesChecked] = useState(false);
 
   // Check subscription features
   useEffect(() => {
@@ -104,6 +105,9 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
         // Set to false on error to be safe
         setHasBasicReports(false);
         setHasAdvancedAnalytics(false);
+      } finally {
+        // Mark that feature checks have completed to avoid initial banner flicker
+        setFeaturesChecked(true);
       }
     };
 
@@ -323,7 +327,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           {/* User Menu */}
           <div className="hidden xl:ml-6 xl:flex xl:items-center space-x-3">
             {/* Upgrade CTA for free users */}
-            {!hasAdvancedAnalytics && (
+            {featuresChecked && !(hasBasicReports || hasAdvancedAnalytics) && (
               <Link
                 href="/subscription?src=nav"
                 className="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 bg-white rounded-md text-sm font-medium hover:bg-amber-50 transition-colors cursor-pointer"
@@ -463,7 +467,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             </div>
           </div>
           <div className="mt-3 space-y-1">
-            {!hasBasicReports && (
+            {featuresChecked && !(hasBasicReports || hasAdvancedAnalytics) && (
               <Link
                 href="/subscription?src=nav_mobile"
                 className="block mx-4 mb-2 px-4 py-2 text-base font-medium text-amber-700 border border-amber-200 rounded-md bg-white hover:bg-amber-50"
