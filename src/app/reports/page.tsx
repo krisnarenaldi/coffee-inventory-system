@@ -110,15 +110,20 @@ export default function ReportsPage() {
 
     try {
       const response = await fetch(
-        "/api/subscription/features?feature=advancedReports",
+        `/api/subscription/features?feature=advancedReports&t=${Date.now()}`,
         {
-          credentials: 'include',
+          credentials: "include",
+          cache: "no-cache",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
           },
         }
       );
       const data = await response.json();
+      console.log("🔍 REPORTS: Advanced reports check:", data);
       setHasAdvancedReports(data.hasAccess || false);
     } catch (error) {
       console.error("Error checking reports access:", error);
@@ -132,9 +137,9 @@ export default function ReportsPage() {
       const response = await fetch(
         `/api/reports/export/pdf?tab=${activeTab}&period=${period}`,
         {
-          credentials: 'include',
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -169,9 +174,9 @@ export default function ReportsPage() {
       const response = await fetch(
         `/api/reports/export/excel?tab=${activeTab}&period=${period}`,
         {
-          credentials: 'include',
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -204,9 +209,9 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       const response = await fetch("/api/reports/inventory-valuation", {
-        credentials: 'include',
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
       if (!response.ok) {
@@ -228,9 +233,9 @@ export default function ReportsPage() {
       const response = await fetch(
         `/api/reports/roast-consistency?period=${period}`,
         {
-          credentials: 'include',
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );

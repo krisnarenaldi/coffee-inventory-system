@@ -28,26 +28,82 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
   // Check subscription features
   useEffect(() => {
     const checkSubscriptionFeatures = async () => {
-      if (!session?.user?.tenantId) return;
+      if (!session?.user?.tenantId) {
+        console.log("🔍 NAVIGATION: No session or tenantId");
+        return;
+      }
+
+      console.log(
+        "🔍 NAVIGATION: Checking features for tenant:",
+        session.user.tenantId
+      );
 
       try {
         // Check for advanced analytics
         const advancedResponse = await fetch(
-          "/api/subscription/features?feature=advancedReports"
+          `/api/subscription/features?feature=advancedReports&t=${Date.now()}`,
+          {
+            cache: "no-cache",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }
         );
+
+        if (!advancedResponse.ok) {
+          console.error(
+            "🔍 NAVIGATION: Advanced reports API error:",
+            advancedResponse.status,
+            advancedResponse.statusText
+          );
+        }
+
         const advancedData = await advancedResponse.json();
         console.log("🔍 NAVIGATION: Advanced analytics check:", advancedData);
         setHasAdvancedAnalytics(advancedData.hasAccess || false);
 
         // Check for basic reports
         const basicResponse = await fetch(
-          "/api/subscription/features?feature=basicReports"
+          `/api/subscription/features?feature=basicReports&t=${Date.now()}`,
+          {
+            cache: "no-cache",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }
         );
+
+        if (!basicResponse.ok) {
+          console.error(
+            "🔍 NAVIGATION: Basic reports API error:",
+            basicResponse.status,
+            basicResponse.statusText
+          );
+        }
+
         const basicData = await basicResponse.json();
         console.log("🔍 NAVIGATION: Basic reports check:", basicData);
         setHasBasicReports(basicData.hasAccess || false);
+
+        // Additional debug info
+        console.log(
+          "🔍 NAVIGATION: Final state - hasBasicReports:",
+          basicData.hasAccess || false,
+          "hasAdvancedAnalytics:",
+          advancedData.hasAccess || false
+        );
       } catch (error) {
-        console.error("Error checking subscription features:", error);
+        console.error(
+          "🔍 NAVIGATION: Error checking subscription features:",
+          error
+        );
+        // Set to false on error to be safe
+        setHasBasicReports(false);
+        setHasAdvancedAnalytics(false);
       }
     };
 
