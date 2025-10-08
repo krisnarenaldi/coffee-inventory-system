@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { prisma } from '../../../../../lib/prisma';
+import { computeNextPeriodEnd } from '../../../../../lib/subscription-periods';
 import { verifySignature, mapTransactionStatus } from '../../../../../lib/midtrans';
 
 export async function POST(request: NextRequest) {
@@ -76,10 +77,10 @@ export async function POST(request: NextRequest) {
 
 async function handleSuccessfulPayment(transaction: any, notification: any) {
   try {
-    // Calculate subscription dates - 30 days from today
+    // Calculate subscription dates based on plan interval (calendar-aware)
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30); // Always 30 days as per requirement
+    const interval = transaction.subscriptionPlan?.interval || 'MONTHLY';
+    const endDate = computeNextPeriodEnd(startDate, interval);
     
     // Check if user has a subscription with PENDING_CHECKOUT status
     const existingSubscription = await prisma.subscription.findFirst({

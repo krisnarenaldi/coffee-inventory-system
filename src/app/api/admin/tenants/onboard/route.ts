@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../../lib/auth';
 import { prisma } from '../../../../../../lib/prisma';
+import { computeNextPeriodEnd } from '../../../../../../lib/subscription-periods';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
           planId,
           status: 'ACTIVE',
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          currentPeriodEnd: computeNextPeriodEnd(new Date(), plan.interval as any),
           stripeCustomerId: null,
           stripeSubscriptionId: null
         }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
+import { computeNextPeriodEnd } from '../../../../../lib/subscription-periods';
 import { getTransactionStatus, mapTransactionStatus } from '../../../../../lib/midtrans';
 
 export async function POST(request: NextRequest) {
@@ -50,9 +51,8 @@ export async function POST(request: NextRequest) {
     // If paid, activate or update subscription to the intended plan
     if (newStatus === 'PAID') {
       const startDate = new Date();
-      const endDate = new Date();
-      // As per current policy, always set to 30 days
-      endDate.setDate(endDate.getDate() + 30);
+      const interval = transaction.subscriptionPlan?.interval || 'MONTHLY';
+      const endDate = computeNextPeriodEnd(startDate, interval);
 
       const existingSubscription = await prisma.subscription.findFirst({
         where: { tenantId: transaction.tenantId },

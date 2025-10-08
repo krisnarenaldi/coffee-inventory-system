@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/prisma';
+import { computeNextPeriodEnd } from '../../../../../lib/subscription-periods';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,18 +41,22 @@ export async function GET(request: NextRequest) {
       if (paidTransaction) {
         // Activate subscription based on the paid transaction
         const startDate = new Date();
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30); // align with Midtrans flow
+        // Fetch plan interval to compute calendar-aware end date
+        const plan = await prisma.subscriptionPlan.findUnique({
+          where: { id: paidTransaction.subscriptionPlanId as any },
+        });
+        const interval = plan?.interval || 'MONTHLY';
+        const endDate = computeNextPeriodEnd(startDate, interval as any);
 
         await prisma.subscription.update({
           where: { id: (subscription as any).id },
           data: {
             planId: paidTransaction.subscriptionPlanId,
             currentPeriodStart: startDate,
-            currentPeriodEnd: endDate,
-            status: 'ACTIVE' as any,
-            intendedPlan: null,
-            cancelAtPeriodEnd: false,
+          currentPeriodEnd: endDate,
+          status: 'ACTIVE' as any,
+          intendedPlan: null,
+          cancelAtPeriodEnd: false,
             stripeCustomerId: null,
             stripeSubscriptionId: null,
             updatedAt: new Date(),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { computeNextPeriodEnd } from "../../../../lib/subscription-periods";
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,10 +71,9 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Create subscription with a future end date
+    // Create subscription with a future end date based on plan interval
     const now = new Date();
-    const futureDate = new Date();
-    futureDate.setFullYear(futureDate.getFullYear() + 1); // 1 year from now
+    const futureDate = computeNextPeriodEnd(now, premiumPlan.interval as any);
     
     const subscription = await prisma.subscription.create({
       data: {
