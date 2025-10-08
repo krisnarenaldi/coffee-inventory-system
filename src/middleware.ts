@@ -78,6 +78,14 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") || "";
 
+  // Redirect domain root to /dashboard to avoid landing on public home
+  if (pathname === "/") {
+    if (process.env.NODE_ENV === "development") {
+      console.log("➡️ Root path detected, redirecting to /dashboard");
+    }
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   // Only log in development
   if (process.env.NODE_ENV === "development") {
     console.log("🚀 MIDDLEWARE EXECUTING! Path:", pathname);
