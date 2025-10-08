@@ -113,6 +113,9 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
 
     if (session?.user?.tenantId) {
       checkSubscriptionFeatures();
+    } else {
+      // Ensure banner logic can render even without tenant/session
+      setFeaturesChecked(true);
     }
   }, [session?.user?.tenantId]);
 
@@ -326,8 +329,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
 
           {/* User Menu */}
           <div className="hidden xl:ml-6 xl:flex xl:items-center space-x-3">
-            {/* Upgrade CTA for free users */}
-            {featuresChecked && !(hasBasicReports || hasAdvancedAnalytics) && (
+            {/* Upgrade CTA for free users 
+              featuresChecked && !(hasBasicReports || hasAdvancedAnalytics
+            */}
+            {featuresChecked && !hasAdvancedAnalytics && (
               <Link
                 href="/subscription?src=nav"
                 className="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 bg-white rounded-md text-sm font-medium hover:bg-amber-50 transition-colors cursor-pointer"
