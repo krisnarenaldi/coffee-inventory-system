@@ -99,6 +99,13 @@ export default function Home() {
                 >
                   Sign In
                 </Link>
+              ):(
+                <Link
+                  href="/dashboard"
+                  className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Dashboard
+                </Link>
               )}
             </nav>
           </div>
