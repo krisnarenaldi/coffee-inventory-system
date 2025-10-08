@@ -208,8 +208,27 @@ export async function checkFeatureAccess(
   
   // Handle both boolean features (new format) and string array features (legacy format)
   if (typeof features === 'object' && features !== null && !Array.isArray(features)) {
-    // New boolean-based features format
-    return Boolean(features[feature]);
+    // New boolean-based features format with synonym support
+    const featureObj = features as Record<string, any>;
+
+    // Support common synonyms between plan feature keys and app feature checks
+    const booleanSynonyms: Record<string, string[]> = {
+      // Reporting/analytics
+      advancedReports: ['advancedReports', 'analytics', 'reportsAdvanced'],
+      basicReports: ['basicReports', 'reports', 'simpleReports'],
+      analytics: ['analytics', 'advancedReports'],
+      reports: ['reports', 'basicReports', 'advancedReports'],
+
+      // Inventory/recipes/batches (kept for completeness with legacy keys)
+      batches: ['batches', 'inventory', 'advancedInventory'],
+      recipes: ['recipes', 'simpleRecipes', 'recipeManagement'],
+      inventory: ['inventory', 'advancedInventory'],
+      qrScanning: ['qrScanning', 'qr', 'qr_code', 'qrCode'],
+      schedules: ['schedules', 'schedule', 'calendar'],
+    };
+
+    const keysToCheck = booleanSynonyms[feature] || [feature];
+    return keysToCheck.some((key) => Boolean(featureObj[key]));
   }
   
   // Legacy string array format
