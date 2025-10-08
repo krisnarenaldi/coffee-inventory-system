@@ -215,7 +215,8 @@ export async function checkFeatureAccess(
     const booleanSynonyms: Record<string, string[]> = {
       // Reporting/analytics
       advancedReports: ['advancedReports', 'analytics', 'reportsAdvanced'],
-      basicReports: ['basicReports', 'reports', 'simpleReports'],
+      // Professional/advanced implicitly includes basic report capabilities
+      basicReports: ['basicReports', 'reports', 'simpleReports', 'advancedReports', 'analytics'],
       analytics: ['analytics', 'advancedReports'],
       reports: ['reports', 'basicReports', 'advancedReports'],
 
