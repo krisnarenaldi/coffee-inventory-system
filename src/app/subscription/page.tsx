@@ -442,8 +442,8 @@ function SubscriptionContent() {
           </div>
         )}
 
-        {/* Action Feedback */}
-        {actionMessage && (
+        {/* Action Feedback (hidden while modal open; shown on main page) */}
+        {actionMessage && !showUpgradeModal && (
           <div
             className={`${
               actionMessage.type === "success"
@@ -741,6 +741,31 @@ function SubscriptionContent() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Choose a Plan
               </h3>
+              {/* Modal-specific feedback */}
+              {actionMessage && (
+                <div
+                  className={`${
+                    actionMessage.type === "success"
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
+                  } border rounded-lg p-3 mb-4`}
+                >
+                  <div className="flex items-center">
+                    {actionMessage.type === "success" ? (
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+                    )}
+                    <p
+                      className={`text-sm ${
+                        actionMessage.type === "success" ? "text-green-800" : "text-red-800"
+                      }`}
+                    >
+                      {actionMessage.text}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {availablePlans.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
