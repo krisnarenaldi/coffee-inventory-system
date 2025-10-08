@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
+  const { status } = useSession();
   useEffect(() => {
     // Add smooth scroll behavior for anchor links
     const handleSmoothScroll = (e: Event) => {
@@ -90,12 +92,14 @@ export default function Home() {
               >
                 Docs
               </Link>
-              <Link
-                href="/auth/signin"
-                className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-              >
-                Sign In
-              </Link>
+              {status !== "authenticated" && (
+                <Link
+                  href="/auth/signin"
+                  className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Sign In
+                </Link>
+              )}
             </nav>
           </div>
         </div>
@@ -243,12 +247,14 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/auth/signin"
-                    className="text-gray-400 hover:text-amber-400 transition-colors"
-                  >
-                    Sign In
-                  </Link>
+                  {status !== "authenticated" && (
+                    <Link
+                      href="/auth/signin"
+                      className="text-gray-400 hover:text-amber-400 transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                  )}
                 </li>
                 <li>
                   <Link
