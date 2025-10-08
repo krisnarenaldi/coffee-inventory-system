@@ -24,7 +24,7 @@ export async function getSubscriptionLimits(
   try {
     // First check if subscription is valid and not expired
     const subscriptionStatus = await validateSubscription(tenantId);
-    
+
     if (!subscriptionStatus.isActive) {
       // Return minimal limits for expired/inactive subscriptions
       return {
@@ -205,54 +205,86 @@ export async function checkFeatureAccess(
 ): Promise<boolean> {
   const limits = await getSubscriptionLimits(tenantId);
   const features = limits.features;
-  
+
   // Handle both boolean features (new format) and string array features (legacy format)
-  if (typeof features === 'object' && features !== null && !Array.isArray(features)) {
+  if (
+    typeof features === "object" &&
+    features !== null &&
+    !Array.isArray(features)
+  ) {
     // New boolean-based features format with synonym support
     const featureObj = features as Record<string, any>;
 
     // Support common synonyms between plan feature keys and app feature checks
     const booleanSynonyms: Record<string, string[]> = {
       // Reporting/analytics
-      advancedReports: ['advancedReports', 'analytics', 'reportsAdvanced'],
+      advancedReports: ["advancedReports", "analytics", "reportsAdvanced"],
       // Professional/advanced implicitly includes basic report capabilities
-      basicReports: ['basicReports', 'reports', 'simpleReports', 'advancedReports', 'analytics'],
-      analytics: ['analytics', 'advancedReports'],
-      reports: ['reports', 'basicReports', 'advancedReports'],
+      basicReports: [
+        "basicReports",
+        "reports",
+        "simpleReports",
+        "advancedReports",
+        "analytics",
+      ],
+      analytics: ["analytics", "advancedReports"],
+      reports: ["reports", "basicReports", "advancedReports"],
 
       // Inventory/recipes/batches (kept for completeness with legacy keys)
-      batches: ['batches', 'inventory', 'advancedInventory'],
-      recipes: ['recipes', 'simpleRecipes', 'recipeManagement'],
-      inventory: ['inventory', 'advancedInventory'],
-      qrScanning: ['qrScanning', 'qr', 'qr_code', 'qrCode'],
-      schedules: ['schedules', 'schedule', 'calendar'],
+      batches: ["batches", "inventory", "advancedInventory"],
+      recipes: ["recipes", "simpleRecipes", "recipeManagement"],
+      inventory: ["inventory", "advancedInventory"],
+      qrScanning: ["qrScanning", "qr", "qr_code", "qrCode"],
+      schedules: ["schedules", "schedule", "calendar"],
     };
 
     const keysToCheck = booleanSynonyms[feature] || [feature];
     return keysToCheck.some((key) => Boolean(featureObj[key]));
   }
-  
+
   // Legacy string array format
   const featuresArray = Array.isArray(features) ? features : [];
-  
+
   // Map feature keys to descriptive feature strings for legacy format
   const featureMapping: Record<string, string[]> = {
-    'analytics': ['Advanced report and analytics', 'Basic report'],
-    'basicReports': ['Basic report', 'Advanced report and analytics'],
-    'advancedReports': ['Advanced report and analytics'],
-    'batches': ['Advanced inventory management', 'Simple recipe management'],
-    'recipes': ['Recipe versioning & scaling', 'Simple recipe management'],
-    'inventory': ['Advanced inventory management', 'Simple recipe management'],
-    'qrScanning': ['QR Code scanning'],
-    'schedules': ['Schedule & Calendar', 'Schedules & Calendar']
+    analytics: [
+      "Advanced report and analytics",
+      "Basic report",
+      "Advance Report & Analytics",
+    ],
+    basicReports: [
+      "Basic report",
+      "Advanced report and analytics",
+      "Basic Report",
+      "Advance Report & Analytics",
+      "Basic Reports",
+    ],
+    advancedReports: [
+      "Advanced report and analytics",
+      "Advance Report & Analytics",
+    ],
+    batches: [
+      "Advanced inventory management",
+      "Simple recipe management",
+      "Advance Inventory Management",
+    ],
+    recipes: ["Recipe versioning & scaling", "Simple recipe management"],
+    inventory: [
+      "Advanced inventory management",
+      "Simple recipe management",
+      "Advance Inventory Management",
+    ],
+    qrScanning: ["QR Code scanning"],
+    schedules: ["Schedule & Calendar", "Schedules & Calendar"],
   };
-  
+
   // Check if any of the mapped feature strings exist in the plan features
   const mappedFeatures = featureMapping[feature] || [];
-  return mappedFeatures.some(mappedFeature => 
-    featuresArray.some((planFeature: string) => 
-      planFeature.toLowerCase().includes(mappedFeature.toLowerCase()) ||
-      mappedFeature.toLowerCase().includes(planFeature.toLowerCase())
+  return mappedFeatures.some((mappedFeature) =>
+    featuresArray.some(
+      (planFeature: string) =>
+        planFeature.toLowerCase().includes(mappedFeature.toLowerCase()) ||
+        mappedFeature.toLowerCase().includes(planFeature.toLowerCase())
     )
   );
 }
