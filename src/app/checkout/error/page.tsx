@@ -4,7 +4,13 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { XCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 function ErrorContent() {
@@ -39,9 +45,9 @@ function ErrorContent() {
               <Link href="/dashboard">
                 <Button className="cursor-pointer">Back to Dashboard</Button>
               </Link>
-              <Link href="/pricing">
+              {/*<Link href="/pricing">
                 <Button variant="outline" className="cursor-pointer">Choose Plan</Button>
-              </Link>
+              </Link>*/}
             </div>
           </CardContent>
         </Card>
@@ -52,7 +58,13 @@ function ErrorContent() {
 
 export default function ErrorPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <ErrorContent />
     </Suspense>
   );
