@@ -53,17 +53,41 @@ export async function POST(request: NextRequest) {
 
     // If payment is successful, handle the upgrade logic first
     if (newStatus === "PAID") {
+      // CRITICAL: Re-fetch transaction to get latest metadata
+      // There might be a race condition where webhook is called before metadata is saved
+      const latestTransaction = await prisma.transaction.findUnique({
+        where: { id: transaction.id },
+        include: { subscriptionPlan: true },
+      });
+
+      if (!latestTransaction) {
+        console.error(`❌ Could not re-fetch transaction ${transaction.id}`);
+        return NextResponse.json(
+          { error: "Transaction not found" },
+          { status: 404 }
+        );
+      }
+
       // Check if this should be scheduled instead of immediate
-      const upgradeOption = transaction.metadata?.upgradeOption;
+      const upgradeOption = latestTransaction.metadata?.upgradeOption;
 
       // Add detailed logging for debugging
       console.log(`🔍 Webhook processing transaction ${transaction.id}`);
       console.log(
-        `🔍 Transaction metadata:`,
+        `🔍 Original metadata:`,
         JSON.stringify(transaction.metadata, null, 2)
+      );
+      console.log(
+        `🔍 Latest metadata:`,
+        JSON.stringify(latestTransaction.metadata, null, 2)
       );
       console.log(`🔍 Upgrade option: "${upgradeOption}"`);
       console.log(`🔍 Upgrade option type: ${typeof upgradeOption}`);
+      console.log(
+        `🔍 Comparison: "${upgradeOption}" === "end_of_period" = ${
+          upgradeOption === "end_of_period"
+        }`
+      );
 
       if (upgradeOption === "end_of_period") {
         // For end of period upgrades, mark as SCHEDULED instead of PAID
@@ -97,7 +121,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        await handleSuccessfulPayment(transaction, notification);
+        await handleSuccessfulPayment(latestTransaction, notification);
       }
     } else if (newStatus === "FAILED" || newStatus === "CANCELLED") {
       // Update transaction status for failed payments
