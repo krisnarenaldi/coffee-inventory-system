@@ -344,7 +344,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                 </button>
 
                 {/* Dropdown Menu */}
-                <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[60]">
                   <div className="py-1">
                     {filteredNavigationItems.slice(6).map((item) => (
                       <Link
@@ -384,11 +384,6 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             <div className="text-xs text-gray-700 whitespace-nowrap">
               <span className="hidden 2xl:inline">Welcome, </span>
               <span className="font-medium">{session?.user?.name}</span>
-              {planName && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700 border border-gray-200">
-                  {planName}
-                </span>
-              )}
             </div>
 
             {/* User Actions Dropdown */}
@@ -412,7 +407,15 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               </button>
 
               {/* Dropdown Menu */}
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[60]">
+                {planName && (
+                  <div className="px-4 py-2 text-xs text-gray-600 border-b border-gray-100">
+                    Plan:
+                    <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700 border border-gray-200">
+                      {planName}
+                    </span>
+                  </div>
+                )}
                 <div className="py-1">
                   <Link
                     href="/profile"

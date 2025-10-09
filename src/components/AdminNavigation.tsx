@@ -151,7 +151,7 @@ export default function AdminNavigation({
                   </button>
 
                   {isMoreOpen && (
-                    <div className="absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-[60]">
                       <div className="py-1">
                         {moreItems.map((item) => (
                           <Link
@@ -209,7 +209,7 @@ export default function AdminNavigation({
 
               {/* Dropdown Menu */}
               {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[60]">
                   <div className="py-1">
                     <Link
                       href="/admin/profile"
