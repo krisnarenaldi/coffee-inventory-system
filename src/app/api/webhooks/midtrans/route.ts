@@ -56,6 +56,15 @@ export async function POST(request: NextRequest) {
       // Check if this should be scheduled instead of immediate
       const upgradeOption = transaction.metadata?.upgradeOption;
 
+      // Add detailed logging for debugging
+      console.log(`🔍 Webhook processing transaction ${transaction.id}`);
+      console.log(
+        `🔍 Transaction metadata:`,
+        JSON.stringify(transaction.metadata, null, 2)
+      );
+      console.log(`🔍 Upgrade option: "${upgradeOption}"`);
+      console.log(`🔍 Upgrade option type: ${typeof upgradeOption}`);
+
       if (upgradeOption === "end_of_period") {
         // For end of period upgrades, mark as SCHEDULED instead of PAID
         await prisma.transaction.update({
