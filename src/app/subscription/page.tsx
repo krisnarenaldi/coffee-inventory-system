@@ -67,9 +67,7 @@ function SubscriptionContent() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState<string>("");
-  const [effectiveDate, setEffectiveDate] = useState<
-    "immediate" | "end_of_period"
-  >("immediate");
+  // Removed effectiveDate state - we only have immediate upgrades now
   const [upgradeCalculation, setUpgradeCalculation] = useState<any>(null);
   const [actionMessage, setActionMessage] = useState<null | {
     type: "success" | "error";
@@ -88,7 +86,7 @@ function SubscriptionContent() {
     if (selectedPlan && subscription) {
       calculateUpgradeOptions();
     }
-  }, [selectedPlan, effectiveDate, subscription, availablePlans]);
+  }, [selectedPlan, subscription, availablePlans]);
 
   // Debug modal state changes
   useEffect(() => {
@@ -257,10 +255,7 @@ function SubscriptionContent() {
       newPlanProratedCost: newPlanProratedCost,
       additionalCharge: additionalCharge,
       currentPeriodEnd: currentPeriodEnd,
-      nextBillingDate:
-        effectiveDate === "immediate"
-          ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          : currentPeriodEnd,
+      nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
     });
   };
 
@@ -355,11 +350,10 @@ function SubscriptionContent() {
         // Use upgrade endpoint for true upgrades (will redirect to checkout)
         const upgradePayload = {
           planId: selectedPlan,
-          upgradeOption: effectiveDate,
-          calculatedAmount:
-            effectiveDate === "immediate" && upgradeCalculation
-              ? Math.round(upgradeCalculation.additionalCharge)
-              : newPrice,
+          upgradeOption: "immediate",
+          calculatedAmount: upgradeCalculation
+            ? Math.round(upgradeCalculation.additionalCharge)
+            : newPrice,
         };
 
         const response = await fetch("/api/subscription/upgrade", {
@@ -400,7 +394,7 @@ function SubscriptionContent() {
         body: JSON.stringify({
           subscriptionId: subscription.id,
           newPlanId: selectedPlan,
-          effectiveDate,
+          effectiveDate: "immediate",
         }),
       });
 
@@ -943,15 +937,8 @@ function SubscriptionContent() {
 
                   <div className="space-y-4">
                     {/* Immediate Upgrade Option */}
-                    <label className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="effectiveDate"
-                        value="immediate"
-                        checked={effectiveDate === "immediate"}
-                        onChange={() => setEffectiveDate("immediate")}
-                        className="mt-1"
-                      />
+                    <div className="flex items-start space-x-3 p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+                      <div className="text-blue-600 mt-1">✅</div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <div className="font-medium text-gray-900">
@@ -991,66 +978,56 @@ function SubscriptionContent() {
                           </div>
                         </div>
                       </div>
-                    </label>
+                    </div>
 
-                    {/* End of Period Option */}
-                    <label className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="effectiveDate"
-                        value="end_of_period"
-                        checked={effectiveDate === "end_of_period"}
-                        onChange={() => setEffectiveDate("end_of_period")}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900">
-                            ⏰ Upgrade at End of Billing Period
+                    {/* Fair Pricing Information */}
+                    <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                      <div className="flex items-start space-x-3">
+                        <div className="text-blue-600 mt-0.5">💡</div>
+                        <div className="flex-1">
+                          <div className="font-medium text-blue-900">
+                            Fair Pricing Guarantee
                           </div>
-                          <div className="text-lg font-bold text-green-600">
-                            &nbsp;
+                          <div className="text-sm text-blue-700 mt-1">
+                            We calculate the exact value of your unused{" "}
+                            {upgradeCalculation.currentPlan.name} time and only
+                            charge the difference. You never lose money when
+                            upgrading!
                           </div>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          Start {upgradeCalculation.newPlan.name} on{" "}
-                          {formatDate(upgradeCalculation.currentPeriodEnd)}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2 space-y-1">
-                          <div>
-                            • Continue using{" "}
-                            {upgradeCalculation.currentPlan.name} until{" "}
-                            {formatDate(upgradeCalculation.currentPeriodEnd)}
-                          </div>
-                          <div>• No additional charge now</div>
-                          <div>
-                            • First {upgradeCalculation.newPlan.name} billing:
-                            Rp{" "}
-                            {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
-                            on {formatDate(upgradeCalculation.currentPeriodEnd)}
+                          <div className="text-xs text-blue-600 mt-2">
+                            • Unused time value: Rp{" "}
+                            {Math.round(
+                              upgradeCalculation.unusedCurrentValue
+                            ).toLocaleString()}
+                            • {upgradeCalculation.newPlan.name} cost for
+                            remaining period: Rp{" "}
+                            {Math.round(
+                              upgradeCalculation.newPlanProratedCost
+                            ).toLocaleString()}
+                            • You only pay the difference: Rp{" "}
+                            {Math.round(
+                              upgradeCalculation.additionalCharge
+                            ).toLocaleString()}
                           </div>
                         </div>
                       </div>
-                    </label>
+                    </div>
                   </div>
 
                   {/* Summary */}
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="text-sm text-blue-800">
-                      <strong>Summary:</strong>{" "}
-                      {effectiveDate === "immediate"
-                        ? `Pay ${
-                            upgradeCalculation.additionalCharge > 0
-                              ? `Rp ${Math.round(
-                                  upgradeCalculation.additionalCharge
-                                ).toLocaleString()}`
-                              : "nothing"
-                          } now for immediate access to ${
-                            upgradeCalculation.newPlan.name
-                          } features.`
-                        : `No charge now. Upgrade will activate automatically on ${formatDate(
-                            upgradeCalculation.currentPeriodEnd
-                          )}.`}
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="text-sm text-green-800">
+                      <strong>✅ Ready to Upgrade:</strong> Pay{" "}
+                      {upgradeCalculation.additionalCharge > 0
+                        ? `Rp ${Math.round(
+                            upgradeCalculation.additionalCharge
+                          ).toLocaleString()}`
+                        : "nothing"}{" "}
+                      now for immediate access to{" "}
+                      {upgradeCalculation.newPlan.name} features. Your next
+                      billing will be Rp{" "}
+                      {upgradeCalculation.newPlan.price.toLocaleString()} on{" "}
+                      {formatDate(upgradeCalculation.nextBillingDate)}.
                     </div>
                   </div>
                 </div>

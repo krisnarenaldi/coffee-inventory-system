@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planId, upgradeOption, calculatedAmount } = body;
+    const { planId, calculatedAmount } = body;
 
     if (!planId) {
       return NextResponse.json(
@@ -91,12 +91,10 @@ export async function POST(request: NextRequest) {
         cycle: cycle,
       });
 
-      // Add upgrade-specific parameters
-      if (upgradeOption) {
-        checkoutParams.set("upgradeOption", upgradeOption);
-      }
+      // Add upgrade-specific parameters (always immediate now)
+      checkoutParams.set("upgradeOption", "immediate");
 
-      if (calculatedAmount && upgradeOption === "immediate") {
+      if (calculatedAmount) {
         checkoutParams.set("amount", calculatedAmount.toString());
       }
 
@@ -106,7 +104,7 @@ export async function POST(request: NextRequest) {
         message: "Upgrade requires payment. Redirecting to checkout.",
         checkoutUrl,
         requiresPayment: true,
-        upgradeOption: upgradeOption || "immediate",
+        upgradeOption: "immediate",
         calculatedAmount: calculatedAmount || Number(newPlan.price),
       });
     }
