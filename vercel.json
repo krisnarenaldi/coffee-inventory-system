@@ -8,8 +8,7 @@
   },
   "crons": [
     {
-      "path": "/api/cron/activate-scheduled-upgrades",
-      "schedule": "0 2 * * *"
+      "path": "/api/cron/activate-scheduled-upgrades"
     }
   ],
   "rewrites": [
