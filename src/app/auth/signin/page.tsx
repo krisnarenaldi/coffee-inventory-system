@@ -184,16 +184,16 @@ function SignInForm() {
           result?.error?.includes("SUBSCRIPTION_EXPIRED")
         ) {
           console.log(
-            "Subscription expired, showing message with pricing link"
+            "Subscription expired, guiding user to in-app renewal"
           );
           setError(
             <>
               Your subscription has ended. Please{" "}
               <Link
-                href="/pricing"
+                href="/subscription?expired=true"
                 className="text-amber-600 hover:text-amber-500 underline"
               >
-                upgrade your plan
+                renew your plan
               </Link>{" "}
               to continue using the service.
             </>
@@ -220,16 +220,16 @@ function SignInForm() {
               const data = await response.json();
               if (data.isExpired) {
                 console.log(
-                  "🔐 SIGNIN: Subscription expired detected via API, showing message with pricing link"
+                  "🔐 SIGNIN: Subscription expired detected via API, guiding to in-app renewal"
                 );
                 setError(
                   <>
                     Your subscription has ended. Please{" "}
                     <Link
-                      href="/pricing"
+                      href="/subscription?expired=true"
                       className="text-amber-600 hover:text-amber-500 underline"
                     >
-                      upgrade your plan
+                      renew your plan
                     </Link>{" "}
                     to continue using the service.
                   </>
@@ -256,6 +256,12 @@ function SignInForm() {
           await new Promise((resolve) => setTimeout(resolve, 50)); // Reduced from 200ms to 50ms
           session = await getSession();
           retries++;
+        }
+
+        // If subscription is expired, route directly to in-app renewal
+        if (session?.user?.subscriptionExpired) {
+          router.push("/subscription?expired=true");
+          return;
         }
 
         // Check if user is PLATFORM_ADMIN and redirect to admin dashboard
@@ -327,16 +333,16 @@ function SignInForm() {
             const data = await response.json();
             if (data.isExpired) {
               console.log(
-                "🔐 SIGNIN: Subscription expired detected in catch block, showing message with pricing link"
+                "🔐 SIGNIN: Subscription expired detected in catch block, guiding to in-app renewal"
               );
               setError(
                 <>
                   Your subscription has ended. Please{" "}
                   <Link
-                    href="/pricing"
+                    href="/subscription?expired=true"
                     className="text-amber-600 hover:text-amber-500 underline"
                   >
-                    upgrade your plan
+                    renew your plan
                   </Link>{" "}
                   to continue using the service.
                 </>

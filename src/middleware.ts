@@ -69,6 +69,17 @@ function isPublicRoute(pathname: string): boolean {
   return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
+// Allow routes required for renewing or checking out
+function isRenewalRoute(pathname: string): boolean {
+  const renewalRoutes = [
+    "/subscription",
+    "/checkout",
+    "/api/subscription",
+    "/api/checkout",
+  ];
+  return renewalRoutes.some((route) => pathname.startsWith(route));
+}
+
 // Check if route is admin route
 function isAdminRoute(pathname: string): boolean {
   return pathname.startsWith("/admin");
@@ -123,6 +134,17 @@ export async function middleware(request: NextRequest) {
         }
         return NextResponse.redirect(new URL("/auth/signin", request.url));
       }
+
+      // If subscription expired, force renewal flow except on renewal routes
+      // @ts-expect-error token may carry custom field
+      if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("⏳ Subscription expired, redirecting to renewal page");
+        }
+        return NextResponse.redirect(
+          new URL("/subscription?expired=true", request.url)
+        );
+      }
     }
     return response;
   }
@@ -158,6 +180,17 @@ export async function middleware(request: NextRequest) {
         if (!token) {
           return NextResponse.redirect(new URL("/auth/signin", request.url));
         }
+
+        // If subscription expired, force renewal flow except on renewal routes
+        // @ts-expect-error token may carry custom field
+        if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("⏳ Subscription expired, redirecting to renewal page");
+          }
+          return NextResponse.redirect(
+            new URL("/subscription?expired=true", request.url)
+          );
+        }
       }
 
       response.headers.set("X-Tenant-ID", tenant.id);
@@ -184,6 +217,17 @@ export async function middleware(request: NextRequest) {
           );
         }
         return NextResponse.redirect(new URL("/auth/signin", request.url));
+      }
+
+      // If subscription expired, force renewal flow except on renewal routes
+      // @ts-expect-error token may carry custom field
+      if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("⏳ Subscription expired, redirecting to renewal page");
+        }
+        return NextResponse.redirect(
+          new URL("/subscription?expired=true", request.url)
+        );
       }
 
       // User is authenticated on main domain - set tenant context from token

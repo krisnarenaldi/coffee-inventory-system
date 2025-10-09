@@ -42,6 +42,7 @@ declare module "next-auth" {
       tenantId: string;
       tenant?: any;
       tenantSubdomain?: string;
+      subscriptionExpired?: boolean;
     };
   }
 }
@@ -424,7 +425,7 @@ export const getAuthOptions = (): NextAuthOptions => {
                 console.error("Failed to update last login:", error);
               });
 
-            // Check subscription status and throw error if expired (optimized)
+            // Check subscription status; allow login but flag expired
             try {
               const subscriptionStartTime = Date.now();
               const subscriptionStatus = await validateSubscription(
@@ -440,25 +441,20 @@ export const getAuthOptions = (): NextAuthOptions => {
 
               if (!subscriptionStatus.isActive) {
                 console.log(
-                  `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - throwing error`
+                  `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - allowing login with expired flag`
                 );
-                // Throw specific error that can be caught by frontend
-                throw new Error("SUBSCRIPTION_EXPIRED");
+                // Mark expired but do NOT block login
+                (user as any).subscriptionExpired = true;
+              } else {
+                (user as any).subscriptionExpired = false;
               }
             } catch (error) {
               console.error(
                 "Error validating subscription during authorization:",
                 error
               );
-              // If it's already a subscription expired error, re-throw it
-              if (
-                error instanceof Error &&
-                error.message === "SUBSCRIPTION_EXPIRED"
-              ) {
-                throw error;
-              }
-              // For other errors, assume expired for security
-              throw new Error("SUBSCRIPTION_EXPIRED");
+              // On validation errors, be conservative: mark as expired but allow login
+              (user as any).subscriptionExpired = true;
             }
 
             console.log("✅ AUTH: Authentication successful for:", user.email);
@@ -470,6 +466,7 @@ export const getAuthOptions = (): NextAuthOptions => {
               role: user.role,
               tenantId: tenantId || user.tenantId,
               tenant: userTenant || user.tenant,
+              subscriptionExpired: (user as any).subscriptionExpired ?? false,
             };
           } catch (error) {
             console.error("❌ AUTH: Error during authentication:", error);
@@ -763,6 +760,9 @@ export const getAuthOptions = (): NextAuthOptions => {
           token.role = user.role;
           token.tenantId = user.tenantId;
           token.tenant = user.tenant;
+          // propagate expired flag
+          // @ts-expect-error optional at runtime
+          token.subscriptionExpired = (user as any).subscriptionExpired ?? false;
 
           // Log credentials login activity (async to not block)
           if (account && account.provider === "credentials") {
@@ -787,6 +787,9 @@ export const getAuthOptions = (): NextAuthOptions => {
           session.user.tenantId = token.tenantId;
           session.user.tenant = token.tenant;
           session.user.tenantSubdomain = token.tenant?.subdomain;
+          // include expired flag in session
+          // @ts-expect-error optional at runtime
+          session.user.subscriptionExpired = (token as any).subscriptionExpired ?? false;
         }
         return session;
       },

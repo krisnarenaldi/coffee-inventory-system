@@ -6,11 +6,6 @@
       "maxDuration": 30
     }
   },
-  "crons": [
-    {
-      "path": "/api/cron/activate-scheduled-upgrades"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/tenant/:path*",
