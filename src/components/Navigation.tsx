@@ -25,6 +25,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
   const [hasAdvancedAnalytics, setHasAdvancedAnalytics] = useState(false);
   const [hasBasicReports, setHasBasicReports] = useState(false);
   const [featuresChecked, setFeaturesChecked] = useState(false);
+  const [planName, setPlanName] = useState<string | null>(null);
 
   // Check subscription features
   useEffect(() => {
@@ -117,6 +118,44 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       // Ensure banner logic can render even without tenant/session
       setFeaturesChecked(true);
     }
+  }, [session?.user?.tenantId]);
+
+  // Fetch current plan name to show near user's name
+  useEffect(() => {
+    const fetchPlanName = async () => {
+      if (!session?.user?.tenantId) {
+        setPlanName(null);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/subscription?t=${Date.now()}`,
+          {
+            cache: "no-cache",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }
+        );
+
+        if (!res.ok) {
+          setPlanName(null);
+          return;
+        }
+
+        const data = await res.json();
+        // subscription with embedded plan details
+        const name = data?.plan?.name || null;
+        setPlanName(typeof name === "string" ? name : null);
+      } catch (e) {
+        console.error("NAVIGATION: Failed fetching plan name", e);
+        setPlanName(null);
+      }
+    };
+
+    fetchPlanName();
   }, [session?.user?.tenantId]);
 
   // Prevent hydration mismatch by not rendering until session is loaded
@@ -345,6 +384,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             <div className="text-xs text-gray-700 whitespace-nowrap">
               <span className="hidden 2xl:inline">Welcome, </span>
               <span className="font-medium">{session?.user?.name}</span>
+              {planName && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700 border border-gray-200">
+                  {planName}
+                </span>
+              )}
             </div>
 
             {/* User Actions Dropdown */}
@@ -469,6 +513,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           <div className="flex items-center px-4">
             <div className="text-base font-medium text-gray-800">
               {session?.user?.name}
+              {planName && (
+                <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                  {planName}
+                </span>
+              )}
             </div>
           </div>
           <div className="mt-3 space-y-1">
