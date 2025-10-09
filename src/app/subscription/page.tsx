@@ -1009,7 +1009,7 @@ function SubscriptionContent() {
                             ⏰ Upgrade at End of Billing Period
                           </div>
                           <div className="text-lg font-bold text-green-600">
-                            Free
+                            &nbsp;
                           </div>
                         </div>
                         <div className="text-sm text-gray-600 mt-1">
