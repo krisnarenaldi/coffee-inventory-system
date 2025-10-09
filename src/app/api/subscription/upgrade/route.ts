@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Enforce checkout for upgrades: do NOT change plan immediately
     if (isUpgrade) {
-      // Mark subscription as pending checkout and remember intended plan
+      // ALL upgrades require payment - the difference is WHEN activation happens
       await prisma.subscription.update({
         where: { tenantId: session.user.tenantId },
         data: {
