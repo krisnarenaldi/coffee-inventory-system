@@ -181,7 +181,8 @@ export async function getSubscriptionMessage(
 
   // Do not show an error for free plan users.
   // Free plan and any ACTIVE plan may have no currentPeriodEnd by design.
-  if (subscriptionStatus.status === "ACTIVE") {
+  // Treat any active status (including PENDING_CHECKOUT/TRIALING) with no expiry as valid.
+  if (subscriptionStatus.isActive && !subscriptionStatus.isExpired) {
     return null;
   }
 
