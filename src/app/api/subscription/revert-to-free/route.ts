@@ -38,18 +38,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If user is still in pending checkout, keep the status and intendedPlan
-    // but switch to free plan and make it non-expiring so they can log in.
+    // If user is still in pending checkout
     if ((subscription as any).status === 'PENDING_CHECKOUT') {
-      await prisma.subscription.update({
-        where: { tenantId: session.user.tenantId },
-        data: {
-          planId: freePlan.id,
-          // keep status as PENDING_CHECKOUT to track unfinished payments
-          // keep intendedPlan as-is to know what they intended to buy
-          currentPeriodEnd: null as any,
-        },
-      });
+      const isCurrentlyOnFreePlan = (subscription as any).planId === (freePlan as any).id;
+
+      if (isCurrentlyOnFreePlan) {
+        // For users who were on Free during checkout, ensure non-expiring access
+        await prisma.subscription.update({
+          where: { tenantId: session.user.tenantId },
+          data: {
+            planId: freePlan.id,
+            currentPeriodEnd: null as any,
+          },
+        });
+      } else {
+        // For paid users (e.g., Starter), do NOT downgrade.
+        // Keep their existing plan and period; just refresh status metadata.
+        await prisma.subscription.update({
+          where: { tenantId: session.user.tenantId },
+          data: {
+            status: 'PENDING_CHECKOUT' as any,
+            updatedAt: new Date(),
+          },
+        });
+      }
     } else {
       // Otherwise fully revert to free plan
       await prisma.subscription.update({

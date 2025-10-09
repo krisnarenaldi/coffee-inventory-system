@@ -257,15 +257,16 @@ export default function Dashboard() {
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">
-                  Complete Your Subscription
+                  Upgrade Pending
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   <p>
-                    You have an incomplete checkout for the{" "}
+                    You started an upgrade to the{" "}
                     <span className="font-semibold capitalize">
                       {pendingCheckout.intendedPlan}
                     </span>{" "}
-                    plan. Complete your payment to activate your subscription.
+                    plan. Your current plan remains active. Continue payment to
+                    activate your upgrade.
                   </p>
                 </div>
                 <div className="mt-4">
@@ -274,7 +275,7 @@ export default function Dashboard() {
                       href={`/checkout?plan=${pendingCheckout.intendedPlan}`}
                       className="bg-yellow-50 px-2 py-1.5 rounded-md text-sm font-medium text-yellow-800 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-yellow-50 focus:ring-yellow-600"
                     >
-                      Complete Payment
+                      Continue Payment
                     </Link>
                   </div>
                 </div>
