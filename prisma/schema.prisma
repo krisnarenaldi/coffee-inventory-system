@@ -613,6 +613,7 @@ enum TransactionStatus {
   CANCELLED
   EXPIRED
   REFUNDED
+  SCHEDULED
 }
 
 enum UserRole {

@@ -58,8 +58,14 @@ function SubscriptionContent() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState<string>("");
-  const [effectiveDate, setEffectiveDate] = useState<"immediate" | "end_of_period">("immediate");
-  const [actionMessage, setActionMessage] = useState<null | { type: "success" | "error"; text: string }>(null);
+  const [effectiveDate, setEffectiveDate] = useState<
+    "immediate" | "end_of_period"
+  >("immediate");
+  const [upgradeCalculation, setUpgradeCalculation] = useState<any>(null);
+  const [actionMessage, setActionMessage] = useState<null | {
+    type: "success" | "error";
+    text: string;
+  }>(null);
   const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(
     null
   );
@@ -67,6 +73,13 @@ function SubscriptionContent() {
   // Check for expired or error parameters
   const isExpired = searchParams?.get("expired") === "true";
   const hasError = searchParams?.get("error") === "validation_failed";
+
+  // Calculate upgrade pricing when plan or option changes
+  useEffect(() => {
+    if (selectedPlan && subscription) {
+      calculateUpgradeOptions();
+    }
+  }, [selectedPlan, effectiveDate, subscription, availablePlans]);
 
   // Debug modal state changes
   useEffect(() => {
@@ -81,6 +94,37 @@ function SubscriptionContent() {
       setShowUpgradeModal(true);
     }
   }, [isExpired, hasError]);
+
+  // Check for scheduled upgrades on page load
+  useEffect(() => {
+    const checkScheduledUpgrades = async () => {
+      if (!session?.user?.tenantId) return;
+
+      try {
+        const response = await fetch("/api/cron/activate-scheduled-upgrades", {
+          method: "POST",
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.processedUpgrades > 0) {
+            setActionMessage({
+              type: "success",
+              text: "🎉 Your scheduled upgrade has been activated!",
+            });
+            // Refresh subscription data
+            await fetchSubscriptionData();
+          }
+        }
+      } catch (error) {
+        console.error("Error checking scheduled upgrades:", error);
+      }
+    };
+
+    if (session?.user?.tenantId) {
+      checkScheduledUpgrades();
+    }
+  }, [session?.user?.tenantId]);
 
   // Authentication protection
   useEffect(() => {
@@ -161,6 +205,56 @@ function SubscriptionContent() {
     return () => clearTimeout(timeout);
   }, [session]);
 
+  const calculateUpgradeOptions = async () => {
+    if (!selectedPlan || !subscription) return;
+
+    const newPlan = availablePlans.find((p) => p.id === selectedPlan);
+    if (!newPlan) return;
+
+    const now = new Date();
+    const currentPeriodEnd = new Date(subscription.currentPeriodEnd);
+    const remainingDays = Math.ceil(
+      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Calculate current plan daily rate
+    const currentPeriodStart = new Date(subscription.currentPeriodStart);
+    const totalCurrentDays = Math.ceil(
+      (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
+
+    // Calculate new plan daily rate (assume 30 days for monthly)
+    const newDailyRate = Number(newPlan.price) / 30;
+
+    // Calculate unused current plan value
+    const unusedCurrentValue = currentDailyRate * remainingDays;
+
+    // Calculate new plan cost for remaining period
+    const newPlanProratedCost = newDailyRate * remainingDays;
+
+    // Calculate additional charge for immediate upgrade
+    const additionalCharge = Math.max(
+      0,
+      newPlanProratedCost - unusedCurrentValue
+    );
+
+    setUpgradeCalculation({
+      currentPlan: subscription.plan,
+      newPlan: newPlan,
+      remainingDays: remainingDays,
+      unusedCurrentValue: unusedCurrentValue,
+      newPlanProratedCost: newPlanProratedCost,
+      additionalCharge: additionalCharge,
+      currentPeriodEnd: currentPeriodEnd,
+      nextBillingDate:
+        effectiveDate === "immediate"
+          ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          : currentPeriodEnd,
+    });
+  };
+
   const fetchSubscriptionMessage = async () => {
     try {
       const response = await fetch("/api/subscription/status");
@@ -237,7 +331,10 @@ function SubscriptionContent() {
 
       // Prevent no-op if same plan
       if (chosenPlan.id === subscription.plan.id) {
-        setActionMessage({ type: "error", text: "You are already on this plan." });
+        setActionMessage({
+          type: "error",
+          text: "You are already on this plan.",
+        });
         return;
       }
 
@@ -247,17 +344,29 @@ function SubscriptionContent() {
 
       if (isUpgrade) {
         // Use upgrade endpoint for true upgrades (will redirect to checkout)
+        const upgradePayload = {
+          planId: selectedPlan,
+          upgradeOption: effectiveDate,
+          calculatedAmount:
+            effectiveDate === "immediate" && upgradeCalculation
+              ? Math.round(upgradeCalculation.additionalCharge)
+              : newPrice,
+        };
+
         const response = await fetch("/api/subscription/upgrade", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ planId: selectedPlan }),
+          body: JSON.stringify(upgradePayload),
         });
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setActionMessage({ type: "error", text: data?.error || "Failed to start upgrade." });
+          setActionMessage({
+            type: "error",
+            text: data?.error || "Failed to start upgrade.",
+          });
           return;
         }
 
@@ -288,7 +397,10 @@ function SubscriptionContent() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setActionMessage({ type: "error", text: data?.error || "Failed to change plan." });
+        setActionMessage({
+          type: "error",
+          text: data?.error || "Failed to change plan.",
+        });
         return;
       }
 
@@ -298,10 +410,16 @@ function SubscriptionContent() {
         await fetchSubscriptionData();
       }
       setShowUpgradeModal(false);
-      setActionMessage({ type: "success", text: data?.message || "Plan updated successfully." });
+      setActionMessage({
+        type: "success",
+        text: data?.message || "Plan updated successfully.",
+      });
     } catch (error) {
       console.error("Error upgrading subscription:", error);
-      setActionMessage({ type: "error", text: "Unexpected error. Please try again." });
+      setActionMessage({
+        type: "error",
+        text: "Unexpected error. Please try again.",
+      });
     }
   };
 
@@ -459,7 +577,9 @@ function SubscriptionContent() {
               )}
               <p
                 className={`text-sm ${
-                  actionMessage.type === "success" ? "text-green-800" : "text-red-800"
+                  actionMessage.type === "success"
+                    ? "text-green-800"
+                    : "text-red-800"
                 }`}
               >
                 {actionMessage.text}
@@ -758,7 +878,9 @@ function SubscriptionContent() {
                     )}
                     <p
                       className={`text-sm ${
-                        actionMessage.type === "success" ? "text-green-800" : "text-red-800"
+                        actionMessage.type === "success"
+                          ? "text-green-800"
+                          : "text-red-800"
                       }`}
                     >
                       {actionMessage.text}
@@ -811,34 +933,127 @@ function SubscriptionContent() {
                   ))
                 )}
               </div>
-              {/* Effective Date Options */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  When should the change take effect?
-                </label>
-                <div className="flex items-center space-x-6">
-                  <label className="inline-flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      name="effectiveDate"
-                      value="immediate"
-                      checked={effectiveDate === "immediate"}
-                      onChange={() => setEffectiveDate("immediate")}
-                    />
-                    <span className="text-sm text-gray-700">Change now</span>
-                  </label>
-                  <label className="inline-flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      name="effectiveDate"
-                      value="end_of_period"
-                      checked={effectiveDate === "end_of_period"}
-                      onChange={() => setEffectiveDate("end_of_period")}
-                    />
-                    <span className="text-sm text-gray-700">At end of current period</span>
-                  </label>
+              {/* Enhanced Upgrade Options */}
+              {selectedPlan && upgradeCalculation && (
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">
+                    Choose when to upgrade:
+                  </h4>
+
+                  <div className="space-y-4">
+                    {/* Immediate Upgrade Option */}
+                    <label className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="effectiveDate"
+                        value="immediate"
+                        checked={effectiveDate === "immediate"}
+                        onChange={() => setEffectiveDate("immediate")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-gray-900">
+                            🚀 Upgrade Now
+                          </div>
+                          <div className="text-lg font-bold text-amber-600">
+                            {upgradeCalculation.additionalCharge > 0
+                              ? `Rp ${Math.round(
+                                  upgradeCalculation.additionalCharge
+                                ).toLocaleString()}`
+                              : "Free"}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          Get {upgradeCalculation.newPlan.name} features
+                          immediately
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2 space-y-1">
+                          <div>
+                            • Unused {upgradeCalculation.currentPlan.name}{" "}
+                            value: Rp{" "}
+                            {Math.round(
+                              upgradeCalculation.unusedCurrentValue
+                            ).toLocaleString()}
+                          </div>
+                          <div>
+                            • {upgradeCalculation.newPlan.name} cost for{" "}
+                            {upgradeCalculation.remainingDays} days: Rp{" "}
+                            {Math.round(
+                              upgradeCalculation.newPlanProratedCost
+                            ).toLocaleString()}
+                          </div>
+                          <div>
+                            • Next billing: Rp{" "}
+                            {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
+                            on{" "}
+                            {upgradeCalculation.nextBillingDate.toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* End of Period Option */}
+                    <label className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="effectiveDate"
+                        value="end_of_period"
+                        checked={effectiveDate === "end_of_period"}
+                        onChange={() => setEffectiveDate("end_of_period")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-gray-900">
+                            ⏰ Upgrade at End of Billing Period
+                          </div>
+                          <div className="text-lg font-bold text-green-600">
+                            Free
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          Start {upgradeCalculation.newPlan.name} on{" "}
+                          {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2 space-y-1">
+                          <div>
+                            • Continue using{" "}
+                            {upgradeCalculation.currentPlan.name} until{" "}
+                            {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                          </div>
+                          <div>• No additional charge now</div>
+                          <div>
+                            • First {upgradeCalculation.newPlan.name} billing:
+                            Rp{" "}
+                            {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
+                            on{" "}
+                            {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-sm text-blue-800">
+                      <strong>Summary:</strong>{" "}
+                      {effectiveDate === "immediate"
+                        ? `Pay ${
+                            upgradeCalculation.additionalCharge > 0
+                              ? `Rp ${Math.round(
+                                  upgradeCalculation.additionalCharge
+                                ).toLocaleString()}`
+                              : "nothing"
+                          } now for immediate access to ${
+                            upgradeCalculation.newPlan.name
+                          } features.`
+                        : `No charge now. Upgrade will activate automatically on ${upgradeCalculation.currentPeriodEnd.toLocaleDateString()}.`}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   onClick={() => setShowUpgradeModal(false)}

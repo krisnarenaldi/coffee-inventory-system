@@ -53,6 +53,8 @@ function CheckoutContent() {
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
+  const upgradeOption = searchParams.get("upgradeOption");
+  const customAmount = searchParams.get("amount");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -140,7 +142,12 @@ function CheckoutContent() {
   const handlePayment = async () => {
     if (!plan) return;
 
-    console.log("🚀 Starting payment process for plan:", plan.id, "billing cycle:", billingCycle);
+    console.log(
+      "🚀 Starting payment process for plan:",
+      plan.id,
+      "billing cycle:",
+      billingCycle
+    );
     setProcessing(true);
     try {
       console.log("📡 Making request to /api/checkout/create-token");
@@ -152,11 +159,13 @@ function CheckoutContent() {
         body: JSON.stringify({
           planId: plan.id,
           billingCycle,
+          upgradeOption: upgradeOption || undefined,
+          customAmount: customAmount ? parseInt(customAmount) : undefined,
         }),
       });
 
       console.log("📡 Response status:", response.status);
-      
+
       if (!response.ok) {
         const error = await response.json();
         console.error("❌ API Error:", error);
@@ -164,7 +173,10 @@ function CheckoutContent() {
       }
 
       const data: CheckoutData = await response.json();
-      console.log("✅ Payment token created:", { orderId: data.orderId, hasSnapToken: !!data.snapToken });
+      console.log("✅ Payment token created:", {
+        orderId: data.orderId,
+        hasSnapToken: !!data.snapToken,
+      });
       setCheckoutData(data);
 
       // Check if Midtrans Snap is loaded

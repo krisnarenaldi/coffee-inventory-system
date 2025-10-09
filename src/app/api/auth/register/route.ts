@@ -24,6 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforce breweryName max length of 50 characters
+    if (breweryName.trim().length > 50) {
+      return NextResponse.json(
+        { error: 'Brewery name must be at most 50 characters' },
+        { status: 400 }
+      );
+    }
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
