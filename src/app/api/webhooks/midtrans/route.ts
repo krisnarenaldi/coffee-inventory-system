@@ -51,24 +51,73 @@ export async function POST(request: NextRequest) {
     // Map Midtrans status to our transaction status
     const newStatus = mapTransactionStatus(notification.transaction_status);
 
-    // Update transaction status
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: newStatus,
-        metadata: {
-          ...(transaction.metadata as any),
-          midtrans_notification: notification,
-          updated_at: new Date().toISOString(),
-        },
-      },
-    });
-
-    // If payment is successful, update or create subscription
+    // If payment is successful, handle the upgrade logic first
     if (newStatus === "PAID") {
-      await handleSuccessfulPayment(transaction, notification);
+      // Check if this should be scheduled instead of immediate
+      const upgradeOption = transaction.metadata?.upgradeOption;
+
+      if (upgradeOption === "end_of_period") {
+        // For end of period upgrades, mark as SCHEDULED instead of PAID
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: "SCHEDULED",
+            metadata: {
+              ...(transaction.metadata as any),
+              midtrans_notification: notification,
+              scheduledActivationHandled: false,
+              updated_at: new Date().toISOString(),
+            },
+          },
+        });
+
+        console.log(
+          `✅ Transaction ${transaction.id} marked as SCHEDULED for end-of-period upgrade`
+        );
+      } else {
+        // For immediate upgrades, update to PAID and activate
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: newStatus,
+            metadata: {
+              ...(transaction.metadata as any),
+              midtrans_notification: notification,
+              updated_at: new Date().toISOString(),
+            },
+          },
+        });
+
+        await handleSuccessfulPayment(transaction, notification);
+      }
     } else if (newStatus === "FAILED" || newStatus === "CANCELLED") {
+      // Update transaction status for failed payments
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: newStatus,
+          metadata: {
+            ...(transaction.metadata as any),
+            midtrans_notification: notification,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      });
+
       await handleFailedPayment(transaction, notification);
+    } else {
+      // For other statuses (PENDING, etc.), just update the transaction
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: newStatus,
+          metadata: {
+            ...(transaction.metadata as any),
+            midtrans_notification: notification,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      });
     }
 
     return NextResponse.json({ status: "success" });
@@ -83,37 +132,13 @@ export async function POST(request: NextRequest) {
 
 async function handleSuccessfulPayment(transaction: any, notification: any) {
   try {
-    // Get upgrade options from transaction metadata
-    const upgradeOption = transaction.metadata?.upgradeOption || "immediate";
-
-    // Calculate subscription dates based on upgrade option
-    let startDate: Date;
-    let endDate: Date;
-
-    if (upgradeOption === "end_of_period") {
-      // For end of period upgrades, don't activate immediately
-      // Just mark transaction as SCHEDULED and let cron job handle activation
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: {
-          status: "SCHEDULED",
-          metadata: {
-            ...transaction.metadata,
-            scheduledActivationHandled: false,
-          },
-        },
-      });
-
-      console.log(
-        `✅ Transaction ${transaction.id} marked as SCHEDULED for end-of-period upgrade`
-      );
-      return;
-    }
+    // This function now only handles immediate upgrades
+    // End-of-period upgrades are handled in the main webhook logic
 
     // For immediate upgrades, activate now
-    startDate = new Date();
+    const startDate = new Date();
     const interval = transaction.subscriptionPlan?.interval || "MONTHLY";
-    endDate = computeNextPeriodEnd(startDate, interval);
+    const endDate = computeNextPeriodEnd(startDate, interval);
 
     // Check if user has a subscription with PENDING_CHECKOUT status
     const existingSubscription = await prisma.subscription.findFirst({
