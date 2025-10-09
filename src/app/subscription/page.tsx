@@ -46,6 +46,15 @@ interface UsageData {
   batches: number;
 }
 
+// Helper function to format dates as dd-mm-yyyy
+const formatDate = (date: Date | string) => {
+  const d = new Date(date);
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = (d.getMonth() + 1).toString().padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
 function SubscriptionContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -630,10 +639,7 @@ function SubscriptionContent() {
                     subscription.currentPeriodEnd && (
                       <p className="mt-2 text-sm text-red-600 flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-1" />
-                        Cancels on{" "}
-                        {new Date(
-                          subscription.currentPeriodEnd
-                        ).toLocaleDateString()}
+                        Cancels on {formatDate(subscription.currentPeriodEnd)}
                       </p>
                     )}
                 </div>
@@ -642,13 +648,8 @@ function SubscriptionContent() {
                     Billing Period
                   </label>
                   <p className="text-sm text-gray-900">
-                    {new Date(
-                      subscription.currentPeriodStart
-                    ).toLocaleDateString()}{" "}
-                    -{" "}
-                    {new Date(
-                      subscription.currentPeriodEnd
-                    ).toLocaleDateString()}
+                    {formatDate(subscription.currentPeriodStart)} -{" "}
+                    {formatDate(subscription.currentPeriodEnd)}
                   </p>
                   <div className="mt-4 space-y-2">
                     {!subscription.cancelAtPeriodEnd ? (
@@ -986,8 +987,7 @@ function SubscriptionContent() {
                           <div>
                             • Next billing: Rp{" "}
                             {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
-                            on{" "}
-                            {upgradeCalculation.nextBillingDate.toLocaleDateString()}
+                            on {formatDate(upgradeCalculation.nextBillingDate)}
                           </div>
                         </div>
                       </div>
@@ -1014,21 +1014,20 @@ function SubscriptionContent() {
                         </div>
                         <div className="text-sm text-gray-600 mt-1">
                           Start {upgradeCalculation.newPlan.name} on{" "}
-                          {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                          {formatDate(upgradeCalculation.currentPeriodEnd)}
                         </div>
                         <div className="text-xs text-gray-500 mt-2 space-y-1">
                           <div>
                             • Continue using{" "}
                             {upgradeCalculation.currentPlan.name} until{" "}
-                            {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                            {formatDate(upgradeCalculation.currentPeriodEnd)}
                           </div>
                           <div>• No additional charge now</div>
                           <div>
                             • First {upgradeCalculation.newPlan.name} billing:
                             Rp{" "}
                             {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
-                            on{" "}
-                            {upgradeCalculation.currentPeriodEnd.toLocaleDateString()}
+                            on {formatDate(upgradeCalculation.currentPeriodEnd)}
                           </div>
                         </div>
                       </div>
@@ -1049,7 +1048,9 @@ function SubscriptionContent() {
                           } now for immediate access to ${
                             upgradeCalculation.newPlan.name
                           } features.`
-                        : `No charge now. Upgrade will activate automatically on ${upgradeCalculation.currentPeriodEnd.toLocaleDateString()}.`}
+                        : `No charge now. Upgrade will activate automatically on ${formatDate(
+                            upgradeCalculation.currentPeriodEnd
+                          )}.`}
                     </div>
                   </div>
                 </div>
