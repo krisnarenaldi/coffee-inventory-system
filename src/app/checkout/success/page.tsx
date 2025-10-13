@@ -2,9 +2,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { CheckCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 function SuccessContent() {
@@ -64,15 +69,25 @@ function SuccessContent() {
               )}
             </div>
             {reconciling && (
-              <div className="text-xs text-gray-500">Reconciling payment status...</div>
+              <div className="text-xs text-gray-500">
+                Reconciling payment status...
+              </div>
             )}
             {reconcileError && (
               <div className="text-xs text-red-600">{reconcileError}</div>
             )}
             <div className="pt-2">
-              <Link href="/dashboard">
-                <Button className="cursor-pointer">Continue to Dashboard</Button>
-              </Link>
+              <Button
+                className="cursor-pointer"
+                onClick={() => {
+                  // Force session refresh after successful payment to update subscriptionExpired flag
+                  window.location.href =
+                    "/auth/signin?callbackUrl=" +
+                    encodeURIComponent("/dashboard");
+                }}
+              >
+                Continue to Dashboard
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -83,7 +98,13 @@ function SuccessContent() {
 
 export default function SuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <SuccessContent />
     </Suspense>
   );
