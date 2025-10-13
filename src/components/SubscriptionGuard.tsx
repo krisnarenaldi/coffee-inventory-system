@@ -102,6 +102,27 @@ export default function SubscriptionGuard({
 
             router.push("/subscription?expired=true");
             return;
+          } else {
+            // Subscription is active on server
+            // Check if session flag is stale (session says expired, but server says active)
+            if (session.user.subscriptionExpired) {
+              console.log(
+                "🎉 SUBSCRIPTION GUARD: Subscription renewed! Session flag is stale (session: expired, server: active), forcing session refresh"
+              );
+              console.log("🎉 Current path:", currentPath);
+              console.log(
+                "🎉 User:",
+                session.user.email,
+                "Tenant:",
+                session.user.tenantId
+              );
+              console.log("🎉 Server data:", data);
+
+              // Force session refresh to update the subscriptionExpired flag
+              window.location.href =
+                "/auth/signin?callbackUrl=" + encodeURIComponent(currentPath);
+              return;
+            }
           }
         } else if (response.status === 401) {
           // Unauthorized - redirect to signin
