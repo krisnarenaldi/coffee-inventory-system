@@ -418,9 +418,11 @@ function SubscriptionContent() {
       const currentPrice = parseFloat(String(subscription.plan.price));
       const newPrice = parseFloat(String(chosenPlan.price));
       const isUpgrade = newPrice > currentPrice;
+      const isRenewal = isSamePlan && isExpired;
 
-      if (isUpgrade) {
-        // Use upgrade endpoint for true upgrades (will redirect to checkout)
+      // Route renewals and upgrades to the upgrade endpoint (requires payment)
+      if (isUpgrade || isRenewal) {
+        // Use upgrade endpoint for upgrades and renewals (will redirect to checkout)
         const upgradePayload = {
           planId: selectedPlan,
           upgradeOption: "immediate",
@@ -458,7 +460,7 @@ function SubscriptionContent() {
         return;
       }
 
-      // Downgrade or lateral change: call change-plan endpoint
+      // Downgrade or lateral change (not renewal): call change-plan endpoint
       const response = await fetch("/api/subscription/change-plan", {
         method: "POST",
         headers: {
