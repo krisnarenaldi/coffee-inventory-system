@@ -37,6 +37,22 @@ export default function SubscriptionProtectedPage({
         return;
       }
 
+      // Authoritative server-side check for subscription status to honor grace period
+      try {
+        const resp = await fetch("/api/subscription/status");
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.isExpired === true || data.isActive === false) {
+            router.push("/subscription?expired=true");
+            setHasAccess(false);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // If API fails, fall back to feature check; do not block access solely on client flag
+      }
+
       if (!session.user?.tenantId) {
         setHasAccess(false);
         setIsLoading(false);
@@ -69,6 +85,11 @@ export default function SubscriptionProtectedPage({
   // Redirect to signin if no session
   if (!session) {
     return null;
+  }
+
+  // Prevent rendering protected content if subscription is expired
+  if (session.user?.subscriptionExpired) {
+    return null; // Redirect handled in effect
   }
 
   // Show upgrade message if no access

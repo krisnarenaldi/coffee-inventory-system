@@ -296,7 +296,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           <div className="flex">
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/dashboard" className="flex items-center space-x-3">
+              <Link
+                href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : "/dashboard"}
+                className="flex items-center space-x-3"
+              >
                 <Image
                   src="/logo-polos.png"
                   alt="Coffee Shop Inventory Logo"
@@ -315,7 +318,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               {filteredNavigationItems.slice(0, 6).map((item) => (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
                   className={`inline-flex items-center px-2 pt-1 border-b-2 text-xs font-medium transition-colors duration-200 whitespace-nowrap ${
                     isActive(item.href)
                       ? "border-blue-500 text-gray-900"
@@ -349,7 +352,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                     {filteredNavigationItems.slice(6).map((item) => (
                       <Link
                         key={item.name}
-                        href={item.href}
+                        href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
                         className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${
                           isActive(item.href)
                             ? "bg-blue-50 text-blue-700"
@@ -497,7 +500,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           {filteredNavigationItems.map((item) => (
             <Link
               key={item.name}
-              href={item.href}
+              href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
               className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200 ${
                 isActive(item.href)
                   ? "bg-blue-50 border-blue-500 text-blue-700"

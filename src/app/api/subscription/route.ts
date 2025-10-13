@@ -49,17 +49,40 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      await prisma.subscription.create({
-        data: {
-          tenantId: session.user.tenantId,
-          planId: freePlan.id,
-          status: 'ACTIVE' as any,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: null as any,
-          cancelAtPeriodEnd: false,
-          intendedPlan: 'free',
-        },
+      // Ensure tenant exists to avoid foreign key constraint errors
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: session.user.tenantId },
       });
+      if (!tenant) {
+        return NextResponse.json(
+          { error: 'Tenant not found for session' },
+          { status: 409 }
+        );
+      }
+
+      // Create subscription using relational connects for safety
+      try {
+        await prisma.subscription.create({
+          data: {
+            tenant: { connect: { id: session.user.tenantId } },
+            plan: { connect: { id: freePlan.id } },
+            status: 'ACTIVE' as any,
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
+            intendedPlan: 'free',
+          },
+        });
+      } catch (e: any) {
+        // Handle foreign key violations and provide a clearer message
+        if (e?.code === 'P2003') {
+          return NextResponse.json(
+            { error: 'Subscription creation failed due to invalid tenant or plan reference' },
+            { status: 409 }
+          );
+        }
+        throw e;
+      }
 
       // Re-fetch with plan details included
       subscription = await prisma.subscription.findUnique({

@@ -133,6 +133,15 @@ export default function BatchesPage() {
     };
   }, [showDeleteModal, showForm]);
 
+  // Redirect if subscription is expired
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session) return;
+    if (session.user?.subscriptionExpired) {
+      router.push("/subscription?expired=true");
+    }
+  }, [status, session, router]);
+
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {

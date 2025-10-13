@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Navigation from "../../components/Navigation";
+import ProtectedPage from "../../components/ProtectedPage";
 import AnimatedTooltip from "@/components/AnimatedTooltip";
 import { SimpleAnalytics } from "@/components/SimpleAnalytics";
 
@@ -200,7 +201,11 @@ export default function AnalyticsPage() {
   const isDemoTenant = session?.user?.email === "admin@demo.coffeeshop";
   if (!hasAdvancedAnalytics && !isDemoTenant) {
     return (
-      <SimpleAnalytics onUpgradeClick={() => router.push("/subscription?src=feature_gate_analytics")} />
+      <SimpleAnalytics
+        onUpgradeClick={() =>
+          router.push("/subscription?src=feature_gate_analytics")
+        }
+      />
     );
   }
 
@@ -229,430 +234,440 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Analytics Dashboard
-              </h1>
-              <p className="mt-2 text-gray-600">
-                Comprehensive insights into your coffee shop operations
-              </p>
-            </div>
-            <div>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
-              >
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-                <option value="365">Last year</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-2xl mr-3 flex-shrink-0">📦</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-600">Ingredients</p>
-                <p className="text-2xl font-bold text-gray-900 break-words">
-                  {data.overview.totalIngredients}
+    <ProtectedPage requiredPermission="reports">
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Analytics Dashboard
+                </h1>
+                <p className="mt-2 text-gray-600">
+                  Comprehensive insights into your coffee shop operations
                 </p>
+              </div>
+              <div>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                >
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="365">Last year</option>
+                </select>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-2xl mr-3 flex-shrink-0">☕</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-600">Products</p>
-                <p className="text-2xl font-bold text-gray-900 break-words">
-                  {data.overview.totalProducts}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <AnimatedTooltip content="Total number of coffee roasting batches processed during the selected time period">
-            <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
-                <div className="text-2xl mr-3 flex-shrink-0">🔥</div>
+                <div className="text-2xl mr-3 flex-shrink-0">📦</div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-600">
-                    Total Batches
+                    Ingredients
                   </p>
                   <p className="text-2xl font-bold text-gray-900 break-words">
-                    {data.overview.totalBatches}
+                    {data.overview.totalIngredients}
                   </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="text-2xl mr-3 flex-shrink-0">☕</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-600">Products</p>
+                  <p className="text-2xl font-bold text-gray-900 break-words">
+                    {data.overview.totalProducts}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <AnimatedTooltip content="Total number of coffee roasting batches processed during the selected time period">
+              <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-3 flex-shrink-0">🔥</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      Total Batches
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 break-words">
+                      {data.overview.totalBatches}
+                    </p>
+                    <div
+                      className={`flex items-center text-sm ${getTrendColor(
+                        data.trends.batchTrend
+                      )}`}
+                    >
+                      <span className="mr-1">
+                        {getTrendIcon(data.trends.batchTrend)}
+                      </span>
+                      <span>
+                        {Math.abs(data.trends.batchTrend).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AnimatedTooltip>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="text-2xl mr-3 flex-shrink-0">⚡</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-600">
+                    Active Batches
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 break-words">
+                    {data.overview.activeBatches}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <AnimatedTooltip content="Total monetary value of all ingredients and materials currently in stock">
+              <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-3 flex-shrink-0">💰</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      Inventory Value
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 break-words">
+                      {formatCurrency(data.overview.inventoryValue)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </AnimatedTooltip>
+
+            <AnimatedTooltip content="Production efficiency percentage based on actual yield vs expected yield across all batches">
+              <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-3 flex-shrink-0">📊</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      Efficiency
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 break-words">
+                      {data.overview.productionEfficiency}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </AnimatedTooltip>
+          </div>
+
+          {data.alerts.total > 0 && (
+            <div className="bg-white rounded-lg shadow p-6 mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Active Alerts
+              </h2>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center">
                   <div
-                    className={`flex items-center text-sm ${getTrendColor(
-                      data.trends.batchTrend
-                    )}`}
-                  >
-                    <span className="mr-1">
-                      {getTrendIcon(data.trends.batchTrend)}
-                    </span>
-                    <span>{Math.abs(data.trends.batchTrend).toFixed(1)}%</span>
+                    className={`w-3 h-3 rounded-full ${getAlertColor(
+                      "critical"
+                    )} mr-2`}
+                  ></div>
+                  <span className="text-sm text-gray-600">
+                    Critical: {data.alerts.critical}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full ${getAlertColor(
+                      "high"
+                    )} mr-2`}
+                  ></div>
+                  <span className="text-sm text-gray-600">
+                    High: {data.alerts.high}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full ${getAlertColor(
+                      "medium"
+                    )} mr-2`}
+                  ></div>
+                  <span className="text-sm text-gray-600">
+                    Medium: {data.alerts.medium}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full ${getAlertColor(
+                      "low"
+                    )} mr-2`}
+                  ></div>
+                  <span className="text-sm text-gray-600">
+                    Low: {data.alerts.low}
+                  </span>
+                </div>
+                <div className="ml-auto">
+                  <span className="text-lg font-semibold text-gray-900">
+                    Total: {data.alerts.total}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Low Stock Ingredients
+                </h2>
+              </div>
+              <div className="p-6">
+                {data.inventory.lowStock.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No low stock items
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.inventory.lowStock.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex justify-between items-center p-3 bg-red-50 rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {item.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Stock: {Number(item.stockQuantity)}{" "}
+                            {item.unitOfMeasure}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-red-600 font-medium">
+                            Min: {Number(item.minimumThreshold)}{" "}
+                            {item.unitOfMeasure}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Expiring Soon
+                </h2>
+              </div>
+              <div className="p-6">
+                {data.inventory.expiring.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No items expiring soon
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.inventory.expiring.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {item.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Stock: {Number(item.stockQuantity)}{" "}
+                            {item.unitOfMeasure}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-yellow-600 font-medium">
+                            Expires: {formatDate(item.expirationDate)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Recent Batches
+                </h2>
+              </div>
+              <div className="p-6">
+                {data.production.recentBatches.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">
+                    No recent batches
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.production.recentBatches.slice(0, 5).map((batch) => (
+                      <div
+                        key={batch.id}
+                        className="flex justify-between items-center p-3 border rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {batch.batchNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {batch.recipe?.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDateTime(batch.createdAt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                              batch.status
+                            )}`}
+                          >
+                            {batch.status}
+                          </span>
+                          {batch.actualYield && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Yield: {Number(batch.actualYield)}kg
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Production Summary
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Last {data.period.days} days
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">
+                      {data.production.totalYield.toFixed(1)}kg
+                    </p>
+                    <p className="text-sm text-gray-600">Total Yield</p>
+                  </div>
+                  <div className="text-center p-4 bg-red-50 rounded-lg">
+                    <p className="text-2xl font-bold text-red-600">
+                      {data.production.totalLoss.toFixed(1)}kg
+                    </p>
+                    <p className="text-sm text-gray-600">Total Loss</p>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {data.production.averageYield.toFixed(1)}kg
+                    </p>
+                    <p className="text-sm text-gray-600">Avg Yield per Batch</p>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {data.production.averageLoss.toFixed(1)}kg
+                    </p>
+                    <p className="text-sm text-gray-600">Avg Loss per Batch</p>
                   </div>
                 </div>
               </div>
             </div>
-          </AnimatedTooltip>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-2xl mr-3 flex-shrink-0">⚡</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-600">
-                  Active Batches
-                </p>
-                <p className="text-2xl font-bold text-gray-900 break-words">
-                  {data.overview.activeBatches}
-                </p>
-              </div>
-            </div>
           </div>
 
-          <AnimatedTooltip content="Total monetary value of all ingredients and materials currently in stock">
-            <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center">
-                <div className="text-2xl mr-3 flex-shrink-0">💰</div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-600">
-                    Inventory Value
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900 break-words">
-                    {formatCurrency(data.overview.inventoryValue)}
-                  </p>
-                </div>
+          {data.schedule.upcoming.length > 0 && (
+            <div className="bg-white rounded-lg shadow mb-8">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Upcoming Schedule
+                </h2>
+                <p className="text-sm text-gray-600">Next 7 days</p>
               </div>
-            </div>
-          </AnimatedTooltip>
-
-          <AnimatedTooltip content="Production efficiency percentage based on actual yield vs expected yield across all batches">
-            <div className="bg-white rounded-lg shadow p-6 cursor-help hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center">
-                <div className="text-2xl mr-3 flex-shrink-0">📊</div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-600">
-                    Efficiency
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900 break-words">
-                    {data.overview.productionEfficiency}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </AnimatedTooltip>
-        </div>
-
-        {data.alerts.total > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Active Alerts
-            </h2>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <div
-                  className={`w-3 h-3 rounded-full ${getAlertColor(
-                    "critical"
-                  )} mr-2`}
-                ></div>
-                <span className="text-sm text-gray-600">
-                  Critical: {data.alerts.critical}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <div
-                  className={`w-3 h-3 rounded-full ${getAlertColor(
-                    "high"
-                  )} mr-2`}
-                ></div>
-                <span className="text-sm text-gray-600">
-                  High: {data.alerts.high}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <div
-                  className={`w-3 h-3 rounded-full ${getAlertColor(
-                    "medium"
-                  )} mr-2`}
-                ></div>
-                <span className="text-sm text-gray-600">
-                  Medium: {data.alerts.medium}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <div
-                  className={`w-3 h-3 rounded-full ${getAlertColor(
-                    "low"
-                  )} mr-2`}
-                ></div>
-                <span className="text-sm text-gray-600">
-                  Low: {data.alerts.low}
-                </span>
-              </div>
-              <div className="ml-auto">
-                <span className="text-lg font-semibold text-gray-900">
-                  Total: {data.alerts.total}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Low Stock Ingredients
-              </h2>
-            </div>
-            <div className="p-6">
-              {data.inventory.lowStock.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  No low stock items
-                </p>
-              ) : (
+              <div className="p-6">
                 <div className="space-y-3">
-                  {data.inventory.lowStock.map((item) => (
+                  {data.schedule.upcoming.map((schedule) => (
                     <div
-                      key={item.id}
-                      className="flex justify-between items-center p-3 bg-red-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-600">
-                          Stock: {Number(item.stockQuantity)}{" "}
-                          {item.unitOfMeasure}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-red-600 font-medium">
-                          Min: {Number(item.minimumThreshold)}{" "}
-                          {item.unitOfMeasure}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Expiring Soon
-              </h2>
-            </div>
-            <div className="p-6">
-              {data.inventory.expiring.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  No items expiring soon
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {data.inventory.expiring.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-600">
-                          Stock: {Number(item.stockQuantity)}{" "}
-                          {item.unitOfMeasure}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-yellow-600 font-medium">
-                          Expires: {formatDate(item.expirationDate)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Recent Batches
-              </h2>
-            </div>
-            <div className="p-6">
-              {data.production.recentBatches.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  No recent batches
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {data.production.recentBatches.slice(0, 5).map((batch) => (
-                    <div
-                      key={batch.id}
+                      key={schedule.id}
                       className="flex justify-between items-center p-3 border rounded-lg"
                     >
                       <div>
                         <p className="font-medium text-gray-900">
-                          {batch.batchNumber}
+                          {schedule.title}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {batch.recipe?.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDateTime(batch.createdAt)}
+                          {schedule.type.replace("_", " ")}
                         </p>
                       </div>
                       <div className="text-right">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                            batch.status
-                          )}`}
-                        >
-                          {batch.status}
-                        </span>
-                        {batch.actualYield && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            Yield: {Number(batch.actualYield)}kg
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-600">
+                          {formatDateTime(schedule.startDate)}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Production Summary
+                Quick Actions
               </h2>
-              <p className="text-sm text-gray-600">
-                Last {data.period.days} days
-              </p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">
-                    {data.production.totalYield.toFixed(1)}kg
-                  </p>
-                  <p className="text-sm text-gray-600">Total Yield</p>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">
-                    {data.production.totalLoss.toFixed(1)}kg
-                  </p>
-                  <p className="text-sm text-gray-600">Total Loss</p>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {data.production.averageYield.toFixed(1)}kg
-                  </p>
-                  <p className="text-sm text-gray-600">Avg Yield per Batch</p>
-                </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {data.production.averageLoss.toFixed(1)}kg
-                  </p>
-                  <p className="text-sm text-gray-600">Avg Loss per Batch</p>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => router.push("/batches")}
+                  className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="text-2xl mb-2">🔥</div>
+                  <p className="text-sm font-medium">New Batch</p>
+                </button>
+                <button
+                  onClick={() => router.push("/ingredients")}
+                  className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="text-2xl mb-2">📦</div>
+                  <p className="text-sm font-medium">Manage Inventory</p>
+                </button>
+                <button
+                  onClick={() => router.push("/alerts")}
+                  className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="text-2xl mb-2">🚨</div>
+                  <p className="text-sm font-medium">View Alerts</p>
+                </button>
+                <button
+                  onClick={() => router.push("/schedules")}
+                  className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="text-2xl mb-2">📅</div>
+                  <p className="text-sm font-medium">Schedule</p>
+                </button>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {data.schedule.upcoming.length > 0 && (
-          <div className="bg-white rounded-lg shadow mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Upcoming Schedule
-              </h2>
-              <p className="text-sm text-gray-600">Next 7 days</p>
-            </div>
-            <div className="p-6">
-              <div className="space-y-3">
-                {data.schedule.upcoming.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className="flex justify-between items-center p-3 border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {schedule.title}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {schedule.type.replace("_", " ")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">
-                        {formatDateTime(schedule.startDate)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Quick Actions
-            </h2>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button
-                onClick={() => router.push("/batches")}
-                className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="text-2xl mb-2">🔥</div>
-                <p className="text-sm font-medium">New Batch</p>
-              </button>
-              <button
-                onClick={() => router.push("/ingredients")}
-                className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="text-2xl mb-2">📦</div>
-                <p className="text-sm font-medium">Manage Inventory</p>
-              </button>
-              <button
-                onClick={() => router.push("/alerts")}
-                className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="text-2xl mb-2">🚨</div>
-                <p className="text-sm font-medium">View Alerts</p>
-              </button>
-              <button
-                onClick={() => router.push("/schedules")}
-                className="p-4 text-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="text-2xl mb-2">📅</div>
-                <p className="text-sm font-medium">Schedule</p>
-              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </ProtectedPage>
   );
 }

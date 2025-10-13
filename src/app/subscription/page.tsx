@@ -102,34 +102,31 @@ function SubscriptionContent() {
     }
   }, [isExpired, hasError]);
 
-  // Check for scheduled upgrades on page load
+  // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
-    const checkScheduledUpgrades = async () => {
+    const checkPendingCheckout = async () => {
       if (!session?.user?.tenantId) return;
 
       try {
-        const response = await fetch("/api/cron/activate-scheduled-upgrades", {
-          method: "POST",
-        });
-
+        const response = await fetch("/api/subscription/pending-checkout");
         if (response.ok) {
           const result = await response.json();
-          if (result.processedUpgrades > 0) {
+          // Only show success if activation happened for THIS tenant
+          if (result.activated === true) {
             setActionMessage({
               type: "success",
               text: "🎉 Your scheduled upgrade has been activated!",
             });
-            // Refresh subscription data
             await fetchSubscriptionData();
           }
         }
       } catch (error) {
-        console.error("Error checking scheduled upgrades:", error);
+        console.error("Error checking pending checkout:", error);
       }
     };
 
     if (session?.user?.tenantId) {
-      checkScheduledUpgrades();
+      checkPendingCheckout();
     }
   }, [session?.user?.tenantId]);
 
@@ -218,11 +215,57 @@ function SubscriptionContent() {
     const newPlan = availablePlans.find((p) => p.id === selectedPlan);
     if (!newPlan) return;
 
+    // Check if this is a renewal case for expired subscription
     const now = new Date();
-    const currentPeriodEnd = new Date(subscription.currentPeriodEnd);
-    const remainingDays = Math.ceil(
+    const currentPeriodEnd = subscription.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd)
+      : null;
+    const remainingDays = currentPeriodEnd
+      ? Math.ceil(
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+    const isExpired = remainingDays <= 0;
+    const isSamePlan = newPlan.id === subscription.plan.id;
+
+    // For same plan selection
+    if (isSamePlan) {
+      if (isExpired) {
+        // Expired subscription renewal - show renewal calculation
+        const renewalPrice = parseFloat(String(newPlan.price));
+        setUpgradeCalculation({
+          currentPlan: subscription.plan,
+          newPlan: newPlan,
+          remainingDays: 0,
+          unusedCurrentValue: 0, // No unused value for expired subscription
+          newPlanProratedCost: renewalPrice, // Full price for renewal
+          additionalCharge: renewalPrice, // User pays full price
+          isRenewal: true,
+          isExpired: true,
+          currentPeriodEnd: currentPeriodEnd,
+          nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        });
+        return;
+      } else {
+        // Active subscription - no calculation needed (will be blocked anyway)
+        setUpgradeCalculation(null);
+        return;
+      }
+    }
+
+    // Reuse the variables already declared above
+    // For plan changes (not renewals), calculate proration
+    if (!currentPeriodEnd) {
+      // Handle case where currentPeriodEnd is null
+      setUpgradeCalculation(null);
+      return;
+    }
+
+    // Clamp remaining days to 0 to avoid negative values after expiry
+    const rawRemainingDays = Math.ceil(
       (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
+    const clampedRemainingDays = Math.max(0, rawRemainingDays);
 
     // Calculate current plan daily rate
     const currentPeriodStart = new Date(subscription.currentPeriodStart);
@@ -236,10 +279,10 @@ function SubscriptionContent() {
     const newDailyRate = Number(newPlan.price) / 30;
 
     // Calculate unused current plan value
-    const unusedCurrentValue = currentDailyRate * remainingDays;
+    const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
 
     // Calculate new plan cost for remaining period
-    const newPlanProratedCost = newDailyRate * remainingDays;
+    const newPlanProratedCost = newDailyRate * clampedRemainingDays;
 
     // Calculate additional charge for immediate upgrade
     const additionalCharge = Math.max(
@@ -250,7 +293,7 @@ function SubscriptionContent() {
     setUpgradeCalculation({
       currentPlan: subscription.plan,
       newPlan: newPlan,
-      remainingDays: remainingDays,
+      remainingDays: clampedRemainingDays,
       unusedCurrentValue: unusedCurrentValue,
       newPlanProratedCost: newPlanProratedCost,
       additionalCharge: additionalCharge,
@@ -333,14 +376,44 @@ function SubscriptionContent() {
       const chosenPlan = availablePlans.find((p) => p.id === selectedPlan);
       if (!chosenPlan || !subscription) return;
 
-      // Prevent no-op if same plan
-      if (chosenPlan.id === subscription.plan.id) {
+      // Check if user can select this plan based on subscription status
+      const now = new Date();
+      const currentPeriodEnd = subscription.currentPeriodEnd
+        ? new Date(subscription.currentPeriodEnd)
+        : null;
+      const remainingDays = currentPeriodEnd
+        ? Math.ceil(
+            (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          )
+        : 0;
+      const isExpired = remainingDays <= 0;
+      const isSamePlan = chosenPlan.id === subscription.plan.id;
+      const isFreeplan =
+        chosenPlan.name?.toLowerCase() === "free" ||
+        chosenPlan.id === "free-plan";
+
+      // Business logic for plan selection
+      if (!isExpired && isSamePlan) {
+        // Active subscription: cannot renew to same plan
         setActionMessage({
           type: "error",
-          text: "You are already on this plan.",
+          text: `You are already on the ${subscription.plan.name} plan. You can upgrade or downgrade to other plans, but cannot renew the same plan until it expires.`,
         });
         return;
       }
+
+      if (isFreeplan) {
+        // Never allow selection of Free plan through this interface
+        setActionMessage({
+          type: "error",
+          text: "Free plan selection is not available through this interface.",
+        });
+        return;
+      }
+
+      // If expired and same plan: this is a renewal (allowed)
+      // If expired and different plan: this is a plan change (allowed)
+      // If active and different plan: this is an upgrade/downgrade (allowed)
 
       const currentPrice = parseFloat(String(subscription.plan.price));
       const newPrice = parseFloat(String(chosenPlan.price));

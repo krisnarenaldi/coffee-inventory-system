@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Josefin_Sans } from "next/font/google";
 import { Providers } from "../components/providers";
+import GlobalSubscriptionWarning from "../components/GlobalSubscriptionWarning";
 import Script from "next/script";
 import "./globals.css";
 
@@ -156,7 +157,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${josefinSans.variable} antialiased`}
         suppressHydrationWarning={true}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <GlobalSubscriptionWarning />
+          {children}
+        </Providers>
       </body>
     </html>
   );

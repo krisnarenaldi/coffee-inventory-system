@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({
+          activated: true,
           hasPendingCheckout: false,
           intendedPlan: null,
         });
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
       (subscription as any).intendedPlan !== 'free';
 
     return NextResponse.json({
+      activated: false,
       hasPendingCheckout,
       intendedPlan: (subscription as any).intendedPlan,
     });

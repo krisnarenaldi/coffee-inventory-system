@@ -64,16 +64,40 @@ export async function POST(request: NextRequest) {
       Number(newPlan.price) > Number(currentSubscription.plan.price);
     const isSamePlan = planId === currentSubscription.planId;
 
-    if (isSamePlan) {
+    // Check if subscription is expired
+    const now = new Date();
+    const currentPeriodEnd = currentSubscription.currentPeriodEnd
+      ? new Date(currentSubscription.currentPeriodEnd)
+      : null;
+    const remainingDays = currentPeriodEnd
+      ? Math.ceil(
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+    const isExpired = remainingDays <= 0;
+
+    // Apply business logic for same plan selection
+    if (isSamePlan && !isExpired) {
+      // Active subscription: cannot renew same plan
       return NextResponse.json(
-        { error: "Already subscribed to this plan" },
+        {
+          error:
+            "Cannot renew the same plan while subscription is active. You can upgrade or downgrade to other plans, or wait until your current subscription expires.",
+        },
         { status: 400 }
       );
     }
 
-    // Enforce checkout for upgrades: do NOT change plan immediately
-    if (isUpgrade) {
-      // ALL upgrades require payment - the difference is WHEN activation happens
+    // If same plan and expired: this is a renewal (allowed)
+    // If different plan: this is an upgrade/downgrade (allowed)
+
+    // Determine if this requires payment
+    const isRenewal = isSamePlan && isExpired;
+    const requiresPayment = isUpgrade || isRenewal;
+
+    // Enforce checkout for upgrades and renewals: do NOT change plan immediately
+    if (requiresPayment) {
+      // ALL upgrades and renewals require payment - the difference is WHEN activation happens
       await prisma.subscription.update({
         where: { tenantId: session.user.tenantId },
         data: {

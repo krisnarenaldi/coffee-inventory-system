@@ -112,6 +112,11 @@ export default function IngredientsPage() {
       router.push("/auth/signin");
       return;
     }
+    // If subscription is expired, redirect to renewal page
+    if (session.user?.subscriptionExpired) {
+      router.push("/subscription?expired=true");
+      return;
+    }
     fetchIngredients();
     fetchSuppliers();
     fetchBatches();

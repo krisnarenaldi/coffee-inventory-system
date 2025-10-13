@@ -123,6 +123,14 @@ export default function RecipesPage() {
     }
   }, [status, router]);
 
+  // Redirect if subscription is expired
+  useEffect(() => {
+    if (status === "loading") return;
+    if (session?.user?.subscriptionExpired) {
+      router.push("/subscription?expired=true");
+    }
+  }, [status, session, router]);
+
   // Fetch recipes
   const fetchRecipes = async () => {
     try {

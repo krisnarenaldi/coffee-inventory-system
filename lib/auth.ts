@@ -439,9 +439,10 @@ export const getAuthOptions = (): NextAuthOptions => {
                 );
               }
 
-              if (!subscriptionStatus.isActive) {
+              // Only mark as expired AFTER grace period ends
+              if (subscriptionStatus.isExpired) {
                 console.log(
-                  `Tenant ${user.tenant?.subdomain} subscription is expired or inactive - allowing login with expired flag`
+                  `Tenant ${user.tenant?.subdomain} subscription is expired - allowing login with expired flag`
                 );
                 // Mark expired but do NOT block login
                 (user as any).subscriptionExpired = true;
@@ -676,9 +677,10 @@ export const getAuthOptions = (): NextAuthOptions => {
                 const subscriptionStatus = await validateSubscription(
                   user.tenantId
                 );
-                if (!subscriptionStatus.isActive) {
+                // Allow access during grace period; only block once fully expired
+                if (subscriptionStatus.isExpired) {
                   console.log(
-                    `OAuth sign-in rejected: tenant ${user.tenant?.subdomain} subscription is expired or inactive`
+                    `OAuth sign-in rejected: tenant ${user.tenant?.subdomain} subscription is expired`
                   );
                   // Use the tenant subdomain to construct the full URL
                   const tenantSubdomain = user.tenant?.subdomain;
@@ -755,12 +757,12 @@ export const getAuthOptions = (): NextAuthOptions => {
         return true; // Allow sign-in
       },
 
-      async jwt({ token, user, account }) {
+  async jwt({ token, user, account }) {
         if (user) {
           token.role = user.role;
           token.tenantId = user.tenantId;
           token.tenant = user.tenant;
-          // propagate expired flag
+          // propagate expired flag based on session user
           // @ts-expect-error optional at runtime
           token.subscriptionExpired = (user as any).subscriptionExpired ?? false;
 
@@ -775,6 +777,16 @@ export const getAuthOptions = (): NextAuthOptions => {
             ).catch((error) => {
               console.error("Failed to log user login:", error);
             });
+          }
+        } else if (token?.tenantId) {
+          // Refresh subscriptionExpired flag on subsequent token checks
+          try {
+            const status = await validateSubscription(token.tenantId as string);
+            // Only mark expired AFTER grace period
+            // @ts-expect-error optional at runtime
+            token.subscriptionExpired = status.isExpired;
+          } catch (e) {
+            // On errors, preserve existing flag; do not force expiration
           }
         }
         return token;

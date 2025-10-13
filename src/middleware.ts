@@ -135,11 +135,31 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/auth/signin", request.url));
       }
 
-      // If subscription expired, force renewal flow except on renewal routes
+      // If token indicates expired, double-check via API to honor grace period
       // @ts-expect-error token may carry custom field
       if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+        try {
+          const statusUrl = new URL("/api/subscription/status", request.url);
+          const statusResp = await fetch(statusUrl, {
+            headers: {
+              cookie: request.headers.get("cookie") ?? "",
+            },
+          });
+          if (statusResp.ok) {
+            const data = await statusResp.json();
+            // Allow during grace period or if active
+            if (!data.isExpired) {
+              if (process.env.NODE_ENV === "development") {
+                console.log("✅ Grace period detected, allowing access");
+              }
+              return response;
+            }
+          }
+        } catch (e) {
+          // On errors, fall through to redirect for safety
+        }
         if (process.env.NODE_ENV === "development") {
-          console.log("⏳ Subscription expired, redirecting to renewal page");
+          console.log("⏳ Subscription expired confirmed, redirecting to renewal page");
         }
         return NextResponse.redirect(
           new URL("/subscription?expired=true", request.url)
@@ -181,11 +201,30 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL("/auth/signin", request.url));
         }
 
-        // If subscription expired, force renewal flow except on renewal routes
+        // If token indicates expired, double-check via API to honor grace period
         // @ts-expect-error token may carry custom field
         if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+          try {
+            const statusUrl = new URL("/api/subscription/status", request.url);
+            const statusResp = await fetch(statusUrl, {
+              headers: {
+                cookie: request.headers.get("cookie") ?? "",
+              },
+            });
+            if (statusResp.ok) {
+              const data = await statusResp.json();
+              if (!data.isExpired) {
+                if (process.env.NODE_ENV === "development") {
+                  console.log("✅ Grace period detected, allowing access");
+                }
+                return response;
+              }
+            }
+          } catch (e) {
+            // On errors, fall through to redirect for safety
+          }
           if (process.env.NODE_ENV === "development") {
-            console.log("⏳ Subscription expired, redirecting to renewal page");
+            console.log("⏳ Subscription expired confirmed, redirecting to renewal page");
           }
           return NextResponse.redirect(
             new URL("/subscription?expired=true", request.url)
@@ -219,11 +258,30 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/auth/signin", request.url));
       }
 
-      // If subscription expired, force renewal flow except on renewal routes
+      // If token indicates expired, double-check via API to honor grace period
       // @ts-expect-error token may carry custom field
       if (token.subscriptionExpired && !isRenewalRoute(pathname)) {
+        try {
+          const statusUrl = new URL("/api/subscription/status", request.url);
+          const statusResp = await fetch(statusUrl, {
+            headers: {
+              cookie: request.headers.get("cookie") ?? "",
+            },
+          });
+          if (statusResp.ok) {
+            const data = await statusResp.json();
+            if (!data.isExpired) {
+              if (process.env.NODE_ENV === "development") {
+                console.log("✅ Grace period detected, allowing access");
+              }
+              return response;
+            }
+          }
+        } catch (e) {
+          // On errors, fall through to redirect for safety
+        }
         if (process.env.NODE_ENV === "development") {
-          console.log("⏳ Subscription expired, redirecting to renewal page");
+          console.log("⏳ Subscription expired confirmed, redirecting to renewal page");
         }
         return NextResponse.redirect(
           new URL("/subscription?expired=true", request.url)

@@ -4,6 +4,7 @@ import { getCachedOrFetch, CacheKeys, CacheTTL } from "./cache";
 export interface SubscriptionStatus {
   isActive: boolean;
   isExpired: boolean;
+  isInGracePeriod?: boolean;
   currentPeriodEnd: Date | null;
   status: string | null;
   planId: string | null;
@@ -64,9 +65,17 @@ export async function validateSubscription(
     }
 
     const now = new Date();
-    const isExpired = subscription.currentPeriodEnd
-      ? now > subscription.currentPeriodEnd
-      : false;
+    let isExpired = false;
+    let isInGracePeriod = false;
+
+    if (subscription.currentPeriodEnd) {
+      const graceEnd = new Date(
+        subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000
+      );
+      isInGracePeriod = now > subscription.currentPeriodEnd && now <= graceEnd;
+      // Consider expired only AFTER grace period ends
+      isExpired = now > graceEnd;
+    }
 
     // Check if subscription is active and not expired
     // Treat PENDING_CHECKOUT as active to preserve access during checkout flows
@@ -76,8 +85,9 @@ export async function validateSubscription(
       subscription.status === "PENDING_CHECKOUT";
 
     return {
-      isActive: isActive && !isExpired,
+      isActive: isActive && !isExpired, // Active during grace as well
       isExpired,
+      isInGracePeriod,
       currentPeriodEnd: subscription.currentPeriodEnd,
       status: subscription.status,
       planId: subscription.planId,
@@ -118,6 +128,9 @@ export async function checkSubscriptionWarning(
   shouldWarn: boolean;
   daysRemaining: number;
   currentPeriodEnd: Date | null;
+  message?: string;
+  ctaText?: string;
+  ctaLink?: string;
 }> {
   try {
     const subscription = await prisma.subscription.findUnique({
@@ -151,13 +164,37 @@ export async function checkSubscriptionWarning(
     const timeDiff = subscription.currentPeriodEnd.getTime() - now.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
+    // Determine grace period state
+    const graceEnd = new Date(
+      subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000
+    );
+    const inGrace = now > subscription.currentPeriodEnd && now <= graceEnd;
+    const pastGrace = now > graceEnd;
+
     // Warn if subscription expires within the specified days and hasn't expired yet
-    const shouldWarn = daysRemaining > 0 && daysRemaining <= days;
+    let shouldWarn = daysRemaining > 0 && daysRemaining <= days;
+    let message: string | undefined;
+    let ctaText: string | undefined;
+    let ctaLink: string | undefined;
+
+    if (inGrace) {
+      // During grace, always show reminder
+      shouldWarn = true;
+      message = "Don't lose your data. Renew now.";
+      ctaText = "Renew Subscription";
+      ctaLink = "/subscription";
+    } else if (pastGrace) {
+      // Past grace: no warning toast here; auto-downgrade job handles enforcement
+      shouldWarn = false;
+    }
 
     return {
       shouldWarn,
       daysRemaining,
       currentPeriodEnd: subscription.currentPeriodEnd,
+      message,
+      ctaText,
+      ctaLink,
     };
   } catch (error) {
     console.error("Error checking subscription warning:", error);

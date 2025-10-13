@@ -42,6 +42,9 @@ export default function Dashboard() {
   const [subscriptionWarning, setSubscriptionWarning] = useState<{
     shouldWarn: boolean;
     daysRemaining: number;
+    message?: string;
+    ctaText?: string;
+    ctaLink?: string;
   } | null>(null);
   const [showWarningToast, setShowWarningToast] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<{
@@ -58,6 +61,12 @@ export default function Dashboard() {
     }
 
     if (status === "authenticated") {
+      // Block access if subscription is expired
+      if (session?.user?.subscriptionExpired) {
+        router.push("/subscription?expired=true");
+        return;
+      }
+
       // Redirect PLATFORM_ADMIN users to admin dashboard
       if (session?.user?.role === "PLATFORM_ADMIN") {
         const hostname = window.location.hostname;
@@ -669,6 +678,9 @@ export default function Dashboard() {
         show={showWarningToast}
         daysRemaining={subscriptionWarning?.daysRemaining || 0}
         onClose={() => setShowWarningToast(false)}
+        message={subscriptionWarning?.message}
+        ctaText={subscriptionWarning?.ctaText}
+        ctaLink={subscriptionWarning?.ctaLink}
       />
     </div>
   );

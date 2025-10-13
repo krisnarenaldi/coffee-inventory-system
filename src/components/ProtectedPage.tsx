@@ -32,40 +32,64 @@ export default function ProtectedPage({
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Still loading
+    const checkProtection = async () => {
+      if (status === "loading") return; // Still loading
 
-    if (!session) {
-      router.push("/auth/signin");
-      return;
-    }
+      if (!session) {
+        router.push("/auth/signin");
+        return;
+      }
 
-    const userRole = session.user?.role as UserRole;
-    let hasPermission = false;
+      // Authoritative server-side check for subscription status
+      try {
+        const response = await fetch("/api/subscription/status");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.isExpired === true || data.isActive === false) {
+            console.log(
+              "🛡️ PROTECTED PAGE: Server reports expired subscription, redirecting"
+            );
+            router.push("/subscription?expired=true");
+            return;
+          }
+        }
+      } catch (error) {
+        console.error(
+          "ProtectedPage: Error checking subscription status:",
+          error
+        );
+        // Continue with permission check - don't block on API errors
+      }
+      const userRole = session.user?.role as UserRole;
+      let hasPermission = false;
 
-    switch (requiredPermission) {
-      case "inventory":
-        hasPermission = userRole ? canManageInventory(userRole) : false;
-        break;
-      case "products":
-        hasPermission = userRole ? canManageProducts(userRole) : false;
-        break;
-      case "reports":
-        hasPermission = userRole ? canViewReports(userRole) : false;
-        break;
-      case "packaging-types":
-        hasPermission = userRole ? canManagePackagingTypes(userRole) : false;
-        break;
-      case "admin":
-        hasPermission = userRole === "PLATFORM_ADMIN";
-        break;
-      default:
-        hasPermission = false;
-    }
+      switch (requiredPermission) {
+        case "inventory":
+          hasPermission = userRole ? canManageInventory(userRole) : false;
+          break;
+        case "products":
+          hasPermission = userRole ? canManageProducts(userRole) : false;
+          break;
+        case "reports":
+          hasPermission = userRole ? canViewReports(userRole) : false;
+          break;
+        case "packaging-types":
+          hasPermission = userRole ? canManagePackagingTypes(userRole) : false;
+          break;
+        case "admin":
+          hasPermission = userRole === "PLATFORM_ADMIN";
+          break;
+        default:
+          hasPermission = false;
+      }
 
-    if (!hasPermission) {
-      router.push(fallbackPath);
-      return;
-    }
+      if (!hasPermission) {
+        router.push(fallbackPath);
+        return;
+      }
+    };
+
+    checkProtection();
   }, [session, status, router, requiredPermission, fallbackPath]);
 
   if (status === "loading") {
@@ -79,6 +103,8 @@ export default function ProtectedPage({
   if (!session) {
     return null; // Will redirect to signin
   }
+
+  // Note: subscription expiration is validated via server API in effect
 
   const userRole = session.user?.role as UserRole;
   let hasPermission = false;

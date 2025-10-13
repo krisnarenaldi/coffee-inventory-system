@@ -7,12 +7,18 @@ interface SubscriptionWarningToastProps {
   show: boolean;
   daysRemaining: number;
   onClose: () => void;
+  message?: string;
+  ctaText?: string;
+  ctaLink?: string;
 }
 
 export default function SubscriptionWarningToast({
   show,
   daysRemaining,
   onClose,
+  message,
+  ctaText,
+  ctaLink,
 }: SubscriptionWarningToastProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -55,23 +61,33 @@ export default function SubscriptionWarningToast({
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">
-                Subscription Expiring Soon
+                {message ? "Subscription Reminder" : "Subscription Expiring Soon"}
               </h3>
               <div className="mt-1 text-sm text-yellow-700">
-                <p>
-                  Your subscription will end in{" "}
-                  <span className="font-semibold">
-                    {daysRemaining} day{daysRemaining !== 1 ? "s" : ""}
-                  </span>
-                  . Please renew to continue using this service.
-                </p>
+                {message ? (
+                  <p>
+                    {message} {" "}
+                    <a href="/subscription" className="underline text-yellow-800 hover:text-yellow-600">
+                      Renew now
+                    </a>
+                    .
+                  </p>
+                ) : (
+                  <p>
+                    Your subscription will end in{" "}
+                    <span className="font-semibold">
+                      {daysRemaining} day{daysRemaining !== 1 ? "s" : ""}
+                    </span>
+                    . Please renew to continue using this service.
+                  </p>
+                )}
               </div>
               <div className="mt-3">
                 <a
-                  href="/subscription"
+                  href={ctaLink || "/subscription"}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors duration-200"
                 >
-                  Renew Subscription
+                  {ctaText || "Renew Subscription"}
                 </a>
               </div>
             </div>
