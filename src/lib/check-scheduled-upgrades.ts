@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { computeNextPeriodEnd } from "./subscription-periods";
+import { mapTransactionStatus } from "./midtrans";
 
 export async function checkAndActivateScheduledUpgrades(tenantId: string) {
   try {
@@ -19,17 +20,24 @@ export async function checkAndActivateScheduledUpgrades(tenantId: string) {
       return null; // No scheduled upgrade
     }
 
-    // CRITICAL FIX: Check if there's a successful payment for this upgrade
+    // CRITICAL FIX: Check if there's a verified successful payment for this upgrade
     const successfulTransaction = await prisma.transaction.findFirst({
       where: {
         tenantId: tenantId,
         subscriptionPlanId: subscription.intendedPlan!,
-        status: { in: ["PAID", "SCHEDULED"] },
+        status: "PAID",
       },
       orderBy: { createdAt: "desc" },
     });
 
-    if (!successfulTransaction) {
+    // Additional guard: ensure webhook notification indicates a PAID status
+    const hasValidWebhookStatus = successfulTransaction?.metadata?.midtrans_notification
+      ? mapTransactionStatus(
+          (successfulTransaction.metadata as any).midtrans_notification?.transaction_status
+        ) === "PAID"
+      : false;
+
+    if (!successfulTransaction || !hasValidWebhookStatus) {
       console.log(
         `⚠️ Skipping scheduled upgrade for tenant ${tenantId} - no successful payment found`
       );

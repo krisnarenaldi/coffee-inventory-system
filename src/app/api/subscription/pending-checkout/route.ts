@@ -29,16 +29,17 @@ export async function GET(request: NextRequest) {
     // If subscription is marked as PENDING_CHECKOUT, attempt quick reconciliation
     // in case payment has already completed (e.g., webhook succeeded but UI state is stale).
     if ((subscription as any).status === 'PENDING_CHECKOUT') {
-      // Find the most recent PAID transaction for this tenant
+      // Find the most recent PAID transaction for this tenant that matches the intended plan
       const paidTransaction = await prisma.transaction.findFirst({
         where: {
           tenantId: session.user.tenantId,
+          subscriptionPlanId: (subscription as any).intendedPlan as any,
           status: 'PAID' as any,
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      if (paidTransaction) {
+      if (paidTransaction && (paidTransaction.metadata as any)?.midtrans_notification) {
         // Activate subscription based on the paid transaction
         const startDate = new Date();
         // Fetch plan interval to compute calendar-aware end date

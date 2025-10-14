@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 import { computeNextPeriodEnd } from "../../../../../lib/subscription-periods";
+import { mapTransactionStatus } from "../../../../../lib/midtrans";
 
 export async function GET(request: NextRequest) {
   try {
@@ -152,6 +153,16 @@ export async function GET(request: NextRequest) {
           metadata?.upgradeOption !== "end_of_period" ||
           metadata?.scheduledActivationHandled === true
         ) {
+          continue;
+        }
+
+        // Validate that we have a Midtrans webhook confirming payment success
+        const webhookStatus = metadata?.midtrans_notification?.transaction_status;
+        const mapped = webhookStatus ? mapTransactionStatus(webhookStatus) : null;
+        if (mapped !== "PAID") {
+          console.log(
+            `⚠️ Skipping orphaned SCHEDULED transaction ${transaction.id} — no confirmed PAID webhook status`
+          );
           continue;
         }
 
