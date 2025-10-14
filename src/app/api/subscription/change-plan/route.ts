@@ -62,10 +62,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the subscription is active
-    if (subscription.status !== "ACTIVE") {
+    // Check if the subscription is in a state that allows plan changes
+    // Allow: ACTIVE, PAST_DUE, CANCELLED, UNPAID, TRIALING
+    // Block: INCOMPLETE, INCOMPLETE_EXPIRED, PENDING_CHECKOUT (these need to complete first)
+    const allowedStatuses = [
+      "ACTIVE",
+      "PAST_DUE",
+      "CANCELLED",
+      "UNPAID",
+      "TRIALING",
+    ];
+    if (!allowedStatuses.includes(subscription.status)) {
       return NextResponse.json(
-        { error: "Can only change plans for active subscriptions" },
+        {
+          error: `Cannot change plans for subscriptions with status: ${subscription.status}. Please complete any pending actions first.`,
+        },
         { status: 400 }
       );
     }
