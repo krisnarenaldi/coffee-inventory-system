@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const now = new Date();
 
     // Find subscriptions ready for upgrade (intendedPlan set and current period ended)
+    // CRITICAL FIX: Only activate if there's a PAID or SCHEDULED transaction
     const readySubscriptions = await prisma.subscription.findMany({
       where: {
         intendedPlan: { not: null },
@@ -27,6 +28,50 @@ export async function GET(request: NextRequest) {
 
     for (const subscription of readySubscriptions) {
       try {
+        // CRITICAL FIX: Check if there's a successful payment for this upgrade
+        const successfulTransaction = await prisma.transaction.findFirst({
+          where: {
+            tenantId: subscription.tenantId,
+            subscriptionPlanId: subscription.intendedPlan!,
+            status: { in: ["PAID", "SCHEDULED"] },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!successfulTransaction) {
+          console.log(
+            `⚠️ Skipping subscription ${subscription.id} - no successful payment found for intended plan ${subscription.intendedPlan}`
+          );
+
+          // Check if there are any failed transactions for this upgrade
+          const failedTransaction = await prisma.transaction.findFirst({
+            where: {
+              tenantId: subscription.tenantId,
+              subscriptionPlanId: subscription.intendedPlan!,
+              status: { in: ["FAILED", "CANCELLED", "EXPIRED"] },
+            },
+            orderBy: { createdAt: "desc" },
+          });
+
+          if (failedTransaction) {
+            console.log(
+              `🧹 Clearing intendedPlan for subscription ${subscription.id} due to failed payment`
+            );
+            // Clear the intendedPlan since payment failed
+            await prisma.subscription.update({
+              where: { id: subscription.id },
+              data: {
+                intendedPlan: null,
+                status:
+                  subscription.currentPeriodEnd <= now ? "PAST_DUE" : "ACTIVE",
+                updatedAt: new Date(),
+              },
+            });
+          }
+
+          continue;
+        }
+
         // Get the new plan details
         const newPlan = await prisma.subscriptionPlan.findUnique({
           where: { id: subscription.intendedPlan! },

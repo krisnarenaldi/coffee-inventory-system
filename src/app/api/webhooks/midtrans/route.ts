@@ -254,10 +254,34 @@ async function handleFailedPayment(transaction: any, notification: any) {
   try {
     console.log("Payment failed for transaction:", transaction.id);
 
-    // You might want to send notification emails here
-    // or perform other cleanup actions
+    // CRITICAL FIX: Clear intendedPlan for failed payments to prevent cron job activation
+    const subscription = await prisma.subscription.findFirst({
+      where: { tenantId: transaction.tenantId },
+    });
 
-    // For now, just log the failure
+    if (
+      subscription &&
+      subscription.intendedPlan === transaction.subscriptionPlanId
+    ) {
+      console.log(
+        `🧹 Clearing intendedPlan for subscription ${subscription.id} due to failed payment`
+      );
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          intendedPlan: null,
+          status:
+            subscription.status === "PENDING_CHECKOUT"
+              ? subscription.currentPeriodEnd <= new Date()
+                ? "PAST_DUE"
+                : "ACTIVE"
+              : subscription.status,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    // Log the failure details
     console.log("Failed payment details:", {
       orderId: notification.order_id,
       transactionStatus: notification.transaction_status,
