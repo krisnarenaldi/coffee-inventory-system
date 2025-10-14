@@ -108,6 +108,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // CRITICAL FIX: Handle expired subscriptions with different plans (downgrades/upgrades)
+    if (isExpired && !isSamePlan) {
+      // For expired subscriptions changing to different plans, treat as new subscription
+      // This requires payment regardless of upgrade/downgrade
+      const newPlanPrice = Number(newPlan.price);
+
+      // Create a transaction for the new plan
+      const transaction = await prisma.transaction.create({
+        data: {
+          tenantId: subscription.tenantId,
+          userId: session.user.id,
+          subscriptionPlanId: newPlan.id,
+          amount: newPlanPrice,
+          status: newPlanPrice > 0 ? "PENDING" : "PAID", // Free plans are immediately paid
+          metadata: {
+            changeType: "expired_plan_change",
+            fromPlan: subscription.planId,
+            toPlan: newPlan.id,
+            isExpiredChange: true,
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      if (newPlanPrice > 0) {
+        // Requires payment - set up for checkout
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: "PENDING_CHECKOUT" as any,
+            intendedPlan: newPlan.id,
+            updatedAt: new Date(),
+          },
+        });
+
+        return NextResponse.json({
+          message: "Plan change requires payment. Please complete checkout.",
+          requiresPayment: true,
+          transactionId: transaction.id,
+          amount: newPlanPrice,
+          newPlan: {
+            id: newPlan.id,
+            name: newPlan.name,
+            price: newPlan.price,
+          },
+        });
+      } else {
+        // Free plan - activate immediately
+        const now = new Date();
+        const nextPeriodEnd =
+          newPlan.interval === "YEARLY"
+            ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
+            : new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            planId: newPlan.id,
+            currentPeriodStart: now,
+            currentPeriodEnd: nextPeriodEnd,
+            status: "ACTIVE",
+            intendedPlan: null,
+            updatedAt: new Date(),
+          },
+        });
+
+        return NextResponse.json({
+          message: `Successfully changed to ${newPlan.name} plan.`,
+          subscription: {
+            planId: newPlan.id,
+            planName: newPlan.name,
+            status: "ACTIVE",
+            currentPeriodStart: now,
+            currentPeriodEnd: nextPeriodEnd,
+          },
+        });
+      }
+    }
+
     // Calculate prorated amounts
     const now = new Date();
     const currentPeriodStart = subscription.currentPeriodStart;

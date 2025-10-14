@@ -34,8 +34,8 @@ export default function GlobalSubscriptionWarning() {
       show={show}
       daysRemaining={daysRemaining}
       onClose={() => setShow(false)}
-      // Duplicate reminder message as requested across all pages
-      message={"Don't lose your data. Renew now. Renew now."}
+      // Keep message concise to avoid duplicate CTA text
+      message={"Don't lose your data."}
       ctaText={"Renew Subscription"}
       ctaLink={"/subscription"}
     />

@@ -259,6 +259,22 @@ function SubscriptionContent() {
       }
     }
 
+    // CRITICAL FIX: For expired subscriptions with different plans, show full price
+    if (isExpired && !isSamePlan) {
+      const fullPrice = parseFloat(String(newPlan.price));
+      setUpgradeCalculation({
+        currentPlan: subscription.plan,
+        newPlan: newPlan,
+        remainingDays: 0,
+        unusedCurrentValue: 0, // No unused value for expired subscription
+        newPlanProratedCost: fullPrice, // Full price for new plan
+        additionalCharge: fullPrice, // Full price for new plan
+        currentPeriodEnd: currentPeriodEnd,
+        nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      });
+      return;
+    }
+
     // Reuse the variables already declared above
     // For plan changes (not renewals), calculate proration
     if (!currentPeriodEnd) {
@@ -313,12 +329,10 @@ function SubscriptionContent() {
       const response = await fetch("/api/subscription/status");
       if (response.ok) {
         const data = await response.json();
-        // Ensure message is always a string, never an object
         const message = data.message;
         if (typeof message === "string") {
           setSubscriptionMessage(message);
         } else if (message && typeof message === "object") {
-          // If it's an object, don't set it (keep as null)
           console.warn(
             "⚠️ Subscription message is an object, ignoring:",
             message
@@ -437,10 +451,13 @@ function SubscriptionContent() {
       const currentPrice = parseFloat(String(subscription.plan.price));
       const newPrice = parseFloat(String(chosenPlan.price));
       const isUpgrade = newPrice > currentPrice;
-      const isRenewal = isSamePlan && isExpired;
+      const isDowngrade = newPrice < currentPrice;
+      // Only treat expired SAME PLAN selection as a renewal requiring checkout
+      const isRenewal = isExpired && isSamePlan;
 
       // Route renewals and upgrades to the upgrade endpoint (requires payment)
-      if (isUpgrade || isRenewal) {
+      // CRITICAL FIX: Expired downgrades should go to change-plan endpoint, not upgrade endpoint
+      if ((isUpgrade || isRenewal) && !isDowngrade) {
         // Use upgrade endpoint for upgrades and renewals (will redirect to checkout)
         const upgradePayload = {
           planId: selectedPlan,
@@ -498,6 +515,21 @@ function SubscriptionContent() {
           type: "error",
           text: data?.error || "Failed to change plan.",
         });
+        return;
+      }
+
+      // CRITICAL FIX: Handle payment requirement for expired subscription plan changes
+      if (data.requiresPayment) {
+        // For expired subscriptions changing plans, redirect to checkout
+        const checkoutParams = new URLSearchParams({
+          plan: selectedPlan,
+          cycle: chosenPlan.interval?.toLowerCase() || "monthly",
+          amount: data.amount?.toString() || chosenPlan.price,
+          transactionId: data.transactionId,
+        });
+
+        const checkoutUrl = `/checkout?${checkoutParams.toString()}`;
+        window.location.href = checkoutUrl;
         return;
       }
 
