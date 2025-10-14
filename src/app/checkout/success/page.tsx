@@ -80,10 +80,17 @@ function SuccessContent() {
               <Button
                 className="cursor-pointer"
                 onClick={() => {
-                  // Force session refresh after successful payment to update subscriptionExpired flag
-                  window.location.href =
-                    "/auth/signin?callbackUrl=" +
-                    encodeURIComponent("/dashboard");
+                  // Show user-friendly message before redirect
+                  if (
+                    confirm(
+                      "🎉 Renewal successful! You'll need to sign in again to activate your renewed subscription. Click OK to continue to dashboard."
+                    )
+                  ) {
+                    // Force session refresh after successful payment to update subscriptionExpired flag
+                    window.location.href =
+                      "/auth/signin?callbackUrl=" +
+                      encodeURIComponent("/dashboard");
+                  }
                 }}
               >
                 Continue to Dashboard

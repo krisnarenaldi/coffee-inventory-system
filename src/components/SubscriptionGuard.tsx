@@ -20,6 +20,12 @@ export default function SubscriptionGuard({
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Prevent hydration mismatches by only running client-side logic after mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const checkSubscription = async () => {
@@ -151,6 +157,18 @@ export default function SubscriptionGuard({
 
     checkSubscription();
   }, [session, status, router, allowedRoutes]);
+
+  // Prevent hydration mismatches - don't render until mounted
+  if (!isMounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading while checking subscription
   if (status === "loading" || isChecking) {

@@ -47,12 +47,18 @@ interface UsageData {
 }
 
 // Helper function to format dates as dd-mm-yyyy
-const formatDate = (date: Date | string) => {
-  const d = new Date(date);
-  const day = d.getDate().toString().padStart(2, "0");
-  const month = (d.getMonth() + 1).toString().padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
+const formatDate = (date: Date | string | null | undefined) => {
+  if (!date) return "N/A";
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "Invalid Date";
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch (error) {
+    return "Invalid Date";
+  }
 };
 
 function SubscriptionContent() {
@@ -585,549 +591,613 @@ function SubscriptionContent() {
     subscriptionMessage,
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Home Page Link with Logo */}
-        <div className="mb-6">
-          <a
-            href="/dashboard"
-            className="inline-flex items-center space-x-3 text-gray-700 hover:text-amber-600 transition-colors duration-200"
-          >
-            <img
-              src="/logo-polos.png"
-              alt="Coffee Logica Logo"
-              width={80}
-              height={80}
-            />
-            <span className="text-xl font-semibold">Coffee Logica</span>
-          </a>
-        </div>
+  // DEBUG: Log subscription object structure to find object rendering issues
+  if (subscription) {
+    console.log("🔍 DEBUG: Subscription object:", {
+      id: subscription.id,
+      status: typeof subscription.status,
+      statusValue: subscription.status,
+      planName: typeof subscription.plan?.name,
+      planNameValue: subscription.plan?.name,
+      planPrice: typeof subscription.plan?.price,
+      planPriceValue: subscription.plan?.price,
+      currentPeriodStart: typeof subscription.currentPeriodStart,
+      currentPeriodEnd: typeof subscription.currentPeriodEnd,
+    });
+  }
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Subscription Management
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Manage your subscription plan and monitor usage
-          </p>
-        </div>
+  // DEBUG: Log upgradeCalculation if it exists
+  if (upgradeCalculation) {
+    console.log("🔍 DEBUG: UpgradeCalculation object:", {
+      hasNewPlan: !!upgradeCalculation.newPlan,
+      hasCurrentPlan: !!upgradeCalculation.currentPlan,
+      newPlanName: typeof upgradeCalculation.newPlan?.name,
+      newPlanPrice: typeof upgradeCalculation.newPlan?.price,
+      additionalCharge: typeof upgradeCalculation.additionalCharge,
+      nextBillingDate: typeof upgradeCalculation.nextBillingDate,
+    });
+  }
 
-        {/* Expired Subscription Alert */}
-        {(isExpired || hasError || subscriptionMessage) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">
-                  {isExpired
-                    ? "Subscription Expired"
-                    : hasError
-                    ? "Subscription Validation Error"
-                    : "Subscription Issue"}
-                </h3>
-                <p className="mt-1 text-sm text-red-700">
-                  {isExpired
-                    ? "Your subscription has expired. Please renew to continue using the service."
-                    : hasError
-                    ? "There was an error validating your subscription. Please contact support if this persists."
-                    : subscriptionMessage}
+  // DEBUG: Wrap return in try-catch to isolate object rendering
+  try {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Home Page Link with Logo */}
+          <div className="mb-6">
+            <a
+              href="/dashboard"
+              className="inline-flex items-center space-x-3 text-gray-700 hover:text-amber-600 transition-colors duration-200"
+            >
+              <img
+                src="/logo-polos.png"
+                alt="Coffee Logica Logo"
+                width={80}
+                height={80}
+              />
+              <span className="text-xl font-semibold">Coffee Logica</span>
+            </a>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Subscription Management
+            </h1>
+            <p className="mt-2 text-gray-600">
+              Manage your subscription plan and monitor usage
+            </p>
+          </div>
+
+          {/* Expired Subscription Alert */}
+          {(isExpired || hasError || subscriptionMessage) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+              <div className="flex items-center">
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">
+                    {isExpired
+                      ? "Subscription Expired"
+                      : hasError
+                      ? "Subscription Validation Error"
+                      : "Subscription Issue"}
+                  </h3>
+                  <p className="mt-1 text-sm text-red-700">
+                    {isExpired
+                      ? "Your subscription has expired. Please renew to continue using the service."
+                      : hasError
+                      ? "There was an error validating your subscription. Please contact support if this persists."
+                      : subscriptionMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Feedback (hidden while modal open; shown on main page) */}
+          {actionMessage && !showUpgradeModal && (
+            <div
+              className={`${
+                actionMessage.type === "success"
+                  ? "bg-green-50 border-green-200"
+                  : "bg-red-50 border-red-200"
+              } border rounded-lg p-4 mb-6`}
+            >
+              <div className="flex items-center">
+                {actionMessage.type === "success" ? (
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+                )}
+                <p
+                  className={`text-sm ${
+                    actionMessage.type === "success"
+                      ? "text-green-800"
+                      : "text-red-800"
+                  }`}
+                >
+                  {actionMessage.text}
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Action Feedback (hidden while modal open; shown on main page) */}
-        {actionMessage && !showUpgradeModal && (
-          <div
-            className={`${
-              actionMessage.type === "success"
-                ? "bg-green-50 border-green-200"
-                : "bg-red-50 border-red-200"
-            } border rounded-lg p-4 mb-6`}
-          >
-            <div className="flex items-center">
-              {actionMessage.type === "success" ? (
-                <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-              ) : (
-                <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
-              )}
-              <p
-                className={`text-sm ${
-                  actionMessage.type === "success"
-                    ? "text-green-800"
-                    : "text-red-800"
-                }`}
-              >
-                {actionMessage.text}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Current Subscription */}
-        {subscription && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">
-                Current Subscription
-              </h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <div className="flex items-center space-x-3">
-                    <CreditCard className="h-8 w-8 text-amber-600" />
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900">
-                        {subscription.plan.name}
-                      </h3>
-                      <p className="text-gray-600">
-                        Rp {subscription.plan.price}/
-                        {subscription.plan.interval.toLowerCase()}
-                      </p>
+          {/* Current Subscription */}
+          {subscription && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Current Subscription
+                </h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="flex items-center space-x-3">
+                      <CreditCard className="h-8 w-8 text-amber-600" />
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900">
+                          {subscription.plan.name}
+                        </h3>
+                        <p className="text-gray-600">
+                          Rp{" "}
+                          {parseFloat(
+                            String(subscription.plan.price)
+                          ).toLocaleString()}
+                          /{subscription.plan.interval.toLowerCase()}
+                        </p>
+                      </div>
                     </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                      {subscription.plan.description}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {subscription.plan.description}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
-                    Status
-                  </label>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                      subscription.status
-                    )}`}
-                  >
-                    {subscription.status}
-                  </span>
-                  {subscription.cancelAtPeriodEnd &&
-                    subscription.currentPeriodEnd && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        Cancels on {formatDate(subscription.currentPeriodEnd)}
-                      </p>
-                    )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
-                    Billing Period
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {formatDate(subscription.currentPeriodStart)} -{" "}
-                    {formatDate(subscription.currentPeriodEnd)}
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    {!subscription.cancelAtPeriodEnd ? (
-                      <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Status
+                    </label>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        subscription.status
+                      )}`}
+                    >
+                      {subscription.status}
+                    </span>
+                    {subscription.cancelAtPeriodEnd &&
+                      subscription.currentPeriodEnd && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Cancels on {formatDate(subscription.currentPeriodEnd)}
+                        </p>
+                      )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Billing Period
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {formatDate(subscription.currentPeriodStart)} -{" "}
+                      {formatDate(subscription.currentPeriodEnd)}
+                    </p>
+                    <div className="mt-4 space-y-2">
+                      {!subscription.cancelAtPeriodEnd ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              console.log("🔘 UPGRADE BUTTON CLICKED");
+                              setShowUpgradeModal(true);
+                            }}
+                            className="w-full px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium cursor-pointer"
+                          >
+                            Upgrade Plan
+                          </button>
+                          {subscription.plan?.id !== "free-plan" &&
+                            (subscription.plan?.name?.toLowerCase() || "") !==
+                              "free" && (
+                              <button
+                                onClick={handleCancelSubscription}
+                                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
+                              >
+                                Cancel Subscription
+                              </button>
+                            )}
+                        </>
+                      ) : (
                         <button
                           onClick={() => {
-                            console.log("🔘 UPGRADE BUTTON CLICKED");
+                            console.log("🔘 REACTIVATE BUTTON CLICKED");
                             setShowUpgradeModal(true);
                           }}
-                          className="w-full px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium cursor-pointer"
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                         >
-                          Upgrade Plan
+                          Reactivate Subscription
                         </button>
-                        {subscription.plan?.id !== "free-plan" &&
-                          (subscription.plan?.name?.toLowerCase() || "") !==
-                            "free" && (
-                            <button
-                              onClick={handleCancelSubscription}
-                              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
-                            >
-                              Cancel Subscription
-                            </button>
-                          )}
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          console.log("🔘 REACTIVATE BUTTON CLICKED");
-                          setShowUpgradeModal(true);
-                        }}
-                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
-                      >
-                        Reactivate Subscription
-                      </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Usage Statistics */}
+          {usage && subscription && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Usage Statistics
+                </h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Users */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-5 w-5 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-900">
+                          Users
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {usage.users} / {subscription.plan.maxUsers || "∞"}
+                      </span>
+                    </div>
+                    {subscription.plan.maxUsers && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${getUsageColor(
+                            getUsagePercentage(
+                              usage.users,
+                              subscription.plan.maxUsers
+                            )
+                          )}`}
+                          style={{
+                            width: `${getUsagePercentage(
+                              usage.users,
+                              subscription.plan.maxUsers
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ingredients */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Package className="h-5 w-5 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-900">
+                          Ingredients
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {usage.ingredients} /{" "}
+                        {subscription.plan.maxIngredients || "∞"}
+                      </span>
+                    </div>
+                    {subscription.plan.maxIngredients && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${getUsageColor(
+                            getUsagePercentage(
+                              usage.ingredients,
+                              subscription.plan.maxIngredients
+                            )
+                          )}`}
+                          style={{
+                            width: `${getUsagePercentage(
+                              usage.ingredients,
+                              subscription.plan.maxIngredients
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Batches */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <BarChart3 className="h-5 w-5 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-900">
+                          Batches
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {usage.batches} / {subscription.plan.maxBatches || "∞"}
+                      </span>
+                    </div>
+                    {subscription.plan.maxBatches && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${getUsageColor(
+                            getUsagePercentage(
+                              usage.batches,
+                              subscription.plan.maxBatches
+                            )
+                          )}`}
+                          style={{
+                            width: `${getUsagePercentage(
+                              usage.batches,
+                              subscription.plan.maxBatches
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Usage Statistics */}
-        {usage && subscription && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">
-                Usage Statistics
-              </h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Users */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">
-                        Users
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {usage.users} / {subscription.plan.maxUsers || "∞"}
-                    </span>
-                  </div>
-                  {subscription.plan.maxUsers && (
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${getUsageColor(
-                          getUsagePercentage(
-                            usage.users,
-                            subscription.plan.maxUsers
-                          )
-                        )}`}
-                        style={{
-                          width: `${getUsagePercentage(
-                            usage.users,
-                            subscription.plan.maxUsers
-                          )}%`,
-                        }}
-                      ></div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Ingredients */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <Package className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">
-                        Ingredients
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {usage.ingredients} /{" "}
-                      {subscription.plan.maxIngredients || "∞"}
-                    </span>
-                  </div>
-                  {subscription.plan.maxIngredients && (
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${getUsageColor(
-                          getUsagePercentage(
-                            usage.ingredients,
-                            subscription.plan.maxIngredients
-                          )
-                        )}`}
-                        style={{
-                          width: `${getUsagePercentage(
-                            usage.ingredients,
-                            subscription.plan.maxIngredients
-                          )}%`,
-                        }}
-                      ></div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Batches */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">
-                        Batches
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {usage.batches} / {subscription.plan.maxBatches || "∞"}
-                    </span>
-                  </div>
-                  {subscription.plan.maxBatches && (
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${getUsageColor(
-                          getUsagePercentage(
-                            usage.batches,
-                            subscription.plan.maxBatches
-                          )
-                        )}`}
-                        style={{
-                          width: `${getUsagePercentage(
-                            usage.batches,
-                            subscription.plan.maxBatches
-                          )}%`,
-                        }}
-                      ></div>
-                    </div>
-                  )}
-                </div>
+          {/* Plan Features */}
+          {subscription && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Plan Features
+                </h2>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Plan Features */}
-        {subscription && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">
-                Plan Features
-              </h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.isArray(subscription.plan.features)
-                  ? // Handle array format
-                    subscription.plan.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="text-sm text-gray-900">{feature}</span>
-                      </div>
-                    ))
-                  : // Handle object format
-                    Object.entries(subscription.plan.features).map(
-                      ([feature, enabled]) => (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.isArray(subscription.plan.features)
+                    ? // Handle array format
+                      subscription.plan.features.map((feature, index) => (
                         <div
-                          key={feature}
+                          key={index}
                           className="flex items-center space-x-2"
                         >
-                          {enabled ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-gray-400" />
-                          )}
-                          <span
-                            className={`text-sm ${
-                              enabled ? "text-gray-900" : "text-gray-400"
-                            }`}
-                          >
-                            {feature
-                              .replace(/([A-Z])/g, " $1")
-                              .replace(/^./, (str) => str.toUpperCase())}
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          <span className="text-sm text-gray-900">
+                            {feature}
                           </span>
                         </div>
-                      )
-                    )}
+                      ))
+                    : // Handle object format
+                      Object.entries(subscription.plan.features).map(
+                        ([feature, enabled]) => (
+                          <div
+                            key={feature}
+                            className="flex items-center space-x-2"
+                          >
+                            {enabled ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-gray-400" />
+                            )}
+                            <span
+                              className={`text-sm ${
+                                enabled ? "text-gray-900" : "text-gray-400"
+                              }`}
+                            >
+                              {feature
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}
+                            </span>
+                          </div>
+                        )
+                      )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Upgrade Modal - TEMPORARILY DISABLED FOR DEBUGGING */}
+        {false && showUpgradeModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Choose a Plan
+                </h3>
+                {/* Modal-specific feedback */}
+                {actionMessage && (
+                  <div
+                    className={`${
+                      actionMessage.type === "success"
+                        ? "bg-green-50 border-green-200"
+                        : "bg-red-50 border-red-200"
+                    } border rounded-lg p-3 mb-4`}
+                  >
+                    <div className="flex items-center">
+                      {actionMessage.type === "success" ? (
+                        <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+                      )}
+                      <p
+                        className={`text-sm ${
+                          actionMessage.type === "success"
+                            ? "text-green-800"
+                            : "text-red-800"
+                        }`}
+                      >
+                        {actionMessage.text}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {availablePlans.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No plans available
+                    </div>
+                  ) : (
+                    availablePlans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                          selectedPlan === plan.id
+                            ? "border-amber-500 bg-amber-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => setSelectedPlan(plan.id)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-lg font-medium text-gray-900">
+                              {plan.name}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {plan.description}
+                            </p>
+                            <div className="mt-2 text-sm text-gray-500">
+                              <p>Users: {plan.maxUsers || "Unlimited"}</p>
+                              <p>
+                                Ingredients:{" "}
+                                {plan.maxIngredients || "Unlimited"}
+                              </p>
+                              <p>Batches: {plan.maxBatches || "Unlimited"}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900">
+                              Rp{" "}
+                              {parseFloat(String(plan.price)).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              /{plan.interval.toLowerCase()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* Enhanced Upgrade Options */}
+                {selectedPlan &&
+                  upgradeCalculation &&
+                  upgradeCalculation.newPlan &&
+                  upgradeCalculation.currentPlan && (
+                    <div className="mt-6 border-t pt-4">
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">
+                        Choose when to upgrade:
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Immediate Upgrade Option */}
+                        <div className="flex items-start space-x-3 p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
+                          <div className="text-blue-600 mt-1">✅</div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium text-gray-900">
+                                🚀 Upgrade Now
+                              </div>
+                              <div className="text-lg font-bold text-amber-600">
+                                {(upgradeCalculation.additionalCharge || 0) > 0
+                                  ? `Rp ${Math.round(
+                                      upgradeCalculation.additionalCharge || 0
+                                    ).toLocaleString()}`
+                                  : "Free"}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              Get {upgradeCalculation.newPlan.name} features
+                              immediately
+                            </div>
+                            <div className="text-xs text-gray-500 mt-2 space-y-1">
+                              <div>
+                                • Unused{" "}
+                                {upgradeCalculation.currentPlan.name ||
+                                  "Current"}{" "}
+                                value: Rp{" "}
+                                {Math.round(
+                                  upgradeCalculation.unusedCurrentValue || 0
+                                ).toLocaleString()}
+                              </div>
+                              <div>
+                                • {upgradeCalculation.newPlan.name || "New"}{" "}
+                                cost for {upgradeCalculation.remainingDays || 0}{" "}
+                                days: Rp{" "}
+                                {Math.round(
+                                  upgradeCalculation.newPlanProratedCost || 0
+                                ).toLocaleString()}
+                              </div>
+                              <div>
+                                • Next billing: Rp{" "}
+                                {parseFloat(
+                                  String(upgradeCalculation.newPlan.price)
+                                ).toLocaleString()}{" "}
+                                on{" "}
+                                {formatDate(upgradeCalculation.nextBillingDate)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Fair Pricing Information */}
+                        <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                          <div className="flex items-start space-x-3">
+                            <div className="text-blue-600 mt-0.5">💡</div>
+                            <div className="flex-1">
+                              <div className="font-medium text-blue-900">
+                                Fair Pricing Guarantee
+                              </div>
+                              <div className="text-sm text-blue-700 mt-1">
+                                We calculate the exact value of your unused{" "}
+                                {upgradeCalculation.currentPlan.name ||
+                                  "current"}{" "}
+                                time and only charge the difference. You never
+                                lose money when upgrading!
+                              </div>
+                              <div className="text-xs text-blue-600 mt-2">
+                                • Unused time value: Rp{" "}
+                                {Math.round(
+                                  upgradeCalculation.unusedCurrentValue || 0
+                                ).toLocaleString()}
+                                • {upgradeCalculation.newPlan.name || "New"}{" "}
+                                cost for remaining period: Rp{" "}
+                                {Math.round(
+                                  upgradeCalculation.newPlanProratedCost || 0
+                                ).toLocaleString()}
+                                • You only pay the difference: Rp{" "}
+                                {Math.round(
+                                  upgradeCalculation.additionalCharge || 0
+                                ).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="text-sm text-green-800">
+                          <strong>✅ Ready to Upgrade:</strong> Pay{" "}
+                          {(upgradeCalculation.additionalCharge || 0) > 0
+                            ? `Rp ${Math.round(
+                                upgradeCalculation.additionalCharge || 0
+                              ).toLocaleString()}`
+                            : "nothing"}{" "}
+                          now for immediate access to{" "}
+                          {upgradeCalculation.newPlan.name || "new"} features.
+                          Your next billing will be Rp{" "}
+                          {parseFloat(
+                            String(upgradeCalculation.newPlan.price || 0)
+                          ).toLocaleString()}{" "}
+                          on {formatDate(upgradeCalculation.nextBillingDate)}.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={!selectedPlan}
+                    className="px-4 py-2 text-sm font-medium text-white bg-amber-600 border border-transparent rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {subscription?.cancelAtPeriodEnd ? "Reactivate" : "Upgrade"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* Upgrade Modal */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Choose a Plan
-              </h3>
-              {/* Modal-specific feedback */}
-              {actionMessage && (
-                <div
-                  className={`${
-                    actionMessage.type === "success"
-                      ? "bg-green-50 border-green-200"
-                      : "bg-red-50 border-red-200"
-                  } border rounded-lg p-3 mb-4`}
-                >
-                  <div className="flex items-center">
-                    {actionMessage.type === "success" ? (
-                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
-                    )}
-                    <p
-                      className={`text-sm ${
-                        actionMessage.type === "success"
-                          ? "text-green-800"
-                          : "text-red-800"
-                      }`}
-                    >
-                      {actionMessage.text}
-                    </p>
-                  </div>
-                </div>
-              )}
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {availablePlans.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No plans available
-                  </div>
-                ) : (
-                  availablePlans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        selectedPlan === plan.id
-                          ? "border-amber-500 bg-amber-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setSelectedPlan(plan.id)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-lg font-medium text-gray-900">
-                            {plan.name}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {plan.description}
-                          </p>
-                          <div className="mt-2 text-sm text-gray-500">
-                            <p>Users: {plan.maxUsers || "Unlimited"}</p>
-                            <p>
-                              Ingredients: {plan.maxIngredients || "Unlimited"}
-                            </p>
-                            <p>Batches: {plan.maxBatches || "Unlimited"}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">
-                            Rp {parseFloat(plan.price).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            /{plan.interval.toLowerCase()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {/* Enhanced Upgrade Options */}
-              {selectedPlan && upgradeCalculation && (
-                <div className="mt-6 border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">
-                    Choose when to upgrade:
-                  </h4>
-
-                  <div className="space-y-4">
-                    {/* Immediate Upgrade Option */}
-                    <div className="flex items-start space-x-3 p-4 border-2 border-blue-200 rounded-lg bg-blue-50">
-                      <div className="text-blue-600 mt-1">✅</div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900">
-                            🚀 Upgrade Now
-                          </div>
-                          <div className="text-lg font-bold text-amber-600">
-                            {upgradeCalculation.additionalCharge > 0
-                              ? `Rp ${Math.round(
-                                  upgradeCalculation.additionalCharge
-                                ).toLocaleString()}`
-                              : "Free"}
-                          </div>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          Get {upgradeCalculation.newPlan.name} features
-                          immediately
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2 space-y-1">
-                          <div>
-                            • Unused {upgradeCalculation.currentPlan.name}{" "}
-                            value: Rp{" "}
-                            {Math.round(
-                              upgradeCalculation.unusedCurrentValue
-                            ).toLocaleString()}
-                          </div>
-                          <div>
-                            • {upgradeCalculation.newPlan.name} cost for{" "}
-                            {upgradeCalculation.remainingDays} days: Rp{" "}
-                            {Math.round(
-                              upgradeCalculation.newPlanProratedCost
-                            ).toLocaleString()}
-                          </div>
-                          <div>
-                            • Next billing: Rp{" "}
-                            {upgradeCalculation.newPlan.price.toLocaleString()}{" "}
-                            on {formatDate(upgradeCalculation.nextBillingDate)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Fair Pricing Information */}
-                    <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
-                      <div className="flex items-start space-x-3">
-                        <div className="text-blue-600 mt-0.5">💡</div>
-                        <div className="flex-1">
-                          <div className="font-medium text-blue-900">
-                            Fair Pricing Guarantee
-                          </div>
-                          <div className="text-sm text-blue-700 mt-1">
-                            We calculate the exact value of your unused{" "}
-                            {upgradeCalculation.currentPlan.name} time and only
-                            charge the difference. You never lose money when
-                            upgrading!
-                          </div>
-                          <div className="text-xs text-blue-600 mt-2">
-                            • Unused time value: Rp{" "}
-                            {Math.round(
-                              upgradeCalculation.unusedCurrentValue
-                            ).toLocaleString()}
-                            • {upgradeCalculation.newPlan.name} cost for
-                            remaining period: Rp{" "}
-                            {Math.round(
-                              upgradeCalculation.newPlanProratedCost
-                            ).toLocaleString()}
-                            • You only pay the difference: Rp{" "}
-                            {Math.round(
-                              upgradeCalculation.additionalCharge
-                            ).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="text-sm text-green-800">
-                      <strong>✅ Ready to Upgrade:</strong> Pay{" "}
-                      {upgradeCalculation.additionalCharge > 0
-                        ? `Rp ${Math.round(
-                            upgradeCalculation.additionalCharge
-                          ).toLocaleString()}`
-                        : "nothing"}{" "}
-                      now for immediate access to{" "}
-                      {upgradeCalculation.newPlan.name} features. Your next
-                      billing will be Rp{" "}
-                      {upgradeCalculation.newPlan.price.toLocaleString()} on{" "}
-                      {formatDate(upgradeCalculation.nextBillingDate)}.
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowUpgradeModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpgrade}
-                  disabled={!selectedPlan}
-                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 border border-transparent rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {subscription?.cancelAtPeriodEnd ? "Reactivate" : "Upgrade"}
-                </button>
-              </div>
-            </div>
-          </div>
+    );
+  } catch (error) {
+    console.error("🚨 DEBUG: Object rendering error caught:", error);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-red-600 mb-4">
+            Rendering Error
+          </h1>
+          <p className="text-gray-600">Check console for details</p>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
 }
 
 export default function SubscriptionPage() {
