@@ -83,7 +83,7 @@ export default function SubscriptionGuard({
         if (response.ok) {
           const data = await response.json();
 
-          // If subscription is expired on server, redirect immediately
+          // If subscription is expired on server, show toast and redirect
           if (!data.isActive) {
             console.log(
               "🚨 SUBSCRIPTION GUARD: Server reports expired subscription, redirecting to renewal"
@@ -106,6 +106,7 @@ export default function SubscriptionGuard({
               return;
             }
 
+            // Redirect to subscription page
             router.push("/subscription?expired=true");
             return;
           } else {

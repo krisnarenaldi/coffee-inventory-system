@@ -61,6 +61,17 @@ const formatDate = (date: Date | string | null | undefined) => {
   }
 };
 
+// Helper to determine number of days in billing interval
+const getIntervalDays = (interval: "MONTHLY" | "YEARLY" | undefined) => {
+  switch (interval) {
+    case "YEARLY":
+      return 365;
+    case "MONTHLY":
+    default:
+      return 30;
+  }
+};
+
 function SubscriptionContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -94,10 +105,7 @@ function SubscriptionContent() {
     }
   }, [selectedPlan, subscription, availablePlans]);
 
-  // Debug modal state changes
-  useEffect(() => {
-    console.log("🔧 MODAL STATE CHANGED:", showUpgradeModal);
-  }, [showUpgradeModal]);
+  // NOTE: removed noisy modal debug logging to reduce console spam in production
 
   // Handle URL parameters for expired/error states
   useEffect(() => {
@@ -290,15 +298,36 @@ function SubscriptionContent() {
     const clampedRemainingDays = Math.max(0, rawRemainingDays);
 
     // Calculate current plan daily rate
-    const currentPeriodStart = new Date(subscription.currentPeriodStart);
-    const totalCurrentDays = Math.ceil(
-      (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
+    const currentPeriodStart = subscription.currentPeriodStart
+      ? new Date(subscription.currentPeriodStart)
+      : null;
 
-    // Calculate new plan daily rate (assume 30 days for monthly)
-    const newDailyRate = Number(newPlan.price) / 30;
+    const totalCurrentDays = currentPeriodStart
+      ? Math.ceil(
+          (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : 0;
+
+    // Avoid divide-by-zero - fall back to billing interval days if data is bad
+    const safeTotalCurrentDays =
+      totalCurrentDays > 0
+        ? totalCurrentDays
+        : getIntervalDays(subscription.plan.interval);
+
+    const currentPlanPrice = Number(subscription.plan.price);
+    const newPlanPrice = Number(newPlan.price);
+
+    if (!Number.isFinite(currentPlanPrice) || !Number.isFinite(newPlanPrice)) {
+      // Invalid price data; cannot calculate
+      setUpgradeCalculation(null);
+      return;
+    }
+
+    const currentDailyRate = currentPlanPrice / safeTotalCurrentDays;
+
+    // Calculate new plan daily rate using billing cycle length
+    const newDailyRate = newPlanPrice / getIntervalDays(newPlan.interval);
 
     // Calculate unused current plan value
     const unusedCurrentValue = currentDailyRate * clampedRemainingDays;

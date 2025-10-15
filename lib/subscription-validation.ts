@@ -80,7 +80,7 @@ export async function validateSubscription(
     // Check if subscription is active and not expired
     // Treat PENDING_CHECKOUT as active to preserve access during checkout flows
     const isActive =
-      subscription.status === "ACTIVE" || 
+      subscription.status === "ACTIVE" ||
       subscription.status === "TRIALING" ||
       subscription.status === "PENDING_CHECKOUT";
 
@@ -149,17 +149,6 @@ export async function checkSubscriptionWarning(
       };
     }
 
-    // Only warn for active subscriptions
-    const isActive =
-      subscription.status === "ACTIVE" || subscription.status === "TRIALING";
-    if (!isActive) {
-      return {
-        shouldWarn: false,
-        daysRemaining: 0,
-        currentPeriodEnd: subscription.currentPeriodEnd,
-      };
-    }
-
     const now = new Date();
     const timeDiff = subscription.currentPeriodEnd.getTime() - now.getTime();
     const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
@@ -170,9 +159,9 @@ export async function checkSubscriptionWarning(
     );
     const inGrace = now > subscription.currentPeriodEnd && now <= graceEnd;
     const pastGrace = now > graceEnd;
+    const isExpired = now > subscription.currentPeriodEnd;
 
-    // Warn if subscription expires within the specified days and hasn't expired yet
-    let shouldWarn = daysRemaining > 0 && daysRemaining <= days;
+    let shouldWarn = false;
     let message: string | undefined;
     let ctaText: string | undefined;
     let ctaLink: string | undefined;
@@ -184,8 +173,29 @@ export async function checkSubscriptionWarning(
       ctaText = "Renew Subscription";
       ctaLink = "/subscription";
     } else if (pastGrace) {
-      // Past grace: no warning toast here; auto-downgrade job handles enforcement
-      shouldWarn = false;
+      // Past grace: subscription is expired, always show warning
+      shouldWarn = true;
+      message =
+        "Your subscription has expired. Please renew to continue using the service.";
+      ctaText = "Renew Subscription";
+      ctaLink = "/subscription";
+    } else if (isExpired) {
+      // Just expired, but still within grace
+      shouldWarn = true;
+      message =
+        "Your subscription has expired. Please renew to continue using the service.";
+      ctaText = "Renew Subscription";
+      ctaLink = "/subscription";
+    } else {
+      // Warn if subscription expires within the specified days and hasn't expired yet
+      shouldWarn = daysRemaining > 0 && daysRemaining <= days;
+      if (shouldWarn) {
+        message = `Your subscription will expire in ${daysRemaining} day${
+          daysRemaining !== 1 ? "s" : ""
+        }.`;
+        ctaText = "Renew Subscription";
+        ctaLink = "/subscription";
+      }
     }
 
     return {

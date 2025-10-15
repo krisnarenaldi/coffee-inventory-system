@@ -25,7 +25,8 @@ const josefinSans = Josefin_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
+  title:
+    "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
   description:
     "Comprehensive SaaS solution for coffee shops to manage inventory from raw materials to finished products. Solusi SaaS lengkap untuk kedai kopi dalam mengelola inventori dari bahan baku hingga produk jadi.",
   keywords: [
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     "manajemen inventori",
     "solusi SaaS",
     "bisnis kopi",
-    "manajemen stok"
+    "manajemen stok",
   ],
   authors: [{ name: "Coffee Inventory Team" }],
   creator: "Coffee Inventory Management System",
@@ -48,38 +49,44 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
+  ),
   alternates: {
-    canonical: '/',
+    canonical: "/",
     languages: {
-      'en-US': '/en',
-      'id-ID': '/id',
+      "en-US": "/en",
+      "id-ID": "/id",
     },
   },
   openGraph: {
-    title: "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
-    description: "Comprehensive SaaS solution for coffee shops to manage inventory from raw materials to finished products. Solusi SaaS lengkap untuk kedai kopi dalam mengelola inventori dari bahan baku hingga produk jadi.",
-    url: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    title:
+      "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
+    description:
+      "Comprehensive SaaS solution for coffee shops to manage inventory from raw materials to finished products. Solusi SaaS lengkap untuk kedai kopi dalam mengelola inventori dari bahan baku hingga produk jadi.",
+    url: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
     siteName: "Coffee Inventory Management",
     images: [
       {
-        url: '/og-image.png',
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: 'Coffee Shop Inventory Management System - Sistem Manajemen Inventori Kedai Kopi',
+        alt: "Coffee Shop Inventory Management System - Sistem Manajemen Inventori Kedai Kopi",
       },
     ],
-    locale: 'en_US',
-    alternateLocale: ['id_ID'],
-    type: 'website',
+    locale: "en_US",
+    alternateLocale: ["id_ID"],
+    type: "website",
   },
   twitter: {
-    card: 'summary_large_image',
-    title: "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
-    description: "Comprehensive SaaS solution for coffee shops to manage inventory from raw materials to finished products. Solusi SaaS lengkap untuk kedai kopi dalam mengelola inventori dari bahan baku hingga produk jadi.",
-    images: ['/twitter-image.png'],
-    creator: '@coffeeinventory',
-    site: '@coffeeinventory',
+    card: "summary_large_image",
+    title:
+      "Coffee Shop Inventory Management System | Sistem Manajemen Inventori Kedai Kopi",
+    description:
+      "Comprehensive SaaS solution for coffee shops to manage inventory from raw materials to finished products. Solusi SaaS lengkap untuk kedai kopi dalam mengelola inventori dari bahan baku hingga produk jadi.",
+    images: ["/twitter-image.png"],
+    creator: "@coffeeinventory",
+    site: "@coffeeinventory",
   },
   robots: {
     index: true,
@@ -87,9 +94,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   verification: {

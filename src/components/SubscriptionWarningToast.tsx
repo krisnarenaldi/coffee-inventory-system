@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
 interface SubscriptionWarningToastProps {
@@ -10,6 +10,7 @@ interface SubscriptionWarningToastProps {
   message?: string;
   ctaText?: string;
   ctaLink?: string;
+  autoCloseMs?: number;
 }
 
 export default function SubscriptionWarningToast({
@@ -19,14 +20,58 @@ export default function SubscriptionWarningToast({
   message,
   ctaText,
   ctaLink,
+  autoCloseMs = 6000,
 }: SubscriptionWarningToastProps) {
   const [isVisible, setIsVisible] = useState(false);
 
+  // Use a ref to hold the auto-close timer so re-renders won't reset it
+  const timerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (show) {
-      setIsVisible(true);
+    console.log("🎨 SubscriptionWarningToast: useEffect triggered");
+    console.log("🎨 Props:", {
+      show,
+      daysRemaining,
+      message,
+      ctaText,
+      ctaLink,
+    });
+
+    if (!show) {
+      // If not showing, ensure visibility is off and clear any existing timer
+      console.log("🎨 SubscriptionWarningToast: show=false, hiding");
+      setIsVisible(false);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
     }
-  }, [show]);
+
+    // show is true
+    console.log("🎨 SubscriptionWarningToast: show=true, making visible");
+    setIsVisible(true);
+
+    // If a timer already exists, don't recreate it (prevents dashboards with frequent re-renders
+    // from continuously restarting the timer)
+    if (timerRef.current) return;
+
+    timerRef.current = window.setTimeout(
+      () => {
+        // Clear the ref first to avoid double-clear
+        timerRef.current = null;
+        handleClose();
+      },
+      Math.max(0, autoCloseMs),
+    );
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [show, autoCloseMs]);
 
   const handleClose = () => {
     setIsVisible(false);
@@ -35,7 +80,17 @@ export default function SubscriptionWarningToast({
     }, 300); // Wait for animation to complete
   };
 
-  if (!show && !isVisible) return null;
+  if (!show && !isVisible) {
+    console.log("🎨 SubscriptionWarningToast: Returning null - not showing");
+    return null;
+  }
+
+  console.log(
+    "🎨 SubscriptionWarningToast: Rendering toast UI - show:",
+    show,
+    "isVisible:",
+    isVisible,
+  );
 
   return (
     <div
@@ -61,17 +116,13 @@ export default function SubscriptionWarningToast({
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">
-                {message ? "Subscription Reminder" : "Subscription Expiring Soon"}
+                {message
+                  ? "Subscription Reminder"
+                  : "Subscription Expiring Soon"}
               </h3>
               <div className="mt-1 text-sm text-yellow-700">
                 {message ? (
-                  <p>
-                    {message} {" "}
-                    <a href="/subscription" className="underline text-yellow-800 hover:text-yellow-600">
-                      Renew now
-                    </a>
-                    .
-                  </p>
+                  <p>{message}</p>
                 ) : (
                   <p>
                     Your subscription will end in{" "}
