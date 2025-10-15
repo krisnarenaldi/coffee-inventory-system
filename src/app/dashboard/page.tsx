@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navigation from "../../components/Navigation";
-import SubscriptionWarningToast from "../../components/SubscriptionWarningToast";
 
 interface DashboardStats {
   totalIngredients: number;
@@ -39,14 +38,7 @@ export default function Dashboard() {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [subscriptionWarning, setSubscriptionWarning] = useState<{
-    shouldWarn: boolean;
-    daysRemaining: number;
-    message?: string;
-    ctaText?: string;
-    ctaLink?: string;
-  } | null>(null);
-  const [showWarningToast, setShowWarningToast] = useState(false);
+
   const [pendingCheckout, setPendingCheckout] = useState<{
     hasPendingCheckout: boolean;
     intendedPlan?: string;
@@ -90,27 +82,11 @@ export default function Dashboard() {
     }
   }, [status, router, session]);
 
-  const checkSubscriptionWarning = async () => {
-    try {
-      const response = await fetch("/api/subscription/warning");
-      if (response.ok) {
-        const warningData = await response.json();
-        setSubscriptionWarning(warningData);
-        if (warningData.shouldWarn) {
-          setShowWarningToast(true);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to check subscription warning:", error);
-    }
-  };
-
   const fetchDashboardData = async () => {
     try {
       // Parallel API calls for better performance
-      const [dashboardResponse, warningResponse, checkoutResponse] = await Promise.all([
+      const [dashboardResponse, checkoutResponse] = await Promise.all([
         fetch("/api/dashboard"),
-        fetch("/api/subscription/warning").catch(() => null), // Don't fail if warning fails
         fetch("/api/subscription/pending-checkout").catch(() => null), // Don't fail if checkout check fails
       ]);
 
@@ -124,13 +100,6 @@ export default function Dashboard() {
       setLowStockIngredients(data.lowStockIngredients || []);
 
       // Handle subscription warning if successful
-      if (warningResponse && warningResponse.ok) {
-        const warningData = await warningResponse.json();
-        setSubscriptionWarning(warningData);
-        if (warningData.shouldWarn) {
-          setShowWarningToast(true);
-        }
-      }
 
       // Handle pending checkout check if successful
       if (checkoutResponse && checkoutResponse.ok) {
@@ -149,14 +118,30 @@ export default function Dashboard() {
     const decideBanner = async () => {
       if (status !== "authenticated" || !session?.user?.tenantId) return;
       try {
-        const resp = await fetch("/api/subscription/features?feature=basicReports");
-        const data = await resp.json();
-        const hasBasic = !!data?.hasAccess;
+        const [basicReportsResp, subscriptionResp] = await Promise.all([
+          fetch("/api/subscription/features?feature=basicReports"),
+          fetch("/api/subscription"),
+        ]);
+
+        const basicReportsData = await basicReportsResp.json();
+        const hasBasic = !!basicReportsData?.hasAccess;
         setHasBasicReports(hasBasic);
 
-        if (!hasBasic) {
+        // Check if user is on professional or premium plan (highest tiers)
+        let isHighTierPlan = false;
+        if (subscriptionResp.ok) {
+          const subscriptionData = await subscriptionResp.json();
+          const planName = subscriptionData?.plan?.name?.toLowerCase() || "";
+          isHighTierPlan =
+            planName.includes("professional") || planName.includes("premium");
+        }
+
+        // Only show banner if user doesn't have basic reports AND is not on a high-tier plan
+        if (!hasBasic && !isHighTierPlan) {
           const today = new Date().toISOString().slice(0, 10);
-          const dismissedDate = localStorage.getItem("upgradeBannerDismissedDate");
+          const dismissedDate = localStorage.getItem(
+            "upgradeBannerDismissedDate",
+          );
           if (dismissedDate !== today) {
             setShowUpgradeBanner(true);
             localStorage.setItem("upgradeBannerLastShownDate", today);
@@ -216,14 +201,21 @@ export default function Dashboard() {
             <div className="flex items-start justify-between">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-5 w-5 text-amber-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path d="M10 2l2.39 4.84 5.34.78-3.86 3.76.91 5.32L10 14.77l-4.78 2.53.91-5.32L2.27 7.62l5.34-.78L10 2z" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-amber-800">Unlock More with Starter & Professional</h3>
+                  <h3 className="text-sm font-medium text-amber-800">
+                    Unlock More with Starter & Professional
+                  </h3>
                   <p className="mt-1 text-sm text-amber-700">
-                    Access detailed reports, higher limits, and advanced analytics.
+                    Access detailed reports, higher limits, and advanced
+                    analytics.
                   </p>
                 </div>
               </div>
@@ -463,10 +455,10 @@ export default function Dashboard() {
                           batch.status === "IN_PROGRESS"
                             ? "bg-blue-100 text-blue-800"
                             : batch.status === "FERMENTING"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : batch.status === "READY"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : batch.status === "READY"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {batch.status.replace("_", " ")}
@@ -672,16 +664,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Subscription Warning Toast */}
-      <SubscriptionWarningToast
-        show={showWarningToast}
-        daysRemaining={subscriptionWarning?.daysRemaining || 0}
-        onClose={() => setShowWarningToast(false)}
-        message={subscriptionWarning?.message}
-        ctaText={subscriptionWarning?.ctaText}
-        ctaLink={subscriptionWarning?.ctaLink}
-      />
     </div>
   );
 }

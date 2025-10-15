@@ -16,13 +16,13 @@ export interface SubscriptionStatus {
  * @returns SubscriptionStatus object with validation details
  */
 export async function validateSubscription(
-  tenantId: string
+  tenantId: string,
 ): Promise<SubscriptionStatus> {
   try {
     if (process.env.NODE_ENV === "development") {
       console.log(
         "🔍 VALIDATE SUBSCRIPTION: Starting validation for tenant:",
-        tenantId
+        tenantId,
       );
     }
 
@@ -39,7 +39,7 @@ export async function validateSubscription(
           },
         });
       },
-      30 * 1000 // 30 seconds cache for subscription data
+      30 * 1000, // 30 seconds cache for subscription data
     );
 
     if (process.env.NODE_ENV === "development") {
@@ -70,7 +70,7 @@ export async function validateSubscription(
 
     if (subscription.currentPeriodEnd) {
       const graceEnd = new Date(
-        subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000
+        subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000,
       );
       isInGracePeriod = now > subscription.currentPeriodEnd && now <= graceEnd;
       // Consider expired only AFTER grace period ends
@@ -79,13 +79,20 @@ export async function validateSubscription(
 
     // Check if subscription is active and not expired
     // Treat PENDING_CHECKOUT as active to preserve access during checkout flows
-    const isActive =
-      subscription.status === "ACTIVE" || 
+    // Also treat PAST_DUE as active during grace period
+    const isBaseActive =
+      subscription.status === "ACTIVE" ||
       subscription.status === "TRIALING" ||
       subscription.status === "PENDING_CHECKOUT";
 
+    // PAST_DUE is considered active during grace period
+    const isPastDueButInGrace =
+      subscription.status === "PAST_DUE" && isInGracePeriod;
+
+    const isActive = (isBaseActive || isPastDueButInGrace) && !isExpired;
+
     return {
-      isActive: isActive && !isExpired, // Active during grace as well
+      isActive,
       isExpired,
       isInGracePeriod,
       currentPeriodEnd: subscription.currentPeriodEnd,
@@ -123,7 +130,7 @@ export async function hasSystemAccess(tenantId: string): Promise<boolean> {
  */
 export async function checkSubscriptionWarning(
   tenantId: string,
-  days: number = 2
+  days: number = 2,
 ): Promise<{
   shouldWarn: boolean;
   daysRemaining: number;
@@ -149,10 +156,13 @@ export async function checkSubscriptionWarning(
       };
     }
 
-    // Only warn for active subscriptions
-    const isActive =
-      subscription.status === "ACTIVE" || subscription.status === "TRIALING";
-    if (!isActive) {
+    // Check if subscription is in a state where warnings make sense
+    const canWarn =
+      subscription.status === "ACTIVE" ||
+      subscription.status === "TRIALING" ||
+      subscription.status === "PAST_DUE";
+
+    if (!canWarn) {
       return {
         shouldWarn: false,
         daysRemaining: 0,
@@ -166,19 +176,19 @@ export async function checkSubscriptionWarning(
 
     // Determine grace period state
     const graceEnd = new Date(
-      subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000
+      subscription.currentPeriodEnd.getTime() + 7 * 24 * 60 * 60 * 1000,
     );
     const inGrace = now > subscription.currentPeriodEnd && now <= graceEnd;
     const pastGrace = now > graceEnd;
 
-    // Warn if subscription expires within the specified days and hasn't expired yet
-    let shouldWarn = daysRemaining > 0 && daysRemaining <= days;
+    // Determine warning conditions
+    let shouldWarn = false;
     let message: string | undefined;
     let ctaText: string | undefined;
     let ctaLink: string | undefined;
 
     if (inGrace) {
-      // During grace, always show reminder
+      // During grace period, always show reminder
       shouldWarn = true;
       message = "Don't lose your data. Renew now.";
       ctaText = "Renew Subscription";
@@ -186,6 +196,12 @@ export async function checkSubscriptionWarning(
     } else if (pastGrace) {
       // Past grace: no warning toast here; auto-downgrade job handles enforcement
       shouldWarn = false;
+    } else if (
+      subscription.status === "ACTIVE" ||
+      subscription.status === "TRIALING"
+    ) {
+      // Active subscriptions: warn if expiring within specified days
+      shouldWarn = daysRemaining > 0 && daysRemaining <= days;
     }
 
     return {
@@ -212,7 +228,7 @@ export async function checkSubscriptionWarning(
  * @returns string message about subscription status
  */
 export async function getSubscriptionMessage(
-  tenantId: string
+  tenantId: string,
 ): Promise<string | null> {
   const subscriptionStatus = await validateSubscription(tenantId);
 
