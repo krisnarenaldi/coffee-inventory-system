@@ -482,7 +482,7 @@ function CheckoutContent() {
                   link.
                 </p>
                 <div className="space-y-3">
-                  <Button
+                  {/*<Button
                     onClick={() => {
                       console.log(
                         "🔍 REDIRECT: Going to /checkout?plan=" + correctPlanId,
@@ -493,12 +493,11 @@ function CheckoutContent() {
                     size="lg"
                   >
                     Go to Correct Checkout ({planMismatchError.intendedPlan})
-                  </Button>
+                  </Button>*/}
 
                   <Button
-                    onClick={() => router.push("/dashboard")}
-                    variant="outline"
-                    className="w-full"
+                    onClick={() => router.push("/dashboard")}                    
+                    className="w-full cursor-pointer"
                   >
                     Back to Dashboard
                   </Button>
