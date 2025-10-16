@@ -72,21 +72,64 @@ function CheckoutContent() {
   }, [planId, status]);
 
   useEffect(() => {
+    // Check if window is defined (browser environment)
+    if (typeof window === "undefined") return;
+
+    // Check if Midtrans Snap script is already loaded
+    const existingScript =
+      document.querySelector('script[src*="snap.js"]') ||
+      document.getElementById("midtrans-snap-script");
+
+    if (existingScript || window.snap) {
+      console.log("Midtrans script already loaded or available");
+      return;
+    }
+
     // Load Midtrans Snap script
     const script = document.createElement("script");
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
+
+    if (!clientKey) {
+      console.error("Midtrans client key not found");
+      return;
+    }
+
     const inferredProd = clientKey ? !clientKey.startsWith("SB-") : false;
     const isProd = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
       ? process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true"
       : inferredProd;
-    script.src = isProd
+
+    const scriptSrc = isProd
       ? "https://app.midtrans.com/snap/snap.js"
       : "https://app.sandbox.midtrans.com/snap/snap.js";
+
+    script.src = scriptSrc;
     script.setAttribute("data-client-key", clientKey);
+    script.id = "midtrans-snap-script";
+    script.async = true;
+
+    // Add error handling
+    script.onerror = () => {
+      console.error("Failed to load Midtrans Snap script");
+      toast.error("Failed to load payment system. Please refresh the page.");
+    };
+
+    script.onload = () => {
+      console.log("Midtrans Snap script loaded successfully");
+    };
+
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      // Clean up only if we're unmounting
+      const scriptToRemove = document.getElementById("midtrans-snap-script");
+      if (scriptToRemove && scriptToRemove.parentNode) {
+        try {
+          document.head.removeChild(scriptToRemove);
+        } catch (e) {
+          console.warn("Script already removed:", e);
+        }
+      }
     };
   }, []);
 
@@ -143,10 +186,21 @@ function CheckoutContent() {
 
   const fetchPlan = async () => {
     try {
+      setLoading(true);
+      console.log("🔍 Fetching plan:", planId);
+
       const response = await fetch(`/api/subscription/plans`);
-      if (!response.ok) throw new Error("Failed to fetch plans");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Plans API error:", response.status, errorText);
+        throw new Error(`Failed to fetch plans: ${response.status}`);
+      }
 
       const plans = await response.json();
+      console.log(
+        "📋 Available plans:",
+        plans.map((p: any) => p.id),
+      );
 
       // Try to find plan by exact ID first
       let selectedPlan = plans.find((p: SubscriptionPlan) => p.id === planId);
@@ -154,21 +208,25 @@ function CheckoutContent() {
       // If not found and planId doesn't end with '-plan', try adding '-plan' suffix
       if (!selectedPlan && planId && !planId.endsWith("-plan")) {
         const planIdWithSuffix = `${planId}-plan`;
+        console.log("🔍 Trying with suffix:", planIdWithSuffix);
         selectedPlan = plans.find(
           (p: SubscriptionPlan) => p.id === planIdWithSuffix,
         );
       }
 
       if (!selectedPlan) {
-        toast.error("Subscription plan not found");
-        router.push("/pricing");
+        console.error("❌ Plan not found:", planId);
+        toast.error(`Subscription plan '${planId}' not found`);
+        router.push("/subscription");
         return;
       }
 
+      console.log("✅ Plan found:", selectedPlan.name, selectedPlan.id);
       setPlan(selectedPlan);
     } catch (error) {
-      console.error("Error fetching plan:", error);
+      console.error("❌ Error fetching plan:", error);
       toast.error("Failed to load subscription plan");
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
@@ -231,38 +289,59 @@ function CheckoutContent() {
       });
       setCheckoutData(data);
 
-      // Check if Midtrans Snap is loaded
-      if (!window.snap) {
-        console.error("❌ Midtrans Snap not loaded");
-        toast.error("Payment system not ready. Please refresh the page.");
-        return;
-      }
+      // Check if Midtrans Snap is loaded with retry mechanism
+      let retries = 0;
+      const maxRetries = 10;
+      const checkSnapLoaded = () => {
+        if (window.snap) {
+          console.log("✅ Midtrans Snap is ready");
+          proceedWithPayment();
+          return;
+        }
 
-      console.log("💳 Opening Midtrans payment popup");
-      // Open Midtrans Snap payment popup
-      window.snap.pay(data.snapToken, {
-        onSuccess: (result: any) => {
-          console.log("✅ Payment success:", result);
-          toast.success("Payment successful!");
-          router.push(`/checkout/success?order_id=${data.orderId}`);
-        },
-        onPending: (result: any) => {
-          console.log("⏳ Payment pending:", result);
-          toast.info("Payment is being processed...");
-          router.push(`/checkout/pending?order_id=${data.orderId}`);
-        },
-        onError: (result: any) => {
-          console.error("❌ Payment error:", result);
-          toast.error("Payment failed. Please try again.");
-          router.push(`/checkout/error?order_id=${data.orderId}`);
-        },
-        onClose: () => {
-          console.log("🚪 Payment popup closed");
-          toast.info("Payment cancelled");
-          // When user abandons checkout, revert to free plan
-          revertToFreePlan();
-        },
-      });
+        if (retries < maxRetries) {
+          retries++;
+          console.log(
+            `⏳ Waiting for Midtrans Snap... (${retries}/${maxRetries})`,
+          );
+          setTimeout(checkSnapLoaded, 500);
+        } else {
+          console.error("❌ Midtrans Snap not loaded after retries");
+          toast.error("Payment system not ready. Please refresh the page.");
+          setProcessing(false);
+        }
+      };
+
+      const proceedWithPayment = () => {
+        console.log("💳 Opening Midtrans payment popup");
+        // Open Midtrans Snap payment popup
+        window.snap.pay(data.snapToken, {
+          onSuccess: (result: any) => {
+            console.log("✅ Payment success:", result);
+            toast.success("Payment successful!");
+            router.push(`/checkout/success?order_id=${data.orderId}`);
+          },
+          onPending: (result: any) => {
+            console.log("⏳ Payment pending:", result);
+            toast.info("Payment is being processed...");
+            router.push(`/checkout/pending?order_id=${data.orderId}`);
+          },
+          onError: (result: any) => {
+            console.error("❌ Payment error:", result);
+            toast.error("Payment failed. Please try again.");
+            router.push(`/checkout/error?order_id=${data.orderId}`);
+          },
+          onClose: () => {
+            console.log("🚪 Payment popup closed");
+            toast.info("Payment cancelled");
+            // When user abandons checkout, revert to free plan
+            revertToFreePlan();
+          },
+        });
+      };
+
+      // Start checking if Snap is loaded
+      checkSnapLoaded();
     } catch (error) {
       console.error("❌ Error creating payment:", error);
       toast.error(error instanceof Error ? error.message : "Payment failed");
