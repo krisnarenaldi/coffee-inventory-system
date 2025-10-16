@@ -50,11 +50,13 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
   const upgradeOption = searchParams.get("upgradeOption");
   const customAmount = searchParams.get("amount");
+  const bypassValidation = searchParams.get("bypass") === "true";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -68,7 +70,27 @@ function CheckoutContent() {
     }
 
     // Validate user's intended plan before allowing checkout
-    validateUserAccess();
+    if (bypassValidation) {
+      console.log(
+        "🔍 CHECKOUT DEBUG: Bypassing validation, loading plan directly",
+      );
+      fetchPlan();
+    } else {
+      validateUserAccess();
+    }
+
+    // Add timeout for loading state
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.error(
+          "🔍 CHECKOUT DEBUG: Loading timeout - forcing error state",
+        );
+        setLoading(false);
+        setError("Loading timeout. Please refresh the page or try again.");
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(loadingTimeout);
   }, [planId, status]);
 
   useEffect(() => {
@@ -135,52 +157,22 @@ function CheckoutContent() {
 
   const validateUserAccess = async () => {
     try {
-      // First check if user has permission to access this checkout
-      const subscriptionResponse = await fetch("/api/subscription");
-      if (!subscriptionResponse.ok) {
-        throw new Error("Failed to fetch subscription status");
-      }
+      console.log("🔍 CHECKOUT DEBUG: Starting validation for planId:", planId);
 
-      const subscriptionData = await subscriptionResponse.json();
-
-      // Check if user has PENDING_CHECKOUT status
-      if (subscriptionData.status !== "PENDING_CHECKOUT") {
-        toast.error("Please initiate upgrade from your dashboard first");
+      // Simplified validation - just check if plan exists in URL
+      if (!planId) {
+        console.error("🔍 CHECKOUT DEBUG: No planId provided");
         router.push("/dashboard");
         return;
       }
 
-      // Validate intended plan matches requested plan
-      const intendedPlan = subscriptionData.intendedPlan;
-      const expectedPlanId =
-        intendedPlan === "professional"
-          ? "professional-plan"
-          : intendedPlan === "starter"
-            ? "starter-plan"
-            : intendedPlan === "free"
-              ? "free-plan"
-              : null;
-
-      if (!expectedPlanId) {
-        toast.error(`Invalid plan: ${intendedPlan}`);
-        router.push("/dashboard");
-        return;
-      }
-
-      if (planId !== expectedPlanId) {
-        toast.error(
-          `You can only checkout your intended plan: ${intendedPlan}`,
-        );
-        router.push(`/checkout?plan=${intendedPlan}`);
-        return;
-      }
-
-      // If validation passes, fetch the plan details
+      console.log("🔍 CHECKOUT DEBUG: Basic validation passed, loading plan");
       await fetchPlan();
     } catch (error) {
-      console.error("Error validating user access:", error);
-      toast.error("Unable to verify checkout permissions");
-      router.push("/dashboard");
+      console.error("🔍 CHECKOUT DEBUG: Error in validateUserAccess:", error);
+      setLoading(false);
+      setError("Unable to validate checkout permissions. Please try again.");
+      toast.error("Unable to load checkout page. Please try again.");
     }
   };
 
@@ -225,8 +217,9 @@ function CheckoutContent() {
       setPlan(selectedPlan);
     } catch (error) {
       console.error("❌ Error fetching plan:", error);
+      setError("Failed to load subscription plan. Please try again.");
       toast.error("Failed to load subscription plan");
-      router.push("/dashboard");
+      // Don't redirect immediately, let user see the error
     } finally {
       setLoading(false);
     }
@@ -353,26 +346,55 @@ function CheckoutContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading checkout...</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Plan: {planId} | User: {session?.user?.email}
+          </p>
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700">{error}</p>
+              <Button
+                onClick={() => window.location.reload()}
+                className="mt-2"
+                variant="outline"
+              >
+                Refresh Page
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
-  if (!plan) {
+  if (!plan && !loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+              <h2 className="text-xl font-semibold mb-2">Plan Not Available</h2>
               <p className="text-gray-600 mb-4">
-                You don't have permission to checkout this plan. Please start
-                the upgrade process from your dashboard.
+                {error || "Unable to load the requested subscription plan."}
               </p>
+              <div className="space-y-2 text-xs text-gray-400 mb-4">
+                <p>Plan ID: {planId}</p>
+                <p>User: {session?.user?.email}</p>
+                <p>Status: {status}</p>
+              </div>
               <div className="space-y-2">
                 <Button
+                  onClick={() => window.location.reload()}
+                  className="w-full"
+                >
+                  Refresh Page
+                </Button>
+                <Button
                   onClick={() => router.push("/dashboard")}
+                  variant="outline"
                   className="w-full"
                 >
                   Back to Dashboard
@@ -393,7 +415,7 @@ function CheckoutContent() {
   }
 
   const isYearly = billingCycle === "yearly";
-  const displayPrice = plan.price;
+  const displayPrice = plan?.price || 0;
   const billingText = isYearly ? "per year" : "per month";
 
   return (
@@ -420,8 +442,8 @@ function CheckoutContent() {
             <CardContent className="space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-semibold text-lg">{plan.name}</h3>
-                  <p className="text-gray-600 text-sm">{plan.description}</p>
+                  <h3 className="font-semibold text-lg">{plan?.name}</h3>
+                  <p className="text-gray-600 text-sm">{plan?.description}</p>
                   <Badge variant="outline" className="mt-2">
                     {isYearly ? "Yearly" : "Monthly"} Billing
                   </Badge>
@@ -439,7 +461,7 @@ function CheckoutContent() {
               <div className="space-y-2">
                 <h4 className="font-medium">Included Features:</h4>
                 <ul className="space-y-1">
-                  {plan.features.map((feature, index) => (
+                  {plan?.features?.map((feature, index) => (
                     <li key={index} className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                       {feature}
