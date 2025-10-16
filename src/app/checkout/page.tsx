@@ -51,6 +51,10 @@ function CheckoutContent() {
   const [processing, setProcessing] = useState(false);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [planMismatchError, setPlanMismatchError] = useState<{
+    intendedPlan: string;
+    requestedPlan: string;
+  } | null>(null);
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
@@ -159,14 +163,51 @@ function CheckoutContent() {
     try {
       console.log("🔍 CHECKOUT DEBUG: Starting validation for planId:", planId);
 
-      // Simplified validation - just check if plan exists in URL
+      // Check if plan exists in URL
       if (!planId) {
         console.error("🔍 CHECKOUT DEBUG: No planId provided");
         router.push("/dashboard");
         return;
       }
 
-      console.log("🔍 CHECKOUT DEBUG: Basic validation passed, loading plan");
+      // Check user's intended plan first
+      const subscriptionResponse = await fetch("/api/subscription");
+      if (subscriptionResponse.ok) {
+        const subscriptionData = await subscriptionResponse.json();
+
+        if (
+          subscriptionData.status === "PENDING_CHECKOUT" &&
+          subscriptionData.intendedPlan
+        ) {
+          const intendedPlan = subscriptionData.intendedPlan;
+          const expectedPlanId =
+            intendedPlan === "professional"
+              ? "professional"
+              : intendedPlan === "starter"
+                ? "starter"
+                : intendedPlan === "free"
+                  ? "free"
+                  : intendedPlan;
+
+          // Check if user is trying to access wrong plan
+          if (planId !== expectedPlanId) {
+            console.log(
+              "🔍 CHECKOUT DEBUG: Plan mismatch detected, showing error",
+            );
+            setPlanMismatchError({
+              intendedPlan: intendedPlan,
+              requestedPlan: planId,
+            });
+            toast.error(
+              `URL manipulation detected! You can only checkout your intended plan: ${intendedPlan}`,
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      console.log("🔍 CHECKOUT DEBUG: Validation passed, loading plan");
       await fetchPlan();
     } catch (error) {
       console.error("🔍 CHECKOUT DEBUG: Error in validateUserAccess:", error);
@@ -337,7 +378,39 @@ function CheckoutContent() {
       checkSnapLoaded();
     } catch (error) {
       console.error("❌ Error creating payment:", error);
-      toast.error(error instanceof Error ? error.message : "Payment failed");
+
+      // Handle specific authorization error with plan mismatch
+      if (
+        error instanceof Error &&
+        error.message.includes(
+          "Unauthorized: You can only checkout your intended plan",
+        )
+      ) {
+        try {
+          // Try to parse the error details from the API response
+          const response = await fetch("/api/subscription");
+          if (response.ok) {
+            const subscriptionData = await response.json();
+            setPlanMismatchError({
+              intendedPlan: subscriptionData.intendedPlan,
+              requestedPlan: planId || "unknown",
+            });
+            toast.error(
+              `You can only checkout your intended plan: ${subscriptionData.intendedPlan}`,
+            );
+          } else {
+            toast.error(
+              "Please use the correct checkout link from your dashboard",
+            );
+          }
+        } catch (fetchError) {
+          toast.error(
+            "Please return to your dashboard and use the correct checkout link",
+          );
+        }
+      } else {
+        toast.error(error instanceof Error ? error.message : "Payment failed");
+      }
     } finally {
       setProcessing(false);
     }
@@ -364,6 +437,73 @@ function CheckoutContent() {
               </Button>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show plan mismatch error
+  if (planMismatchError) {
+    const correctPlanId =
+      planMismatchError.intendedPlan === "professional"
+        ? "professional"
+        : planMismatchError.intendedPlan === "starter"
+          ? "starter"
+          : planMismatchError.intendedPlan === "free"
+            ? "free"
+            : planMismatchError.intendedPlan;
+
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="w-full">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-6" />
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  Wrong Checkout Plan
+                </h2>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <p className="text-amber-800 font-medium mb-2">
+                    You're trying to checkout the wrong plan!
+                  </p>
+                  <div className="text-sm text-amber-700 space-y-1">
+                    <p>
+                      • Your intended plan:{" "}
+                      <strong>{planMismatchError.intendedPlan}</strong>
+                    </p>
+                    <p>
+                      • You're trying to checkout:{" "}
+                      <strong>{planMismatchError.requestedPlan}</strong>
+                    </p>
+                  </div>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  For security reasons, you can only checkout the plan you
+                  selected from your dashboard. Please use the correct checkout
+                  link.
+                </p>
+                <div className="space-y-3">
+                  <Button
+                    onClick={() =>
+                      router.push(`/checkout?plan=${correctPlanId}`)
+                    }
+                    className="w-full"
+                    size="lg"
+                  >
+                    Go to Correct Checkout ({planMismatchError.intendedPlan})
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/dashboard")}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Back to Dashboard
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
