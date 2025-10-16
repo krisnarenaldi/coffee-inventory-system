@@ -55,6 +55,7 @@ function CheckoutContent() {
     intendedPlan: string;
     requestedPlan: string;
   } | null>(null);
+  const [effectiveBillingCycle, setEffectiveBillingCycle] = useState<string>("monthly");
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
@@ -209,6 +210,31 @@ function CheckoutContent() {
             setLoading(false);
             return;
           }
+
+          // Secure billing cycle by reading it from latest pending transaction
+          try {
+            const latestTxResp = await fetch("/api/transactions/latest");
+            if (latestTxResp.ok) {
+              const latestTx = await latestTxResp.json();
+              const txCycle = latestTx?.billingCycle;
+              if (txCycle === "monthly" || txCycle === "yearly") {
+                setEffectiveBillingCycle(txCycle);
+                if (billingCycle && billingCycle !== txCycle) {
+                  console.warn(
+                    `🔒 Overriding URL cycle '${billingCycle}' with secured cycle '${txCycle}' from latest transaction`,
+                  );
+                }
+              } else {
+                // Fallback to URL or default monthly if transaction isn't found
+                setEffectiveBillingCycle(billingCycle || "monthly");
+              }
+            } else {
+              setEffectiveBillingCycle(billingCycle || "monthly");
+            }
+          } catch (e) {
+            console.warn("Failed to load latest transaction for cycle, using URL/default", e);
+            setEffectiveBillingCycle(billingCycle || "monthly");
+          }
         }
       }
 
@@ -295,7 +321,7 @@ function CheckoutContent() {
       "🚀 Starting payment process for plan:",
       plan.id,
       "billing cycle:",
-      billingCycle,
+      effectiveBillingCycle,
     );
     setProcessing(true);
     try {
@@ -307,7 +333,7 @@ function CheckoutContent() {
         },
         body: JSON.stringify({
           planId: plan.id,
-          billingCycle,
+          billingCycle: effectiveBillingCycle,
           upgradeOption: upgradeOption || undefined,
           customAmount: customAmount ? parseInt(customAmount) : undefined,
         }),
@@ -555,7 +581,7 @@ function CheckoutContent() {
     );
   }
 
-  const isYearly = billingCycle === "yearly";
+  const isYearly = effectiveBillingCycle === "yearly";
   const basePrice = plan?.price || 0;
   // For yearly billing: apply 20% discount AND multiply by 12 months
   const displayPrice = isYearly
