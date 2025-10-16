@@ -84,7 +84,7 @@ function SignUpContent() {
 
     if (!/^[a-z0-9-]+$/.test(formData.subdomain)) {
       setError(
-        "Subdomain can only contain lowercase letters, numbers, and hyphens"
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
       );
       return false;
     }
@@ -134,7 +134,8 @@ function SignUpContent() {
       // Handle different plan flows
       if (data.requiresCheckout) {
         // For paid plans, first sign in the newly registered user, then redirect to checkout
-        const planId = selectedPlan ? `${selectedPlan}-plan` : "starter-plan";
+        //const planId = selectedPlan ? `${selectedPlan}-plan` : "starter-plan";
+        const planId = selectedPlan ? `${selectedPlan}` : "starter";
         try {
           const signinResult = await signIn("credentials", {
             redirect: false,
@@ -147,8 +148,8 @@ function SignUpContent() {
             // If auto sign-in fails, fall back to sign-in page
             router.push(
               `/auth/signin?message=Registration successful. Please sign in to continue checkout.&email=${encodeURIComponent(
-                formData.email
-              )}`
+                formData.email,
+              )}`,
             );
             return;
           }
@@ -158,15 +159,15 @@ function SignUpContent() {
           // Fallback in case signIn throws
           router.push(
             `/auth/signin?message=Registration successful. Please sign in to continue checkout.&email=${encodeURIComponent(
-              formData.email
-            )}`
+              formData.email,
+            )}`,
           );
         }
       } else {
         // For free plan, redirect to sign-in page
         setTimeout(() => {
           router.push(
-            "/auth/signin?message=Registration successful. Please sign in."
+            "/auth/signin?message=Registration successful. Please sign in.",
           );
         }, 2000);
       }
