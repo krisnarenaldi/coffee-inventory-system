@@ -488,7 +488,7 @@ function CheckoutContent() {
                     onClick={() =>
                       router.push(`/checkout?plan=${correctPlanId}`)
                     }
-                    className="w-full"
+                    className="w-full cursor-pointer"
                     size="lg"
                   >
                     Go to Correct Checkout ({planMismatchError.intendedPlan})
@@ -496,7 +496,7 @@ function CheckoutContent() {
                   <Button
                     onClick={() => router.push("/dashboard")}
                     variant="outline"
-                    className="w-full"
+                    className="w-full cursor-pointer"
                   >
                     Back to Dashboard
                   </Button>
