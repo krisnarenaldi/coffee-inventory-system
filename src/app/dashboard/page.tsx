@@ -43,6 +43,7 @@ export default function Dashboard() {
   const [showCompletePaymentBanner, setShowCompletePaymentBanner] =
     useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<string>("monthly");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -107,9 +108,10 @@ export default function Dashboard() {
     const decideBanner = async () => {
       if (status !== "authenticated" || !session?.user?.tenantId) return;
       try {
-        const [basicReportsResp, subscriptionResp] = await Promise.all([
+        const [basicReportsResp, subscriptionResp, latestTxResp] = await Promise.all([
           fetch("/api/subscription/features?feature=basicReports"),
           fetch("/api/subscription"),
+          fetch("/api/transactions/latest"),
         ]);
 
         const basicReportsData = await basicReportsResp.json();
@@ -160,6 +162,14 @@ export default function Dashboard() {
           else {
             setShowUpgradeBanner(false);
             setShowCompletePaymentBanner(false);
+          }
+        }
+
+        // Update billing cycle from latest pending transaction if available
+        if (latestTxResp.ok) {
+          const latestTx = await latestTxResp.json();
+          if (latestTx?.billingCycle && (latestTx.billingCycle === "monthly" || latestTx.billingCycle === "yearly")) {
+            setBillingCycle(latestTx.billingCycle);
           }
         }
       } catch (e) {
@@ -245,7 +255,7 @@ export default function Dashboard() {
               </div>
               <div className="flex-shrink-0">
                 <Link
-                  href={`/checkout?plan=${pendingPlan || "professional"}`}
+                  href={`/checkout?plan=${pendingPlan || "professional"}&cycle=${billingCycle || "monthly"}`}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600"
                 >
                   Complete Payment
