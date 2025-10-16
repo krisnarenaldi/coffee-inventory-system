@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
     // If paid, activate or update subscription to the intended plan
     if (newStatus === 'PAID') {
       const startDate = new Date();
-      const interval = transaction.subscriptionPlan?.interval || 'MONTHLY';
+      const interval =
+        transaction.billingCycle &&
+        String(transaction.billingCycle).toLowerCase() === 'yearly'
+          ? 'YEARLY'
+          : transaction.subscriptionPlan?.interval || 'MONTHLY';
       const endDate = computeNextPeriodEnd(startDate, interval);
 
       const existingSubscription = await prisma.subscription.findFirst({

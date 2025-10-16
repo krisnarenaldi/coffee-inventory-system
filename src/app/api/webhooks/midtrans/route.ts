@@ -69,7 +69,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if this should be scheduled instead of immediate
-      const upgradeOption = latestTransaction.metadata?.upgradeOption;
+      const latestMetadata =
+        typeof latestTransaction.metadata === "object" &&
+        latestTransaction.metadata !== null &&
+        !Array.isArray(latestTransaction.metadata)
+          ? (latestTransaction.metadata as Record<string, unknown>)
+          : {};
+      const upgradeOption =
+        typeof latestMetadata["upgradeOption"] === "string"
+          ? (latestMetadata["upgradeOption"] as string)
+          : undefined;
 
       // Add detailed logging for debugging
       console.log(`🔍 Webhook processing transaction ${transaction.id}`);
@@ -170,7 +179,11 @@ async function handleSuccessfulPayment(transaction: any, notification: any) {
 
     // For immediate upgrades, activate now
     const startDate = new Date();
-    const interval = transaction.subscriptionPlan?.interval || "MONTHLY";
+    const interval =
+      transaction.billingCycle &&
+      String(transaction.billingCycle).toLowerCase() === "yearly"
+        ? "YEARLY"
+        : transaction.subscriptionPlan?.interval || "MONTHLY";
     const endDate = computeNextPeriodEnd(startDate, interval);
 
     // Check if user has a subscription with PENDING_CHECKOUT status
@@ -266,16 +279,19 @@ async function handleFailedPayment(transaction: any, notification: any) {
       console.log(
         `🧹 Clearing intendedPlan for subscription ${subscription.id} due to failed payment`
       );
+      const now = new Date();
+      const nextStatus =
+        subscription.status === "PENDING_CHECKOUT"
+          ? !subscription.currentPeriodEnd || subscription.currentPeriodEnd <= now
+            ? "PAST_DUE"
+            : "ACTIVE"
+          : subscription.status;
+
       await prisma.subscription.update({
         where: { id: subscription.id },
         data: {
           intendedPlan: null,
-          status:
-            subscription.status === "PENDING_CHECKOUT"
-              ? subscription.currentPeriodEnd <= new Date()
-                ? "PAST_DUE"
-                : "ACTIVE"
-              : subscription.status,
+          status: nextStatus,
           updatedAt: new Date(),
         },
       });

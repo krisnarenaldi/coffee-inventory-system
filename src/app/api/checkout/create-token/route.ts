@@ -130,10 +130,11 @@ export async function POST(request: NextRequest) {
     } else {
       const planPrice = plan.price ? Number(plan.price) : 0;
 
-      // Apply yearly discount (20% off) if yearly billing is selected
-      // This matches the pricing page logic: yearly = monthly * 0.8
+      // Apply yearly billing: 20% discount AND multiply by 12 months
+      // Monthly: charge monthly rate
+      // Yearly: charge (monthly rate * 0.8 * 12) = discounted annual amount
       const calculatedPrice = isYearly
-        ? Math.round(planPrice * 0.8)
+        ? Math.round(planPrice * 0.8 * 12) // Discounted rate × 12 months
         : planPrice;
 
       if (!calculatedPrice || calculatedPrice <= 0) {
