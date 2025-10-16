@@ -26,6 +26,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
   const [hasBasicReports, setHasBasicReports] = useState(false);
   const [featuresChecked, setFeaturesChecked] = useState(false);
   const [planName, setPlanName] = useState<string | null>(null);
+  const [hasPendingCheckout, setHasPendingCheckout] = useState(false);
 
   // Check subscription features
   useEffect(() => {
@@ -37,10 +38,29 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
 
       console.log(
         "🔍 NAVIGATION: Checking features for tenant:",
-        session.user.tenantId
+        session.user.tenantId,
       );
 
       try {
+        // Check for pending checkout status
+        const pendingCheckoutResponse = await fetch(
+          `/api/subscription/pending-checkout?t=${Date.now()}`,
+          {
+            cache: "no-cache",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          },
+        );
+
+        if (pendingCheckoutResponse.ok) {
+          const pendingData = await pendingCheckoutResponse.json();
+          setHasPendingCheckout(pendingData.hasPendingCheckout || false);
+        } else {
+          setHasPendingCheckout(false);
+        }
         // Check for advanced analytics
         const advancedResponse = await fetch(
           `/api/subscription/features?feature=advancedReports&t=${Date.now()}`,
@@ -51,14 +71,14 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               Pragma: "no-cache",
               Expires: "0",
             },
-          }
+          },
         );
 
         if (!advancedResponse.ok) {
           console.error(
             "🔍 NAVIGATION: Advanced reports API error:",
             advancedResponse.status,
-            advancedResponse.statusText
+            advancedResponse.statusText,
           );
         }
 
@@ -76,14 +96,14 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               Pragma: "no-cache",
               Expires: "0",
             },
-          }
+          },
         );
 
         if (!basicResponse.ok) {
           console.error(
             "🔍 NAVIGATION: Basic reports API error:",
             basicResponse.status,
-            basicResponse.statusText
+            basicResponse.statusText,
           );
         }
 
@@ -96,12 +116,12 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           "🔍 NAVIGATION: Final state - hasBasicReports:",
           basicData.hasAccess || false,
           "hasAdvancedAnalytics:",
-          advancedData.hasAccess || false
+          advancedData.hasAccess || false,
         );
       } catch (error) {
         console.error(
           "🔍 NAVIGATION: Error checking subscription features:",
-          error
+          error,
         );
         // Set to false on error to be safe
         setHasBasicReports(false);
@@ -129,16 +149,14 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       }
 
       try {
-        const res = await fetch(`/api/subscription?t=${Date.now()}`,
-          {
-            cache: "no-cache",
-            headers: {
-              "Cache-Control": "no-cache, no-store, must-revalidate",
-              Pragma: "no-cache",
-              Expires: "0",
-            },
-          }
-        );
+        const res = await fetch(`/api/subscription?t=${Date.now()}`, {
+          cache: "no-cache",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
 
         if (!res.ok) {
           setPlanName(null);
@@ -297,7 +315,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
               <Link
-                href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : "/dashboard"}
+                href={
+                  session?.user?.subscriptionExpired
+                    ? "/subscription?expired=true"
+                    : "/dashboard"
+                }
                 className="flex items-center space-x-3"
               >
                 <Image
@@ -318,7 +340,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               {filteredNavigationItems.slice(0, 6).map((item) => (
                 <Link
                   key={item.name}
-                  href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
+                  href={
+                    session?.user?.subscriptionExpired
+                      ? "/subscription?expired=true"
+                      : item.href
+                  }
                   className={`inline-flex items-center px-2 pt-1 border-b-2 text-xs font-medium transition-colors duration-200 whitespace-nowrap ${
                     isActive(item.href)
                       ? "border-blue-500 text-gray-900"
@@ -331,10 +357,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                     {item.name === "Roast Profiles"
                       ? "Recipes"
                       : item.name === "Roast Batches"
-                      ? "Batches"
-                      : item.name === "Coffee Products"
-                      ? "Products"
-                      : item.name.split(" ")[0]}
+                        ? "Batches"
+                        : item.name === "Coffee Products"
+                          ? "Products"
+                          : item.name.split(" ")[0]}
                   </span>
                 </Link>
               ))}
@@ -352,7 +378,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                     {filteredNavigationItems.slice(6).map((item) => (
                       <Link
                         key={item.name}
-                        href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
+                        href={
+                          session?.user?.subscriptionExpired
+                            ? "/subscription?expired=true"
+                            : item.href
+                        }
                         className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${
                           isActive(item.href)
                             ? "bg-blue-50 text-blue-700"
@@ -371,18 +401,20 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
 
           {/* User Menu */}
           <div className="hidden xl:ml-6 xl:flex xl:items-center space-x-3">
-            {/* Upgrade CTA for free users 
+            {/* Upgrade CTA for free users
               featuresChecked && !(hasBasicReports || hasAdvancedAnalytics
             */}
-            {featuresChecked && !hasAdvancedAnalytics && (
-              <Link
-                href="/subscription?src=nav"
-                className="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 bg-white rounded-md text-sm font-medium hover:bg-amber-50 transition-colors cursor-pointer"
-              >
-                <span className="mr-1">🚀</span>
-                Upgrade
-              </Link>
-            )}
+            {featuresChecked &&
+              !hasAdvancedAnalytics &&
+              !hasPendingCheckout && (
+                <Link
+                  href="/subscription?src=nav"
+                  className="inline-flex items-center px-3 py-1 border border-amber-300 text-amber-700 bg-white rounded-md text-sm font-medium hover:bg-amber-50 transition-colors cursor-pointer"
+                >
+                  <span className="mr-1">🚀</span>
+                  Upgrade
+                </Link>
+              )}
             {/* User Info */}
             <div className="text-xs text-gray-700 whitespace-nowrap">
               <span className="hidden 2xl:inline">Welcome, </span>
@@ -500,7 +532,11 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           {filteredNavigationItems.map((item) => (
             <Link
               key={item.name}
-              href={session?.user?.subscriptionExpired ? "/subscription?expired=true" : item.href}
+              href={
+                session?.user?.subscriptionExpired
+                  ? "/subscription?expired=true"
+                  : item.href
+              }
               className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200 ${
                 isActive(item.href)
                   ? "bg-blue-50 border-blue-500 text-blue-700"
@@ -527,16 +563,18 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             </div>
           </div>
           <div className="mt-3 space-y-1">
-            {featuresChecked && !(hasBasicReports || hasAdvancedAnalytics) && (
-              <Link
-                href="/subscription?src=nav_mobile"
-                className="block mx-4 mb-2 px-4 py-2 text-base font-medium text-amber-700 border border-amber-200 rounded-md bg-white hover:bg-amber-50"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <span className="mr-2">🚀</span>
-                Upgrade
-              </Link>
-            )}
+            {featuresChecked &&
+              !(hasBasicReports || hasAdvancedAnalytics) &&
+              !hasPendingCheckout && (
+                <Link
+                  href="/subscription?src=nav_mobile"
+                  className="block mx-4 mb-2 px-4 py-2 text-base font-medium text-amber-700 border border-amber-200 rounded-md bg-white hover:bg-amber-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <span className="mr-2">🚀</span>
+                  Upgrade
+                </Link>
+              )}
             <Link
               href="/profile"
               className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"

@@ -80,7 +80,7 @@ function SubscriptionContent() {
     text: string;
   }>(null);
   const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(
-    null
+    null,
   );
 
   // Check for expired or error parameters
@@ -164,7 +164,7 @@ function SubscriptionContent() {
               const apiNames = ["subscription", "plans", "usage", "status"];
               console.error(
                 `Failed to fetch ${apiNames[index]}:`,
-                result.reason
+                result.reason,
               );
             }
           });
@@ -182,7 +182,7 @@ function SubscriptionContent() {
               const apiNames = ["plans", "status"];
               console.error(
                 `Failed to fetch ${apiNames[index]}:`,
-                result.reason
+                result.reason,
               );
             }
           });
@@ -207,7 +207,7 @@ function SubscriptionContent() {
     // Fallback: ensure loading is set to false after a timeout
     const timeout = setTimeout(() => {
       console.log(
-        "⏰ SUBSCRIPTION PAGE: Timeout reached, forcing loading to false"
+        "⏰ SUBSCRIPTION PAGE: Timeout reached, forcing loading to false",
       );
       setLoading(false);
     }, 10000);
@@ -228,7 +228,7 @@ function SubscriptionContent() {
       : null;
     const remainingDays = currentPeriodEnd
       ? Math.ceil(
-          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
         )
       : 0;
     const isExpired = remainingDays <= 0;
@@ -285,7 +285,7 @@ function SubscriptionContent() {
 
     // Clamp remaining days to 0 to avoid negative values after expiry
     const rawRemainingDays = Math.ceil(
-      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
     const clampedRemainingDays = Math.max(0, rawRemainingDays);
 
@@ -293,7 +293,7 @@ function SubscriptionContent() {
     const currentPeriodStart = new Date(subscription.currentPeriodStart);
     const totalCurrentDays = Math.ceil(
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     );
     const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
 
@@ -309,7 +309,7 @@ function SubscriptionContent() {
     // Calculate additional charge for immediate upgrade
     const additionalCharge = Math.max(
       0,
-      newPlanProratedCost - unusedCurrentValue
+      newPlanProratedCost - unusedCurrentValue,
     );
 
     setUpgradeCalculation({
@@ -335,7 +335,7 @@ function SubscriptionContent() {
         } else if (message && typeof message === "object") {
           console.warn(
             "⚠️ Subscription message is an object, ignoring:",
-            message
+            message,
           );
           setSubscriptionMessage(null);
         } else {
@@ -357,7 +357,7 @@ function SubscriptionContent() {
         console.error(
           "Failed to fetch subscription data:",
           response.status,
-          response.statusText
+          response.statusText,
         );
       }
     } catch (error) {
@@ -375,7 +375,7 @@ function SubscriptionContent() {
         console.error(
           "Failed to fetch plans:",
           response.status,
-          response.statusText
+          response.statusText,
         );
       }
     } catch (error) {
@@ -393,7 +393,7 @@ function SubscriptionContent() {
         console.error(
           "Failed to fetch usage data:",
           response.status,
-          response.statusText
+          response.statusText,
         );
       }
     } catch (error) {
@@ -416,7 +416,8 @@ function SubscriptionContent() {
         : null;
       const remainingDays = currentPeriodEnd
         ? Math.ceil(
-            (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            (currentPeriodEnd.getTime() - now.getTime()) /
+              (1000 * 60 * 60 * 24),
           )
         : 0;
       const isExpired = remainingDays <= 0;
@@ -552,12 +553,13 @@ function SubscriptionContent() {
     }
   };
 
-  const handleCancelSubscription = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your current billing period."
-      )
-    ) {
+  const handleDowngradeAtPeriodEnd = async () => {
+    const currentPlanName = subscription?.plan?.name || "current plan";
+    const isDowngradeToFree = currentPlanName.toLowerCase() !== "free";
+
+    const confirmMessage = `Are you sure you want to downgrade your ${currentPlanName} plan? You will keep access to all ${currentPlanName.toLowerCase()} features until ${formatDate(subscription?.currentPeriodEnd)}, then your plan will automatically downgrade to Free.`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -568,9 +570,17 @@ function SubscriptionContent() {
 
       if (response.ok) {
         await fetchSubscriptionData();
+        setActionMessage({
+          type: "success",
+          text: `Your ${currentPlanName} plan will downgrade to Free on ${formatDate(subscription?.currentPeriodEnd)}. You can reactivate anytime before then.`,
+        });
       }
     } catch (error) {
-      console.error("Error canceling subscription:", error);
+      console.error("Error scheduling downgrade:", error);
+      setActionMessage({
+        type: "error",
+        text: "Failed to schedule downgrade. Please try again.",
+      });
     }
   };
 
@@ -674,15 +684,15 @@ function SubscriptionContent() {
                   {isExpired
                     ? "Subscription Expired"
                     : hasError
-                    ? "Subscription Validation Error"
-                    : "Subscription Issue"}
+                      ? "Subscription Validation Error"
+                      : "Subscription Issue"}
                 </h3>
                 <p className="mt-1 text-sm text-red-700">
                   {isExpired
                     ? "Your subscription has expired. Please renew to continue using the service."
                     : hasError
-                    ? "There was an error validating your subscription. Please contact support if this persists."
-                    : String(subscriptionMessage || "")}
+                      ? "There was an error validating your subscription. Please contact support if this persists."
+                      : String(subscriptionMessage || "")}
                 </p>
               </div>
             </div>
@@ -737,7 +747,7 @@ function SubscriptionContent() {
                       <p className="text-gray-600">
                         Rp{" "}
                         {parseFloat(
-                          String(subscription.plan.price)
+                          String(subscription.plan.price),
                         ).toLocaleString()}
                         /{subscription.plan.interval.toLowerCase()}
                       </p>
@@ -753,16 +763,17 @@ function SubscriptionContent() {
                   </label>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                      subscription.status
+                      subscription.status,
                     )}`}
                   >
                     {subscription.status}
                   </span>
                   {subscription.cancelAtPeriodEnd &&
                     subscription.currentPeriodEnd && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                      <p className="mt-2 text-sm text-orange-600 flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-1" />
-                        Cancels on {formatDate(subscription.currentPeriodEnd)}
+                        Downgrades to Free on{" "}
+                        {formatDate(subscription.currentPeriodEnd)}
                       </p>
                     )}
                 </div>
@@ -790,10 +801,10 @@ function SubscriptionContent() {
                           (subscription.plan?.name?.toLowerCase() || "") !==
                             "free" && (
                             <button
-                              onClick={handleCancelSubscription}
-                              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
+                              onClick={handleDowngradeAtPeriodEnd}
+                              className="w-full px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 text-sm font-medium"
                             >
-                              Cancel Subscription
+                              Downgrade at End of Billing Period
                             </button>
                           )}
                       </>
@@ -805,7 +816,7 @@ function SubscriptionContent() {
                         }}
                         className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                       >
-                        Reactivate Subscription
+                        Keep Current Plan
                       </button>
                     )}
                   </div>
@@ -844,13 +855,13 @@ function SubscriptionContent() {
                         className={`h-2 rounded-full ${getUsageColor(
                           getUsagePercentage(
                             usage.users,
-                            subscription.plan.maxUsers
-                          )
+                            subscription.plan.maxUsers,
+                          ),
                         )}`}
                         style={{
                           width: `${getUsagePercentage(
                             usage.users,
-                            subscription.plan.maxUsers
+                            subscription.plan.maxUsers,
                           )}%`,
                         }}
                       ></div>
@@ -878,13 +889,13 @@ function SubscriptionContent() {
                         className={`h-2 rounded-full ${getUsageColor(
                           getUsagePercentage(
                             usage.ingredients,
-                            subscription.plan.maxIngredients
-                          )
+                            subscription.plan.maxIngredients,
+                          ),
                         )}`}
                         style={{
                           width: `${getUsagePercentage(
                             usage.ingredients,
-                            subscription.plan.maxIngredients
+                            subscription.plan.maxIngredients,
                           )}%`,
                         }}
                       ></div>
@@ -911,13 +922,13 @@ function SubscriptionContent() {
                         className={`h-2 rounded-full ${getUsageColor(
                           getUsagePercentage(
                             usage.batches,
-                            subscription.plan.maxBatches
-                          )
+                            subscription.plan.maxBatches,
+                          ),
                         )}`}
                         style={{
                           width: `${getUsagePercentage(
                             usage.batches,
-                            subscription.plan.maxBatches
+                            subscription.plan.maxBatches,
                           )}%`,
                         }}
                       ></div>
@@ -969,7 +980,7 @@ function SubscriptionContent() {
                               .replace(/^./, (str) => str.toUpperCase())}
                           </span>
                         </div>
-                      )
+                      ),
                     )}
               </div>
             </div>
@@ -1079,7 +1090,7 @@ function SubscriptionContent() {
                             <div className="text-lg font-bold text-amber-600">
                               {(upgradeCalculation.additionalCharge || 0) > 0
                                 ? `Rp ${Math.round(
-                                    upgradeCalculation.additionalCharge || 0
+                                    upgradeCalculation.additionalCharge || 0,
                                   ).toLocaleString()}`
                                 : "Free"}
                             </div>
@@ -1094,7 +1105,7 @@ function SubscriptionContent() {
                               {upgradeCalculation.currentPlan.name || "Current"}{" "}
                               value: Rp{" "}
                               {Math.round(
-                                upgradeCalculation.unusedCurrentValue || 0
+                                upgradeCalculation.unusedCurrentValue || 0,
                               ).toLocaleString()}
                             </div>
                             <div>
@@ -1102,13 +1113,13 @@ function SubscriptionContent() {
                               for {upgradeCalculation.remainingDays || 0} days:
                               Rp{" "}
                               {Math.round(
-                                upgradeCalculation.newPlanProratedCost || 0
+                                upgradeCalculation.newPlanProratedCost || 0,
                               ).toLocaleString()}
                             </div>
                             <div>
                               • Next billing: Rp{" "}
                               {parseFloat(
-                                String(upgradeCalculation.newPlan.price)
+                                String(upgradeCalculation.newPlan.price),
                               ).toLocaleString()}{" "}
                               on{" "}
                               {formatDate(upgradeCalculation.nextBillingDate)}
@@ -1134,16 +1145,16 @@ function SubscriptionContent() {
                             <div className="text-xs text-blue-600 mt-2">
                               • Unused time value: Rp{" "}
                               {Math.round(
-                                upgradeCalculation.unusedCurrentValue || 0
+                                upgradeCalculation.unusedCurrentValue || 0,
                               ).toLocaleString()}
                               • {upgradeCalculation.newPlan.name || "New"} cost
                               for remaining period: Rp{" "}
                               {Math.round(
-                                upgradeCalculation.newPlanProratedCost || 0
+                                upgradeCalculation.newPlanProratedCost || 0,
                               ).toLocaleString()}
                               • You only pay the difference: Rp{" "}
                               {Math.round(
-                                upgradeCalculation.additionalCharge || 0
+                                upgradeCalculation.additionalCharge || 0,
                               ).toLocaleString()}
                             </div>
                           </div>
@@ -1157,14 +1168,14 @@ function SubscriptionContent() {
                         <strong>✅ Ready to Upgrade:</strong> Pay{" "}
                         {(upgradeCalculation.additionalCharge || 0) > 0
                           ? `Rp ${Math.round(
-                              upgradeCalculation.additionalCharge || 0
+                              upgradeCalculation.additionalCharge || 0,
                             ).toLocaleString()}`
                           : "nothing"}{" "}
                         now for immediate access to{" "}
                         {upgradeCalculation.newPlan.name || "new"} features.
                         Your next billing will be Rp{" "}
                         {parseFloat(
-                          String(upgradeCalculation.newPlan.price || 0)
+                          String(upgradeCalculation.newPlan.price || 0),
                         ).toLocaleString()}{" "}
                         on {formatDate(upgradeCalculation.nextBillingDate)}.
                       </div>

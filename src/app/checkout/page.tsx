@@ -67,7 +67,8 @@ function CheckoutContent() {
       return;
     }
 
-    fetchPlan();
+    // Validate user's intended plan before allowing checkout
+    validateUserAccess();
   }, [planId, status]);
 
   useEffect(() => {
@@ -89,6 +90,57 @@ function CheckoutContent() {
     };
   }, []);
 
+  const validateUserAccess = async () => {
+    try {
+      // First check if user has permission to access this checkout
+      const subscriptionResponse = await fetch("/api/subscription");
+      if (!subscriptionResponse.ok) {
+        throw new Error("Failed to fetch subscription status");
+      }
+
+      const subscriptionData = await subscriptionResponse.json();
+
+      // Check if user has PENDING_CHECKOUT status
+      if (subscriptionData.status !== "PENDING_CHECKOUT") {
+        toast.error("Please initiate upgrade from your dashboard first");
+        router.push("/dashboard");
+        return;
+      }
+
+      // Validate intended plan matches requested plan
+      const intendedPlan = subscriptionData.intendedPlan;
+      const expectedPlanId =
+        intendedPlan === "professional"
+          ? "professional-plan"
+          : intendedPlan === "starter"
+            ? "starter-plan"
+            : intendedPlan === "free"
+              ? "free-plan"
+              : null;
+
+      if (!expectedPlanId) {
+        toast.error(`Invalid plan: ${intendedPlan}`);
+        router.push("/dashboard");
+        return;
+      }
+
+      if (planId !== expectedPlanId) {
+        toast.error(
+          `You can only checkout your intended plan: ${intendedPlan}`,
+        );
+        router.push(`/checkout?plan=${intendedPlan}`);
+        return;
+      }
+
+      // If validation passes, fetch the plan details
+      await fetchPlan();
+    } catch (error) {
+      console.error("Error validating user access:", error);
+      toast.error("Unable to verify checkout permissions");
+      router.push("/dashboard");
+    }
+  };
+
   const fetchPlan = async () => {
     try {
       const response = await fetch(`/api/subscription/plans`);
@@ -103,7 +155,7 @@ function CheckoutContent() {
       if (!selectedPlan && planId && !planId.endsWith("-plan")) {
         const planIdWithSuffix = `${planId}-plan`;
         selectedPlan = plans.find(
-          (p: SubscriptionPlan) => p.id === planIdWithSuffix
+          (p: SubscriptionPlan) => p.id === planIdWithSuffix,
         );
       }
 
@@ -146,7 +198,7 @@ function CheckoutContent() {
       "🚀 Starting payment process for plan:",
       plan.id,
       "billing cycle:",
-      billingCycle
+      billingCycle,
     );
     setProcessing(true);
     try {
@@ -234,13 +286,26 @@ function CheckoutContent() {
           <CardContent className="pt-6">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Plan Not Found</h2>
+              <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
               <p className="text-gray-600 mb-4">
-                The selected subscription plan could not be found.
+                You don't have permission to checkout this plan. Please start
+                the upgrade process from your dashboard.
               </p>
-              <Button onClick={() => router.push("/pricing")}>
-                Back to Pricing
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => router.push("/dashboard")}
+                  className="w-full"
+                >
+                  Back to Dashboard
+                </Button>
+                <Button
+                  onClick={() => router.push("/subscription")}
+                  variant="outline"
+                  className="w-full"
+                >
+                  View Subscription Options
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

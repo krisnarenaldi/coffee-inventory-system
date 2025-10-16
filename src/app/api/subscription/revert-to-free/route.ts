@@ -1,30 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../../lib/auth';
-import { prisma } from '../../../../../lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../../../../lib/auth";
+import { prisma } from "../../../../../lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
     // Support secure internal calls via header token and explicit tenantId
-    const internalToken = request.headers.get('X-Internal-Access');
+    const internalToken = request.headers.get("X-Internal-Access");
     const expectedToken = process.env.INTERNAL_DOWNGRADE_TOKEN;
-    const isInternal = !!internalToken && expectedToken && internalToken === expectedToken;
+    const isInternal =
+      !!internalToken && expectedToken && internalToken === expectedToken;
 
     let targetTenantId: string | null = null;
     if (isInternal) {
       const body = await request.json().catch(() => ({}));
       targetTenantId = body?.tenantId || null;
       if (!targetTenantId) {
-        return NextResponse.json({ error: 'tenantId required for internal call' }, { status: 400 });
+        return NextResponse.json(
+          { error: "tenantId required for internal call" },
+          { status: 400 },
+        );
       }
     } else {
       if (!session?.user?.tenantId) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       targetTenantId = session.user.tenantId;
     }
@@ -35,27 +36,28 @@ export async function POST(request: NextRequest) {
         where: { tenantId: targetTenantId! },
       }),
       prisma.subscriptionPlan.findFirst({
-        where: { name: 'Free' },
+        where: { name: "Free" },
       }),
     ]);
 
     if (!freePlan) {
       return NextResponse.json(
-        { error: 'Free plan not found' },
-        { status: 404 }
+        { error: "Free plan not found" },
+        { status: 404 },
       );
     }
 
     if (!subscription) {
       return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 }
+        { error: "Subscription not found" },
+        { status: 404 },
       );
     }
 
     // If user is still in pending checkout
     if ((subscription as any).status === 'PENDING_CHECKOUT') {
-      const isCurrentlyOnFreePlan = (subscription as any).planId === (freePlan as any).id;
+      const isCurrentlyOnFreePlan =
+        (subscription as any).planId === (freePlan as any).id;
 
       if (isCurrentlyOnFreePlan) {
         // For users who were on Free during checkout, ensure non-expiring access
@@ -83,19 +85,19 @@ export async function POST(request: NextRequest) {
         where: { tenantId: targetTenantId! },
         data: {
           planId: freePlan.id,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           currentPeriodEnd: null as any, // Forever access for free plan
-          intendedPlan: 'free',
+          intendedPlan: "free",
         },
       });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error reverting to free plan:', error);
+    console.error("Error reverting to free plan:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

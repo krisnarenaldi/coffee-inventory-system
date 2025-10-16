@@ -38,13 +38,11 @@ export default function Dashboard() {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [pendingCheckout, setPendingCheckout] = useState<{
-    hasPendingCheckout: boolean;
-    intendedPlan?: string;
-  } | null>(null);
   const [hasBasicReports, setHasBasicReports] = useState(false);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
+  const [showCompletePaymentBanner, setShowCompletePaymentBanner] =
+    useState(false);
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -84,11 +82,8 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Parallel API calls for better performance
-      const [dashboardResponse, checkoutResponse] = await Promise.all([
-        fetch("/api/dashboard"),
-        fetch("/api/subscription/pending-checkout").catch(() => null), // Don't fail if checkout check fails
-      ]);
+      // Fetch dashboard data
+      const dashboardResponse = await fetch("/api/dashboard");
 
       if (!dashboardResponse.ok) {
         throw new Error("Failed to fetch dashboard data");
@@ -100,12 +95,6 @@ export default function Dashboard() {
       setLowStockIngredients(data.lowStockIngredients || []);
 
       // Handle subscription warning if successful
-
-      // Handle pending checkout check if successful
-      if (checkoutResponse && checkoutResponse.ok) {
-        const checkoutData = await checkoutResponse.json();
-        setPendingCheckout(checkoutData);
-      }
     } catch (error) {
       setError("Failed to load dashboard data");
     } finally {
@@ -127,24 +116,50 @@ export default function Dashboard() {
         const hasBasic = !!basicReportsData?.hasAccess;
         setHasBasicReports(hasBasic);
 
-        // Check if user is on professional or premium plan (highest tiers)
-        let isHighTierPlan = false;
+        // Check subscription status for pending payments
+        let hasPendingCheckout = false;
+        let pendingPlanName = null;
+
         if (subscriptionResp.ok) {
           const subscriptionData = await subscriptionResp.json();
           const planName = subscriptionData?.plan?.name?.toLowerCase() || "";
-          isHighTierPlan =
-            planName.includes("professional") || planName.includes("premium");
-        }
+          const subscriptionStatus = subscriptionData?.status;
+          const intendedPlan = subscriptionData?.intendedPlan;
 
-        // Only show banner if user doesn't have basic reports AND is not on a high-tier plan
-        if (!hasBasic && !isHighTierPlan) {
-          const today = new Date().toISOString().slice(0, 10);
-          const dismissedDate = localStorage.getItem(
-            "upgradeBannerDismissedDate",
-          );
-          if (dismissedDate !== today) {
-            setShowUpgradeBanner(true);
-            localStorage.setItem("upgradeBannerLastShownDate", today);
+          // Check if user is on professional or premium plan (highest tiers)
+          const isHighTierPlan =
+            planName.includes("professional") || planName.includes("premium");
+
+          // Check for PENDING_CHECKOUT status
+          if (subscriptionStatus === "PENDING_CHECKOUT" && intendedPlan) {
+            hasPendingCheckout = true;
+            pendingPlanName = intendedPlan;
+          }
+
+          // Removed duplicate pending checkout check since we use subscription status check above
+
+          // Priority 1: Show "Complete Payment" for users with pending payments
+          if (hasPendingCheckout && pendingPlanName) {
+            setShowCompletePaymentBanner(true);
+            setPendingPlan(pendingPlanName);
+            setShowUpgradeBanner(false);
+          }
+          // Priority 2: Show regular upgrade banner for free users without pending payments
+          else if (!hasBasic && !isHighTierPlan && !hasPendingCheckout) {
+            const today = new Date().toISOString().slice(0, 10);
+            const dismissedDate = localStorage.getItem(
+              "upgradeBannerDismissedDate",
+            );
+            if (dismissedDate !== today) {
+              setShowUpgradeBanner(true);
+              localStorage.setItem("upgradeBannerLastShownDate", today);
+            }
+            setShowCompletePaymentBanner(false);
+          }
+          // Priority 3: Hide all banners for paid users or those without qualifying conditions
+          else {
+            setShowUpgradeBanner(false);
+            setShowCompletePaymentBanner(false);
           }
         }
       } catch (e) {
@@ -194,8 +209,61 @@ export default function Dashboard() {
         subtitle={`Welcome back, ${session?.user?.name}`}
       />
 
-      {/* Upgrade Banner for Free Users */}
-      {!hasBasicReports && showUpgradeBanner && (
+      {/* Complete Payment Banner for PENDING_CHECKOUT Users */}
+      {showCompletePaymentBanner && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-md p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-orange-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-orange-800">
+                    Complete Your{" "}
+                    {pendingPlan
+                      ? pendingPlan.charAt(0).toUpperCase() +
+                        pendingPlan.slice(1)
+                      : "Plan"}{" "}
+                    Payment
+                  </h3>
+                  <p className="mt-1 text-sm text-orange-700">
+                    Your payment is pending. Complete it now to unlock all
+                    premium features.
+                  </p>
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                <Link
+                  href={`/checkout?plan=${pendingPlan || "professional"}`}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600"
+                >
+                  Complete Payment
+                </Link>
+                <button
+                  onClick={() => setShowCompletePaymentBanner(false)}
+                  className="text-orange-700 hover:text-orange-900 text-sm ml-2"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Banner for Free Users (only if not pending checkout) */}
+      {!hasBasicReports && showUpgradeBanner && !showCompletePaymentBanner && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
             <div className="flex items-start justify-between">
@@ -219,67 +287,19 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-3">
+              <div className="flex-shrink-0">
                 <Link
-                  href="/subscription?src=dashboard_banner"
-                  className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-amber-600 hover:bg-amber-700"
+                  href="/pricing"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-amber-800 bg-amber-100 hover:bg-amber-200"
                 >
-                  Upgrade
+                  Upgrade Now
                 </Link>
                 <button
                   onClick={dismissUpgradeBanner}
-                  className="text-amber-700 hover:text-amber-900 text-sm"
+                  className="text-amber-700 hover:text-amber-900 text-sm ml-2"
                 >
-                  Dismiss
+                  ×
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Pending Checkout Warning */}
-      {pendingCheckout?.hasPendingCheckout && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-yellow-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Upgrade Pending
-                </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <p>
-                    You started an upgrade to the{" "}
-                    <span className="font-semibold capitalize">
-                      {pendingCheckout.intendedPlan}
-                    </span>{" "}
-                    plan. Your current plan remains active. Continue payment to
-                    activate your upgrade.
-                  </p>
-                </div>
-                <div className="mt-4">
-                  <div className="-mx-2 -my-1.5 flex">
-                    <Link
-                      href={`/checkout?plan=${pendingCheckout.intendedPlan}`}
-                      className="bg-yellow-50 px-2 py-1.5 rounded-md text-sm font-medium text-yellow-800 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-yellow-50 focus:ring-yellow-600"
-                    >
-                      Continue Payment
-                    </Link>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

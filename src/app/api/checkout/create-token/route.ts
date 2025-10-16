@@ -36,7 +36,60 @@ export async function POST(request: NextRequest) {
     if (!planId || !billingCycle) {
       return NextResponse.json(
         { error: "Plan ID and billing cycle are required" },
-        { status: 400 }
+        { status: 400 },
+      );
+    }
+
+    // Security: Validate user has permission to purchase this plan
+    const userSubscription = await prisma.subscription.findFirst({
+      where: { tenantId: session.user.tenantId },
+      include: { plan: true },
+    });
+
+    // Check if user has a pending checkout and validate intended plan
+    if (userSubscription && userSubscription.status === "PENDING_CHECKOUT") {
+      const intendedPlan = (userSubscription as any).intendedPlan;
+
+      // Convert intended plan name to plan ID for comparison
+      const expectedPlanId =
+        intendedPlan === "professional"
+          ? "professional-plan"
+          : intendedPlan === "starter"
+            ? "starter-plan"
+            : intendedPlan === "free"
+              ? "free-plan"
+              : null;
+
+      if (!expectedPlanId) {
+        return NextResponse.json(
+          {
+            error: `Invalid intended plan: ${intendedPlan}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Reject if user tries to checkout a different plan than their intended plan
+      if (planId !== expectedPlanId) {
+        return NextResponse.json(
+          {
+            error: "Unauthorized: You can only checkout your intended plan",
+            intendedPlan: intendedPlan,
+            requestedPlan: planId,
+          },
+          { status: 403 },
+        );
+      }
+    } else {
+      // For users without PENDING_CHECKOUT, they shouldn't be accessing checkout directly
+      // They should go through the upgrade flow first
+      return NextResponse.json(
+        {
+          error:
+            "Unauthorized: Please initiate upgrade from your dashboard first",
+          currentStatus: userSubscription?.status || "unknown",
+        },
+        { status: 403 },
       );
     }
 
@@ -48,7 +101,7 @@ export async function POST(request: NextRequest) {
     if (!plan) {
       return NextResponse.json(
         { error: "Subscription plan not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -75,19 +128,22 @@ export async function POST(request: NextRequest) {
     if (customAmount && upgradeOption === "immediate") {
       price = customAmount;
     } else {
-      price =
+      const planPrice = plan.price ? Number(plan.price) : 0;
+      const calculatedPrice =
         isYearly && plan.interval === "YEARLY"
-          ? plan.price
+          ? planPrice
           : !isYearly && plan.interval === "MONTHLY"
-          ? plan.price
-          : null;
+            ? planPrice
+            : 0;
 
-      if (!price) {
+      if (!calculatedPrice || calculatedPrice <= 0) {
         return NextResponse.json(
           { error: "Price not available for selected billing cycle" },
-          { status: 400 }
+          { status: 400 },
         );
       }
+
+      price = calculatedPrice;
     }
 
     // Generate unique order ID
@@ -178,7 +234,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating checkout token:", error);
     return NextResponse.json(
       { error: "Failed to create checkout token" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
