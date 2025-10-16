@@ -28,14 +28,19 @@ function SignUpContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<string>("monthly");
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Get plan from query parameters
+  // Get plan and billing cycle from query parameters
   useEffect(() => {
     const plan = searchParams.get("plan");
+    const cycle = searchParams.get("cycle");
     if (plan) {
       setSelectedPlan(plan);
+    }
+    if (cycle) {
+      setBillingCycle(cycle);
     }
   }, [searchParams]);
 
@@ -154,7 +159,7 @@ function SignUpContent() {
             return;
           }
 
-          router.push(`/checkout?plan=${planId}&cycle=monthly`);
+          router.push(`/checkout?plan=${planId}&cycle=${billingCycle}`);
         } catch (e) {
           // Fallback in case signIn throws
           router.push(

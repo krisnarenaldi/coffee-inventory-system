@@ -557,7 +557,11 @@ function CheckoutContent() {
   }
 
   const isYearly = billingCycle === "yearly";
-  const displayPrice = plan?.price || 0;
+  const basePrice = plan?.price || 0;
+  // Apply 20% discount for yearly billing (same as pricing page logic)
+  const displayPrice = isYearly
+    ? Math.round(Number(basePrice) * 0.8)
+    : Number(basePrice);
   const billingText = isYearly ? "per year" : "per month";
 
   return (
