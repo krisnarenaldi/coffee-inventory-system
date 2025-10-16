@@ -62,6 +62,13 @@ function CheckoutContent() {
   const customAmount = searchParams.get("amount");
   const bypassValidation = searchParams.get("bypass") === "true";
 
+  // Debug URL parameters
+  console.log("🔍 URL DEBUG: planId from URL =", planId);
+  console.log(
+    "🔍 URL DEBUG: All search params =",
+    Object.fromEntries(searchParams.entries()),
+  );
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin");
@@ -174,20 +181,18 @@ function CheckoutContent() {
       const subscriptionResponse = await fetch("/api/subscription");
       if (subscriptionResponse.ok) {
         const subscriptionData = await subscriptionResponse.json();
+        console.log("🔍 CHECKOUT DEBUG: Subscription data:", subscriptionData);
 
         if (
           subscriptionData.status === "PENDING_CHECKOUT" &&
           subscriptionData.intendedPlan
         ) {
           const intendedPlan = subscriptionData.intendedPlan;
-          const expectedPlanId =
-            intendedPlan === "professional"
-              ? "professional"
-              : intendedPlan === "starter"
-                ? "starter"
-                : intendedPlan === "free"
-                  ? "free"
-                  : intendedPlan;
+          const expectedPlanId = intendedPlan; // Keep it as-is, don't convert
+
+          console.log("🔍 CHECKOUT DEBUG: intendedPlan =", intendedPlan);
+          console.log("🔍 CHECKOUT DEBUG: planId from URL =", planId);
+          console.log("🔍 CHECKOUT DEBUG: expectedPlanId =", expectedPlanId);
 
           // Check if user is trying to access wrong plan
           if (planId !== expectedPlanId) {
@@ -444,14 +449,7 @@ function CheckoutContent() {
 
   // Show plan mismatch error
   if (planMismatchError) {
-    const correctPlanId =
-      planMismatchError.intendedPlan === "professional"
-        ? "professional"
-        : planMismatchError.intendedPlan === "starter"
-          ? "starter"
-          : planMismatchError.intendedPlan === "free"
-            ? "free"
-            : planMismatchError.intendedPlan;
+    const correctPlanId = planMismatchError.intendedPlan; // Use intended plan directly
 
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -485,18 +483,31 @@ function CheckoutContent() {
                 </p>
                 <div className="space-y-3">
                   <Button
-                    onClick={() =>
-                      router.push(`/checkout?plan=${correctPlanId}`)
-                    }
-                    className="w-full cursor-pointer"
+                    onClick={() => {
+                      console.log(
+                        "🔍 REDIRECT: Going to /checkout?plan=" + correctPlanId,
+                      );
+                      window.location.href = `/checkout?plan=${correctPlanId}`;
+                    }}
+                    className="w-full"
                     size="lg"
                   >
                     Go to Correct Checkout ({planMismatchError.intendedPlan})
                   </Button>
                   <Button
+                    onClick={() => {
+                      console.log("🔍 REDIRECT: Refreshing page");
+                      window.location.reload();
+                    }}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    Refresh Page
+                  </Button>
+                  <Button
                     onClick={() => router.push("/dashboard")}
                     variant="outline"
-                    className="w-full cursor-pointer"
+                    className="w-full"
                   >
                     Back to Dashboard
                   </Button>
