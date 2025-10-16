@@ -494,16 +494,7 @@ function CheckoutContent() {
                   >
                     Go to Correct Checkout ({planMismatchError.intendedPlan})
                   </Button>
-                  <Button
-                    onClick={() => {
-                      console.log("🔍 REDIRECT: Refreshing page");
-                      window.location.reload();
-                    }}
-                    variant="secondary"
-                    className="w-full"
-                  >
-                    Refresh Page
-                  </Button>
+
                   <Button
                     onClick={() => router.push("/dashboard")}
                     variant="outline"
