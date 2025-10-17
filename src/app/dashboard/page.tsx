@@ -255,7 +255,7 @@ export default function Dashboard() {
               </div>
               <div className="flex-shrink-0">
                 <Link
-                  href={`/checkout?plan=${pendingPlan || "professional"}&cycle=${billingCycle || "monthly"}`}
+                  href={`/checkout?plan=${pendingPlan?.replace("-plan","") || "professional"}&cycle=${billingCycle || "monthly"}`}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600"
                 >
                   Complete Payment
