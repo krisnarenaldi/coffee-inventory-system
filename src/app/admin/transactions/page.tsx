@@ -181,7 +181,11 @@ export default function AdminTransactionsPage() {
                       {t.subscriptionPlan ? (
                         <div>
                           <div>{t.subscriptionPlan.name}</div>
-                          <div className="text-xs text-gray-500">{t.subscriptionPlan.interval}</div>
+                          <div className="text-xs text-gray-500">
+                            {(t.billingCycle
+                              ? String(t.billingCycle).toUpperCase()
+                              : String(t.subscriptionPlan.interval || "").toUpperCase())}
+                          </div>
                         </div>
                       ) : (
                         "-"
