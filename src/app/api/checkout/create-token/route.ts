@@ -48,33 +48,39 @@ export async function POST(request: NextRequest) {
 
     // Check if user has a pending checkout and validate intended plan
     if (userSubscription && userSubscription.status === "PENDING_CHECKOUT") {
-      const intendedPlan = (userSubscription as any).intendedPlan;
+      const intendedPlanRaw = (userSubscription as any).intendedPlan as string | null;
 
-      // Convert intended plan name to plan ID for comparison
-      const expectedPlanId =
-        intendedPlan === "professional"
-          ? "professional-plan"
-          : intendedPlan === "starter"
-            ? "starter-plan"
-            : intendedPlan === "free"
-              ? "free-plan"
-              : null;
+      // Normalize intended plan and build acceptable IDs
+      const normalize = (v: string | null | undefined) => (v || "").toLowerCase();
+      const intendedPlan = normalize(intendedPlanRaw);
 
-      if (!expectedPlanId) {
+      // Accept both short and '-plan' forms
+      const acceptableIds = new Set<string>();
+      const addForms = (base: string) => {
+        acceptableIds.add(base);
+        acceptableIds.add(`${base}-plan`);
+      };
+
+      if (intendedPlan.endsWith("-plan")) {
+        const base = intendedPlan.replace(/-plan$/, "");
+        addForms(base);
+      } else if (intendedPlan === "professional" || intendedPlan === "starter" || intendedPlan === "free") {
+        addForms(intendedPlan);
+      }
+
+      if (acceptableIds.size === 0) {
         return NextResponse.json(
-          {
-            error: `Invalid intended plan: ${intendedPlan}`,
-          },
+          { error: `Invalid intended plan: ${intendedPlanRaw}` },
           { status: 400 },
         );
       }
 
-      // Reject if user tries to checkout a different plan than their intended plan
-      if (planId !== expectedPlanId) {
+      // Reject if user tries to checkout a different plan than their intended plan (considering both forms)
+      if (!acceptableIds.has(normalize(planId))) {
         return NextResponse.json(
           {
             error: "Unauthorized: You can only checkout your intended plan",
-            intendedPlan: intendedPlan,
+            intendedPlan: intendedPlanRaw,
             requestedPlan: planId,
           },
           { status: 403 },
