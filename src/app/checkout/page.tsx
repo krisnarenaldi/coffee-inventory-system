@@ -589,6 +589,12 @@ function CheckoutContent() {
     : Number(basePrice);
   const billingText = isYearly ? "per year" : "per month";
 
+  // Determine actual amount to charge: prefer server-confirmed checkoutData.amount.
+  // If a custom amount is present in URL (proration), use it to avoid mismatch with Midtrans.
+  const urlAmount = customAmount ? parseInt(customAmount) : null;
+  const isProrated = urlAmount !== null;
+  const amountToCharge = checkoutData?.amount ?? (urlAmount ?? displayPrice);
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -621,9 +627,11 @@ function CheckoutContent() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold">
-                    Rp {displayPrice.toLocaleString("id-ID")}
+                    Rp {Number(amountToCharge).toLocaleString("id-ID")}
                   </div>
-                  <div className="text-sm text-gray-600">{billingText}</div>
+                  <div className="text-sm text-gray-600">
+                    {isProrated ? "prorated" : billingText}
+                  </div>
                 </div>
               </div>
 
@@ -645,7 +653,12 @@ function CheckoutContent() {
 
               <div className="flex justify-between items-center font-semibold text-lg">
                 <span>Total</span>
-                <span>Rp {displayPrice.toLocaleString("id-ID")}</span>
+                <span className="flex items-center gap-2">
+                  {isProrated && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">Prorated</span>
+                  )}
+                  Rp {Number(amountToCharge).toLocaleString("id-ID")}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -690,7 +703,7 @@ function CheckoutContent() {
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
-                      Pay Rp {displayPrice.toLocaleString("id-ID")}
+                      Pay Rp {Number(amountToCharge).toLocaleString("id-ID")}
                     </>
                   )}
                 </Button>
