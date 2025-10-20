@@ -126,21 +126,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Calculate price based on billing cycle and upgrade options
-    const isYearly = billingCycle === "yearly";
+    // Resolve billing cycle securely (prefer subscription's current interval if available)
+    const resolvedBillingCycle = userSubscription?.plan?.interval === "YEARLY" ? "yearly" : "monthly";
+
+    // Calculate secure price based on context; never trust client-provided customAmount
     let price: number;
 
-    // Use custom amount for immediate upgrades, otherwise use plan price
-    if (customAmount && upgradeOption === "immediate") {
-      price = customAmount;
-    } else {
-      const planPrice = plan.price ? Number(plan.price) : 0;
+    if (upgradeOption === "immediate") {
+      // Securely recompute proration for immediate upgrades
+      const currentPeriodStart = userSubscription.currentPeriodStart;
+      const currentPeriodEnd = userSubscription.currentPeriodEnd;
 
-      // Apply yearly billing: 20% discount AND multiply by 12 months
-      // Monthly: charge monthly rate
-      // Yearly: charge (monthly rate * 0.8 * 12) = discounted annual amount
-      const calculatedPrice = isYearly
-        ? Math.round(planPrice * 0.8 * 12) // Discounted rate × 12 months
+      if (!currentPeriodStart || !currentPeriodEnd) {
+        return NextResponse.json(
+          { error: "Subscription period not available for proration" },
+          { status: 400 },
+        );
+      }
+
+      const now = new Date();
+      const totalDaysInPeriod = Math.ceil(
+        (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const remainingDays = Math.ceil(
+        (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      const currentPlanPrice = Number(userSubscription.plan.price) || 0;
+      const newPlanPrice = Number(plan.price) || 0;
+      const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
+      const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
+      const proratedAmount = newPlanProrated - unusedAmount;
+
+      price = Math.max(0, Math.round(proratedAmount));
+    } else {
+      // Standard purchase/renewal amount based on secured billing cycle
+      const planPrice = plan.price ? Number(plan.price) : 0;
+      const isYearlySecured = resolvedBillingCycle === "yearly";
+      const calculatedPrice = isYearlySecured
+        ? Math.round(planPrice * 0.8 * 12)
         : planPrice;
 
       if (!calculatedPrice || calculatedPrice <= 0) {
@@ -149,7 +173,6 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-
       price = calculatedPrice;
     }
 
@@ -166,18 +189,14 @@ export async function POST(request: NextRequest) {
         subscriptionPlanId: planId,
         amount: price,
         currency: "IDR",
-        billingCycle,
+        billingCycle: resolvedBillingCycle,
         status: "PENDING",
         paymentMethod: "MIDTRANS",
         metadata: upgradeOption
           ? {
               upgradeOption: upgradeOption,
               originalPlanPrice: plan.price,
-              customAmount: customAmount || null,
-              isProrated:
-                upgradeOption === "immediate" &&
-                customAmount &&
-                customAmount !== plan.price,
+              isProrated: upgradeOption === "immediate" && price > 0 && price !== Number(plan.price),
             }
           : undefined,
         createdAt: new Date(),
@@ -188,6 +207,7 @@ export async function POST(request: NextRequest) {
     const origin = request.nextUrl.origin || process.env.NEXTAUTH_URL || "";
 
     // Prepare Midtrans parameters
+    const isYearlyDisplay = resolvedBillingCycle === "yearly";
     const midtransParams: MidtransParameter = {
       transaction_details: {
         order_id: orderId,
@@ -203,9 +223,7 @@ export async function POST(request: NextRequest) {
           id: planId,
           price: formatPriceForMidtrans(Number(price)),
           quantity: 1,
-          name: `${plan.name} - ${
-            isYearly ? "Yearly" : "Monthly"
-          } Subscription`,
+          name: `${plan.name} - ${isYearlyDisplay ? "Yearly" : "Monthly"} Subscription`,
           category: "subscription",
         },
       ],
@@ -224,7 +242,7 @@ export async function POST(request: NextRequest) {
       },
       custom_field1: user.tenantId,
       custom_field2: planId,
-      custom_field3: billingCycle,
+      custom_field3: resolvedBillingCycle,
     };
 
     // Create Snap token
@@ -235,7 +253,7 @@ export async function POST(request: NextRequest) {
       orderId,
       amount: Number(price),
       planName: plan.name,
-      billingCycle,
+      billingCycle: resolvedBillingCycle,
     });
   } catch (error) {
     console.error("Error creating checkout token:", error);
