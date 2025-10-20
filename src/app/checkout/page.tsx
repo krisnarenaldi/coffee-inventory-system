@@ -38,6 +38,30 @@ declare global {
     snap: {
       pay: (token: string, options?: any) => void;
     };
+
+  // Fetch secure server preview for proration and set securedAmount so UI shows prorated total immediately
+  useEffect(() => {
+    const fetchPreview = async () => {
+      try {
+        if (!plan?.id || !subscriptionId) return;
+        const params = new URLSearchParams({
+          subscriptionId: subscriptionId,
+          newPlanId: plan.id,
+        });
+        const resp = await fetch(`/api/subscription/change-plan?${params.toString()}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const prorated = Number(data?.calculation?.proratedAmount);
+        const requiresPayment = Boolean(data?.calculation?.requiresPayment);
+        if (requiresPayment && !isNaN(prorated) && prorated > 0) {
+          setSecuredAmount(Math.round(prorated));
+        }
+      } catch (e) {
+        // ignore preview errors
+      }
+    };
+    fetchPreview();
+  }, [plan?.id, subscriptionId]);
   }
 }
 
@@ -57,6 +81,7 @@ function CheckoutContent() {
   } | null>(null);
   const [effectiveBillingCycle, setEffectiveBillingCycle] = useState<string>("monthly");
   const [securedAmount, setSecuredAmount] = useState<number | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
@@ -239,6 +264,10 @@ function CheckoutContent() {
             setEffectiveBillingCycle(billingCycle || "monthly");
           }
         }
+
+        // Capture subscriptionId for secure preview calls
+        const subId = subscriptionData?.id || subscriptionData?.subscription?.id || subscriptionData?.subscriptionId || null;
+        if (subId) setSubscriptionId(subId);
       }
 
       console.log("🔍 CHECKOUT DEBUG: Validation passed, loading plan");
