@@ -126,13 +126,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Resolve billing cycle securely (prefer subscription's current interval if available)
+    // Resolve billing cycle context
     const resolvedBillingCycle = userSubscription?.plan?.interval === "YEARLY" ? "yearly" : "monthly";
+    const requestedCycle: "monthly" | "yearly" = billingCycle === "yearly" ? "yearly" : "monthly";
+
+    // First, prefer an existing pending transaction amount if present to avoid recomputation drift
+    const existingPendingTx = await prisma.transaction.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        subscriptionPlanId: planId,
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     // Calculate secure price based on context; never trust client-provided customAmount
     let price: number;
+    let chosenCycle: "monthly" | "yearly" = resolvedBillingCycle;
 
-    if (upgradeOption === "immediate") {
+    if (existingPendingTx) {
+      price = Number(existingPendingTx.amount) || 0;
+      if (existingPendingTx.billingCycle === "monthly" || existingPendingTx.billingCycle === "yearly") {
+        chosenCycle = existingPendingTx.billingCycle as any;
+      }
+    } else if (upgradeOption === "immediate") {
       // Securely recompute proration for immediate upgrades
       const currentPeriodStart = userSubscription.currentPeriodStart;
       const currentPeriodEnd = userSubscription.currentPeriodEnd;
@@ -159,12 +176,14 @@ export async function POST(request: NextRequest) {
       const proratedAmount = newPlanProrated - unusedAmount;
 
       price = Math.max(0, Math.round(proratedAmount));
+      chosenCycle = resolvedBillingCycle; // display cycle according to current subscription context
     } else {
-      // Standard purchase/renewal amount based on secured billing cycle
+      // Standard purchase/renewal amount based on TARGET cycle and plan interval semantics
       const planPrice = plan.price ? Number(plan.price) : 0;
-      const isYearlySecured = resolvedBillingCycle === "yearly";
-      const calculatedPrice = isYearlySecured
-        ? Math.round(planPrice * 0.8 * 12)
+      // Determine target cycle: prefer plan.interval when it's YEARLY; otherwise accept requestedCycle
+      const targetCycle: "monthly" | "yearly" = plan.interval === "YEARLY" ? "yearly" : requestedCycle;
+      const calculatedPrice = targetCycle === "yearly"
+        ? (plan.interval === "YEARLY" ? planPrice : Math.round(planPrice * 0.8 * 12))
         : planPrice;
 
       if (!calculatedPrice || calculatedPrice <= 0) {
@@ -174,6 +193,7 @@ export async function POST(request: NextRequest) {
         );
       }
       price = calculatedPrice;
+      chosenCycle = targetCycle;
     }
 
     // Generate unique order ID
@@ -207,7 +227,7 @@ export async function POST(request: NextRequest) {
     const origin = request.nextUrl.origin || process.env.NEXTAUTH_URL || "";
 
     // Prepare Midtrans parameters
-    const isYearlyDisplay = resolvedBillingCycle === "yearly";
+    const isYearlyDisplay = chosenCycle === "yearly";
     const midtransParams: MidtransParameter = {
       transaction_details: {
         order_id: orderId,
@@ -242,7 +262,7 @@ export async function POST(request: NextRequest) {
       },
       custom_field1: user.tenantId,
       custom_field2: planId,
-      custom_field3: resolvedBillingCycle,
+      custom_field3: chosenCycle,
     };
 
     // Create Snap token
@@ -253,7 +273,7 @@ export async function POST(request: NextRequest) {
       orderId,
       amount: Number(price),
       planName: plan.name,
-      billingCycle: resolvedBillingCycle,
+      billingCycle: chosenCycle,
     });
   } catch (error) {
     console.error("Error creating checkout token:", error);
