@@ -73,25 +73,6 @@ function CheckoutContent() {
   );
 
   useEffect(() => {
-  const fetchPreview = async () => {
-    if (!plan?.id || !subscriptionId) return;
-    const params = new URLSearchParams({
-      subscriptionId: subscriptionId,
-      newPlanId: plan.id,
-    });
-    const resp = await fetch(`/api/subscription/change-plan?${params.toString()}`);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const prorated = Number(data?.calculation?.proratedAmount);
-    const requiresPayment = Boolean(data?.calculation?.requiresPayment);
-    if (requiresPayment && !isNaN(prorated) && prorated > 0) {
-      setSecuredAmount(Math.round(prorated));
-    }
-  };
-  fetchPreview();
-}, [plan?.id, subscriptionId]);
-
-  useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin");
       return;
