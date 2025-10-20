@@ -56,6 +56,8 @@ function CheckoutContent() {
     requestedPlan: string;
   } | null>(null);
   const [effectiveBillingCycle, setEffectiveBillingCycle] = useState<string>("monthly");
+  const [securedAmount, setSecuredAmount] = useState<number | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
@@ -225,17 +227,23 @@ function CheckoutContent() {
                   );
                 }
               } else {
-                // Fallback to URL or default monthly if transaction isn't found
                 setEffectiveBillingCycle(billingCycle || "monthly");
+              }
+              if (typeof latestTx?.amount === "number") {
+                setSecuredAmount(latestTx.amount);
               }
             } else {
               setEffectiveBillingCycle(billingCycle || "monthly");
             }
           } catch (e) {
-            console.warn("Failed to load latest transaction for cycle, using URL/default", e);
+            console.warn("Failed to load latest transaction for cycle/amount, using URL/default", e);
             setEffectiveBillingCycle(billingCycle || "monthly");
           }
         }
+
+        // Capture subscriptionId for secure preview calls
+        const subId = subscriptionData?.id || subscriptionData?.subscription?.id || subscriptionData?.subscriptionId || null;
+        if (subId) setSubscriptionId(subId);
       }
 
       console.log("🔍 CHECKOUT DEBUG: Validation passed, loading plan");
@@ -297,6 +305,30 @@ function CheckoutContent() {
     }
   };
 
+  // Fetch secure proration preview for immediate upgrades to display correct total right away
+  useEffect(() => {
+    const fetchPreview = async () => {
+      try {
+        if (!plan?.id || !subscriptionId) return;
+        const params = new URLSearchParams({
+          subscriptionId: subscriptionId,
+          newPlanId: plan.id,
+        });
+        const resp = await fetch(`/api/subscription/change-plan?${params.toString()}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const prorated = Number(data?.calculation?.proratedAmount);
+        const requiresPayment = Boolean(data?.calculation?.requiresPayment);
+        if (requiresPayment && !isNaN(prorated) && prorated > 0) {
+          setSecuredAmount(Math.round(prorated));
+        }
+      } catch (e) {
+        // Ignore preview errors; fallback will handle display
+      }
+    };
+    fetchPreview();
+  }, [plan?.id, subscriptionId]);
+
   const revertToFreePlan = async () => {
     try {
       const response = await fetch("/api/subscription/revert-to-free", {
@@ -335,7 +367,6 @@ function CheckoutContent() {
           planId: plan.id,
           billingCycle: effectiveBillingCycle,
           upgradeOption: upgradeOption || undefined,
-          customAmount: customAmount ? parseInt(customAmount) : undefined,
         }),
       });
 
@@ -589,6 +620,13 @@ function CheckoutContent() {
     : Number(basePrice);
   const billingText = isYearly ? "per year" : "per month";
 
+  // Determine amount to charge: always prefer server-secured values.
+  // 1) checkoutData.amount from /api/checkout/create-token
+  // 2) securedAmount from /api/transactions/latest
+  // 3) fallback to plan displayPrice
+  const amountToCharge = checkoutData?.amount ?? (securedAmount ?? displayPrice);
+  const isProrated = Boolean(upgradeOption === "immediate" && (checkoutData?.amount !== undefined || securedAmount !== null));
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -621,9 +659,11 @@ function CheckoutContent() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold">
-                    Rp {displayPrice.toLocaleString("id-ID")}
+                    Rp {Number(amountToCharge).toLocaleString("id-ID")}
                   </div>
-                  <div className="text-sm text-gray-600">{billingText}</div>
+                  <div className="text-sm text-gray-600">
+                    {isProrated ? "prorated" : billingText}
+                  </div>
                 </div>
               </div>
 
@@ -645,7 +685,12 @@ function CheckoutContent() {
 
               <div className="flex justify-between items-center font-semibold text-lg">
                 <span>Total</span>
-                <span>Rp {displayPrice.toLocaleString("id-ID")}</span>
+                <span className="flex items-center gap-2">
+                  {isProrated && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">Prorated</span>
+                  )}
+                  Rp {Number(amountToCharge).toLocaleString("id-ID")}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -690,7 +735,7 @@ function CheckoutContent() {
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
-                      Pay Rp {displayPrice.toLocaleString("id-ID")}
+                      Pay Rp {Number(amountToCharge).toLocaleString("id-ID")}
                     </>
                   )}
                 </Button>
