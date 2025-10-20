@@ -38,30 +38,6 @@ declare global {
     snap: {
       pay: (token: string, options?: any) => void;
     };
-
-  // Fetch secure server preview for proration and set securedAmount so UI shows prorated total immediately
-  useEffect(() => {
-    const fetchPreview = async () => {
-      try {
-        if (!plan?.id || !subscriptionId) return;
-        const params = new URLSearchParams({
-          subscriptionId: subscriptionId,
-          newPlanId: plan.id,
-        });
-        const resp = await fetch(`/api/subscription/change-plan?${params.toString()}`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const prorated = Number(data?.calculation?.proratedAmount);
-        const requiresPayment = Boolean(data?.calculation?.requiresPayment);
-        if (requiresPayment && !isNaN(prorated) && prorated > 0) {
-          setSecuredAmount(Math.round(prorated));
-        }
-      } catch (e) {
-        // ignore preview errors
-      }
-    };
-    fetchPreview();
-  }, [plan?.id, subscriptionId]);
   }
 }
 
@@ -328,6 +304,30 @@ function CheckoutContent() {
       setLoading(false);
     }
   };
+
+  // Fetch secure proration preview for immediate upgrades to display correct total right away
+  useEffect(() => {
+    const fetchPreview = async () => {
+      try {
+        if (!plan?.id || !subscriptionId) return;
+        const params = new URLSearchParams({
+          subscriptionId: subscriptionId,
+          newPlanId: plan.id,
+        });
+        const resp = await fetch(`/api/subscription/change-plan?${params.toString()}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const prorated = Number(data?.calculation?.proratedAmount);
+        const requiresPayment = Boolean(data?.calculation?.requiresPayment);
+        if (requiresPayment && !isNaN(prorated) && prorated > 0) {
+          setSecuredAmount(Math.round(prorated));
+        }
+      } catch (e) {
+        // Ignore preview errors; fallback will handle display
+      }
+    };
+    fetchPreview();
+  }, [plan?.id, subscriptionId]);
 
   const revertToFreePlan = async () => {
     try {
