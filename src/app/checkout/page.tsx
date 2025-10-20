@@ -56,6 +56,7 @@ function CheckoutContent() {
     requestedPlan: string;
   } | null>(null);
   const [effectiveBillingCycle, setEffectiveBillingCycle] = useState<string>("monthly");
+  const [securedAmount, setSecuredAmount] = useState<number | null>(null);
 
   const planId = searchParams.get("plan");
   const billingCycle = searchParams.get("cycle") || "monthly";
@@ -225,14 +226,16 @@ function CheckoutContent() {
                   );
                 }
               } else {
-                // Fallback to URL or default monthly if transaction isn't found
                 setEffectiveBillingCycle(billingCycle || "monthly");
+              }
+              if (typeof latestTx?.amount === "number") {
+                setSecuredAmount(latestTx.amount);
               }
             } else {
               setEffectiveBillingCycle(billingCycle || "monthly");
             }
           } catch (e) {
-            console.warn("Failed to load latest transaction for cycle, using URL/default", e);
+            console.warn("Failed to load latest transaction for cycle/amount, using URL/default", e);
             setEffectiveBillingCycle(billingCycle || "monthly");
           }
         }
@@ -335,7 +338,6 @@ function CheckoutContent() {
           planId: plan.id,
           billingCycle: effectiveBillingCycle,
           upgradeOption: upgradeOption || undefined,
-          customAmount: customAmount ? parseInt(customAmount) : undefined,
         }),
       });
 
@@ -589,11 +591,12 @@ function CheckoutContent() {
     : Number(basePrice);
   const billingText = isYearly ? "per year" : "per month";
 
-  // Determine actual amount to charge: prefer server-confirmed checkoutData.amount.
-  // If a custom amount is present in URL (proration), use it to avoid mismatch with Midtrans.
-  const urlAmount = customAmount ? parseInt(customAmount) : null;
-  const isProrated = urlAmount !== null;
-  const amountToCharge = checkoutData?.amount ?? (urlAmount ?? displayPrice);
+  // Determine amount to charge: always prefer server-secured values.
+  // 1) checkoutData.amount from /api/checkout/create-token
+  // 2) securedAmount from /api/transactions/latest
+  // 3) fallback to plan displayPrice
+  const amountToCharge = checkoutData?.amount ?? (securedAmount ?? displayPrice);
+  const isProrated = Boolean(upgradeOption === "immediate" && (checkoutData?.amount !== undefined || securedAmount !== null));
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
