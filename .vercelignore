@@ -1,0 +1,13 @@
+.next/cache
+node_modules
+.env*.local
+*.log
+.DS_Store
+```
+
+### Fix #2: Also add to `.gitignore` (if not already there)
+```
+# .gitignore
+.next/cache
+.next/
+node_modules/
