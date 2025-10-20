@@ -778,6 +778,6 @@ export default function CheckoutPage() {
       }
     >
       <CheckoutContent />
-    </Suspense>
+    </Suspense> 
   );
 }
