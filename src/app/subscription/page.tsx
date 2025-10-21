@@ -325,8 +325,8 @@ function SubscriptionContent() {
     );
     const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
 
-    // Calculate new plan daily rate (assume 30 days for monthly)
-    const newDailyRate = Number(newPlan.price) / 30;
+    // Align with backend: use total days in current period for both plans
+    const newDailyRate = Number(newPlan.price) / totalCurrentDays;
 
     // Calculate unused current plan value
     const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
@@ -499,9 +499,6 @@ function SubscriptionContent() {
           planId: selectedPlan,
           upgradeOption: "immediate",
           billingCycle: selectedCycle,
-          calculatedAmount: upgradeCalculation
-            ? Math.round(upgradeCalculation.additionalCharge)
-            : newPrice,
         };
 
         const response = await fetch("/api/subscription/upgrade", {
@@ -562,7 +559,6 @@ function SubscriptionContent() {
         const checkoutParams = new URLSearchParams({
           plan: selectedPlan,
           cycle: selectedCycle,
-          amount: data.amount?.toString() || chosenPlan.price,
           transactionId: data.transactionId,
         });
 

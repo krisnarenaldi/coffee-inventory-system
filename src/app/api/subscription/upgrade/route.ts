@@ -125,9 +125,7 @@ export async function POST(request: NextRequest) {
       // Add upgrade-specific parameters (always immediate now)
       checkoutParams.set("upgradeOption", "immediate");
 
-      if (calculatedAmount) {
-        checkoutParams.set("amount", calculatedAmount.toString());
-      }
+      // Do not append amount to URL; server will compute secure amount
 
       const checkoutUrl = `/checkout?${checkoutParams.toString()}`;
 
