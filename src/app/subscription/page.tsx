@@ -73,6 +73,7 @@ function SubscriptionContent() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState<string>("");
+  const [selectedCycle, setSelectedCycle] = useState<"monthly" | "yearly">("monthly");
   // Removed effectiveDate state - we only have immediate upgrades now
   const [upgradeCalculation, setUpgradeCalculation] = useState<any>(null);
   const [actionMessage, setActionMessage] = useState<null | {
@@ -92,7 +93,7 @@ function SubscriptionContent() {
     if (selectedPlan && subscription) {
       calculateUpgradeOptions();
     }
-  }, [selectedPlan, subscription, availablePlans]);
+  }, [selectedPlan, subscription, availablePlans, selectedCycle]);
 
   // Debug modal state changes
   useEffect(() => {
@@ -240,6 +241,14 @@ function SubscriptionContent() {
     const newPlan = availablePlans.find((p) => p.id === selectedPlan);
     if (!newPlan) return;
 
+    const getPriceForCycle = (plan: SubscriptionPlan, cycle: "monthly" | "yearly") => {
+      const base = Number(plan.price) || 0;
+      if (cycle === "yearly") {
+        return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
+      }
+      return base;
+    };
+
     // Check if this is a renewal case for expired subscription
     const now = new Date();
     const currentPeriodEnd = subscription.currentPeriodEnd
@@ -257,7 +266,7 @@ function SubscriptionContent() {
     if (isSamePlan) {
       if (isExpired) {
         // Expired subscription renewal - show renewal calculation
-        const renewalPrice = parseFloat(String(newPlan.price));
+        const renewalPrice = getPriceForCycle(newPlan, selectedCycle);
         setUpgradeCalculation({
           currentPlan: subscription.plan,
           newPlan: newPlan,
@@ -280,7 +289,7 @@ function SubscriptionContent() {
 
     // CRITICAL FIX: For expired subscriptions with different plans, show full price
     if (isExpired && !isSamePlan) {
-      const fullPrice = parseFloat(String(newPlan.price));
+      const fullPrice = getPriceForCycle(newPlan, selectedCycle);
       setUpgradeCalculation({
         currentPlan: subscription.plan,
         newPlan: newPlan,
@@ -469,7 +478,14 @@ function SubscriptionContent() {
       // If active and different plan: this is an upgrade/downgrade (allowed)
 
       const currentPrice = parseFloat(String(subscription.plan.price));
-      const newPrice = parseFloat(String(chosenPlan.price));
+      const getPriceForCycle = (plan: SubscriptionPlan, cycle: "monthly" | "yearly") => {
+        const base = Number(plan.price) || 0;
+        if (cycle === "yearly") {
+          return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
+        }
+        return base;
+      };
+      const newPrice = getPriceForCycle(chosenPlan, selectedCycle);
       const isUpgrade = newPrice > currentPrice;
       const isDowngrade = newPrice < currentPrice;
       // Only treat expired SAME PLAN selection as a renewal requiring checkout
@@ -482,6 +498,7 @@ function SubscriptionContent() {
         const upgradePayload = {
           planId: selectedPlan,
           upgradeOption: "immediate",
+          billingCycle: selectedCycle,
           calculatedAmount: upgradeCalculation
             ? Math.round(upgradeCalculation.additionalCharge)
             : newPrice,
@@ -526,6 +543,7 @@ function SubscriptionContent() {
           subscriptionId: subscription.id,
           newPlanId: selectedPlan,
           effectiveDate: "immediate",
+          billingCycle: selectedCycle,
         }),
       });
 
@@ -543,7 +561,7 @@ function SubscriptionContent() {
         // For expired subscriptions changing plans, redirect to checkout
         const checkoutParams = new URLSearchParams({
           plan: selectedPlan,
-          cycle: chosenPlan.interval?.toLowerCase() || "monthly",
+          cycle: selectedCycle,
           amount: data.amount?.toString() || chosenPlan.price,
           transactionId: data.transactionId,
         });
@@ -1075,17 +1093,55 @@ function SubscriptionContent() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">
-                            Rp {parseFloat(String(plan.price)).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            /{plan.interval.toLowerCase()}
-                          </p>
+                          {(() => {
+                            const base = Number(plan.price) || 0;
+                            const display = selectedCycle === "yearly"
+                              ? (plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8))
+                              : base;
+                            return (
+                              <>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  Rp {Number(display).toLocaleString()}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  /{selectedCycle}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
                   ))
                 )}
+              </div>
+              {/* Billing Cycle Selection */}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Billing cycle</h4>
+                <div className="flex items-center space-x-6">
+                  <label className="inline-flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="billingCycle"
+                      value="monthly"
+                      checked={selectedCycle === "monthly"}
+                      onChange={() => setSelectedCycle("monthly")}
+                      className="h-4 w-4 text-amber-600 border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">Monthly</span>
+                  </label>
+                  <label className="inline-flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="billingCycle"
+                      value="yearly"
+                      checked={selectedCycle === "yearly"}
+                      onChange={() => setSelectedCycle("yearly")}
+                      className="h-4 w-4 text-amber-600 border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">Yearly (20% off)</span>
+                  </label>
+                </div>
               </div>
               {/* Enhanced Upgrade Options */}
               {selectedPlan &&

@@ -21,7 +21,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planId, calculatedAmount } = body;
+    const { planId, calculatedAmount, billingCycle } = body as {
+      planId: string;
+      calculatedAmount?: number;
+      billingCycle?: "monthly" | "yearly";
+    };
 
     if (!planId) {
       return NextResponse.json(
@@ -107,7 +111,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const cycle = (newPlan.interval || "MONTHLY").toString().toLowerCase();
+      // Prefer client-selected billing cycle, fall back to plan's default interval
+      const cycle = billingCycle === "yearly" || billingCycle === "monthly"
+        ? billingCycle
+        : (newPlan.interval || "MONTHLY").toString().toLowerCase();
 
       // Build checkout URL with upgrade options
       const checkoutParams = new URLSearchParams({

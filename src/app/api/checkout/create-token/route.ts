@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         subscriptionPlanId: planId,
         amount: price,
         currency: "IDR",
-        billingCycle: resolvedBillingCycle,
+        billingCycle: chosenCycle,
         status: "PENDING",
         paymentMethod: "MIDTRANS",
         metadata: upgradeOption
