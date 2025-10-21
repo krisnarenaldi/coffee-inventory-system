@@ -99,6 +99,25 @@ function SubscriptionContent() {
     console.log("🔧 MODAL STATE CHANGED:", showUpgradeModal);
   }, [showUpgradeModal]);
 
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showUpgradeModal) {
+        e.preventDefault();
+        setShowUpgradeModal(false);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("keydown", handleKeyDown);
+      }
+    };
+  }, [showUpgradeModal]);
+
   // Handle URL parameters for expired/error states
   useEffect(() => {
     console.log("🔍 CHECKING URL PARAMS:", { isExpired, hasError });
