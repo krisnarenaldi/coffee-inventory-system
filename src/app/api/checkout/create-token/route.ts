@@ -155,11 +155,21 @@ export async function POST(request: NextRequest) {
       const currentPeriodEnd = userSubscription.currentPeriodEnd;
 
       if (!currentPeriodStart || !currentPeriodEnd) {
-        return NextResponse.json(
-          { error: "Subscription period not available for proration" },
-          { status: 400 },
-        );
-      }
+        // No active period (e.g., free plan): charge standard price instead of proration
+        const planPrice = plan.price ? Number(plan.price) : 0;
+        const targetCycle: "monthly" | "yearly" = plan.interval === "YEARLY" ? "yearly" : requestedCycle;
+        const calculatedPrice = targetCycle === "yearly"
+          ? (plan.interval === "YEARLY" ? planPrice : Math.round(planPrice * 0.8 * 12))
+          : planPrice;
+        if (!calculatedPrice || calculatedPrice <= 0) {
+          return NextResponse.json(
+            { error: "Price not available for selected billing cycle" },
+            { status: 400 },
+          );
+        }
+        price = calculatedPrice;
+        chosenCycle = targetCycle;
+      } else {
 
       const now = new Date();
       const totalDaysInPeriod = Math.ceil(
@@ -177,6 +187,7 @@ export async function POST(request: NextRequest) {
 
       price = Math.max(0, Math.round(proratedAmount));
       chosenCycle = resolvedBillingCycle; // display cycle according to current subscription context
+      }
     } else {
       // Standard purchase/renewal amount based on TARGET cycle and plan interval semantics
       const planPrice = plan.price ? Number(plan.price) : 0;
