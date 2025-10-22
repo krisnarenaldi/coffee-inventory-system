@@ -380,6 +380,37 @@ function SubscriptionContent() {
     }
   };
 
+  const handleReactivateSubscription = async () => {
+    try {
+      const response = await fetch("/api/subscription/cancel", {
+        method: "DELETE",
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setActionMessage({
+          type: "error",
+          text: data?.error || "Failed to reactivate subscription.",
+        });
+        return;
+      }
+
+      await fetchSubscriptionData();
+      setActionMessage({
+        type: "success",
+        text:
+          data?.message ||
+          "Downgrade cancelled. You will keep your current plan.",
+      });
+    } catch (error) {
+      console.error("Error reactivating subscription:", error);
+      setActionMessage({
+        type: "error",
+        text: "Failed to reactivate. Please try again.",
+      });
+    }
+  };
+
   const fetchSubscriptionData = async () => {
     try {
       const response = await fetch("/api/subscription");
@@ -858,7 +889,7 @@ function SubscriptionContent() {
                       <button
                         onClick={() => {
                           console.log("🔘 REACTIVATE BUTTON CLICKED");
-                          setShowUpgradeModal(true);
+                          handleReactivateSubscription();
                         }}
                         className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                       >
