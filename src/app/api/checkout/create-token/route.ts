@@ -7,6 +7,7 @@ import {
   generateOrderId,
   formatPriceForMidtrans,
   MidtransParameter,
+  formatMidtransStartTime,
 } from "../../../../../lib/midtrans";
 
 // Midtrans expects 'yyyy-MM-dd HH:mm:ss Z' (eg '2020-06-09 15:07:00 +0700')
@@ -87,16 +88,21 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // For users without PENDING_CHECKOUT, they shouldn't be accessing checkout directly
-      // They should go through the upgrade flow first
-      return NextResponse.json(
-        {
-          error:
-            "Unauthorized: Please initiate upgrade from your dashboard first",
-          currentStatus: userSubscription?.status || "unknown",
-        },
-        { status: 403 },
-      );
+      // Allow expired or canceled subscriptions to proceed to checkout for renewal
+      const allowedStatuses = ["EXPIRED", "CANCELED"];
+      if (userSubscription && !allowedStatuses.includes(userSubscription.status)) {
+        // For users without PENDING_CHECKOUT, and not in a renewable state, block access.
+        // They should go through the upgrade flow first which sets the PENDING_CHECKOUT status.
+        return NextResponse.json(
+          {
+            error:
+              "Unauthorized: Please initiate upgrade from your dashboard first",
+            currentStatus: userSubscription?.status || "unknown",
+          },
+          { status: 403 },
+        );
+      }
+      // If userSubscription is null (e.g. new tenant) or has an allowed status, let them proceed.
     }
 
     // Get the subscription plan
