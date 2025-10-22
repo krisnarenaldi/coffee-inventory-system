@@ -102,6 +102,13 @@ function SubscriptionContent() {
     console.log("🔧 MODAL STATE CHANGED:", showUpgradeModal);
   }, [showUpgradeModal]);
 
+  // Enforce billing cycle selection for yearly subscribers when opening the modal
+  useEffect(() => {
+    if (showUpgradeModal && subscription?.plan?.interval === "YEARLY") {
+      setSelectedCycle("yearly");
+    }
+  }, [showUpgradeModal, subscription?.plan?.interval]);
+
   // Close modal on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -331,7 +338,8 @@ function SubscriptionContent() {
     const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
 
     // Align with backend: use total days in current period for both plans
-    const newDailyRate = Number(newPlan.price) / totalCurrentDays;
+    const priceForNewPlanCycle = getPriceForCycle(newPlan, selectedCycle);
+    const newDailyRate = Number(priceForNewPlanCycle) / totalCurrentDays;
 
     // Calculate unused current plan value
     const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
@@ -1159,37 +1167,39 @@ function SubscriptionContent() {
                 )}
               </div>
               {/* Billing Cycle Selection */}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  Billing cycle
-                </h4>
-                <div className="flex items-center space-x-6">
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="monthly"
-                      checked={selectedCycle === "monthly"}
-                      onChange={() => setSelectedCycle("monthly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">Monthly</span>
-                  </label>
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="yearly"
-                      checked={selectedCycle === "yearly"}
-                      onChange={() => setSelectedCycle("yearly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Yearly (20% off)
-                    </span>
-                  </label>
+              {subscription?.plan?.interval !== "YEARLY" && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">
+                    Billing cycle
+                  </h4>
+                  <div className="flex items-center space-x-6">
+                    <label className="inline-flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="billingCycle"
+                        value="monthly"
+                        checked={selectedCycle === "monthly"}
+                        onChange={() => setSelectedCycle("monthly")}
+                        className="h-4 w-4 text-amber-600 border-gray-300"
+                      />
+                      <span className="text-sm text-gray-700">Monthly</span>
+                    </label>
+                    <label className="inline-flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="billingCycle"
+                        value="yearly"
+                        checked={selectedCycle === "yearly"}
+                        onChange={() => setSelectedCycle("yearly")}
+                        className="h-4 w-4 text-amber-600 border-gray-300"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Yearly (20% off)
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
               {/* Enhanced Upgrade Options */}
               {selectedPlan &&
                 upgradeCalculation &&
@@ -1240,9 +1250,13 @@ function SubscriptionContent() {
                             </div>
                             <div>
                               • Next billing: Rp{" "}
-                              {parseFloat(
-                                String(upgradeCalculation.newPlan.price)
-                              ).toLocaleString()}{" "}
+                              {(() => {
+                                const base = Number(upgradeCalculation.newPlan.price) || 0;
+                                const display = selectedCycle === "yearly"
+                                  ? (upgradeCalculation.newPlan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8))
+                                  : base;
+                                return Number(display).toLocaleString();
+                              })()} {" "}
                               on{" "}
                               {formatDate(upgradeCalculation.nextBillingDate)}
                             </div>
@@ -1296,9 +1310,13 @@ function SubscriptionContent() {
                         now for immediate access to{" "}
                         {upgradeCalculation.newPlan.name || "new"} features.
                         Your next billing will be Rp{" "}
-                        {parseFloat(
-                          String(upgradeCalculation.newPlan.price || 0)
-                        ).toLocaleString()}{" "}
+                        {(() => {
+                          const base = Number(upgradeCalculation.newPlan.price) || 0;
+                          const display = selectedCycle === "yearly"
+                            ? (upgradeCalculation.newPlan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8))
+                            : base;
+                          return Number(display).toLocaleString();
+                        })()} {" "}
                         on {formatDate(upgradeCalculation.nextBillingDate)}.
                       </div>
                     </div>

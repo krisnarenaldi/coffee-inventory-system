@@ -187,9 +187,15 @@ export async function POST(request: NextRequest) {
       );
 
       const currentPlanPrice = Number(userSubscription.plan.price) || 0;
-      const newPlanPrice = Number(plan.price) || 0;
+      // Map new plan price to the same billing cycle as the current subscription
+      const baseNewPrice = Number(plan.price) || 0;
+      const cycleForProration: "monthly" | "yearly" = resolvedBillingCycle;
+      const mappedNewPlanPrice = cycleForProration === "yearly"
+        ? (plan.interval === "YEARLY" ? baseNewPrice : Math.round(baseNewPrice * 12 * 0.8))
+        : baseNewPrice;
+
       const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
-      const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
+      const newPlanProrated = (mappedNewPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
       const proratedAmount = newPlanProrated - unusedAmount;
 
       price = Math.max(0, Math.round(proratedAmount));
