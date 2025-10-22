@@ -88,21 +88,22 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // Allow expired or canceled subscriptions to proceed to checkout for renewal
-      const allowedStatuses = ["EXPIRED", "CANCELED"];
+      // Allow active users to upgrade, and expired/canceled users to renew.
+      const allowedStatuses = ["ACTIVE", "EXPIRED", "CANCELED", "PAST_DUE"];
       if (userSubscription && !allowedStatuses.includes(userSubscription.status)) {
-        // For users without PENDING_CHECKOUT, and not in a renewable state, block access.
-        // They should go through the upgrade flow first which sets the PENDING_CHECKOUT status.
+        // For users without PENDING_CHECKOUT, and not in a renewable/upgradable state, block access.
+        // This path should now only be hit for statuses like INCOMPLETE, TRIALING etc.
+        // that might have different flows.
         return NextResponse.json(
           {
             error:
-              "Unauthorized: Please initiate upgrade from your dashboard first",
+              "Unauthorized: Your current subscription status does not permit this action.",
             currentStatus: userSubscription?.status || "unknown",
           },
           { status: 403 },
         );
       }
-      // If userSubscription is null (e.g. new tenant) or has an allowed status, let them proceed.
+      // If userSubscription is null (new tenant) or has an allowed status, let them proceed.
     }
 
     // Get the subscription plan
