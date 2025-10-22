@@ -115,7 +115,7 @@ const SubscriptionContent = (): JSX.Element | null => {
 
 
   // Derive if current subscription period is yearly based on period length
-  const isCurrentCycleYearly = React.useMemo(() => {
+  const isCurrentPeriodYearly = React.useMemo(() => {
     if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
       return subscription?.plan?.interval === "YEARLY";
     }
@@ -270,10 +270,10 @@ const SubscriptionContent = (): JSX.Element | null => {
   // Enforce billing cycle selection for yearly subscribers when opening the modal
   useEffect(() => {
     if (!showUpgradeModal) return;
-    if (isCurrentCycleYearly) {
+    if (isCurrentPeriodYearly) {
       setSelectedCycle("yearly");
     }
-  }, [showUpgradeModal, isCurrentCycleYearly]);
+  }, [showUpgradeModal, isCurrentPeriodYearly]);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -320,10 +320,10 @@ const SubscriptionContent = (): JSX.Element | null => {
 
   // Ensure selectedCycle reflects current cycle when subscription changes
   useEffect(() => {
-    if (isCurrentCycleYearly && selectedCycle !== "yearly") {
+    if (isCurrentPeriodYearly && selectedCycle !== "yearly") {
       setSelectedCycle("yearly");
     }
-  }, [isCurrentCycleYearly]);
+  }, [isCurrentPeriodYearly]);
 
   // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
@@ -736,7 +736,7 @@ const SubscriptionContent = (): JSX.Element | null => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getModalStatusColor = (status: string) => {
     switch (status) {
       case "ACTIVE":
         return "text-green-600 bg-green-100";
