@@ -133,8 +133,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Resolve billing cycle context
-    const resolvedBillingCycle = userSubscription?.plan?.interval === "YEARLY" ? "yearly" : "monthly";
+    // Resolve billing cycle context based on current subscription period length
+    let resolvedBillingCycle: "monthly" | "yearly" = "monthly";
+    if (userSubscription?.currentPeriodStart && userSubscription?.currentPeriodEnd) {
+      try {
+        const start = new Date(userSubscription.currentPeriodStart);
+        const end = new Date(userSubscription.currentPeriodEnd);
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        resolvedBillingCycle = days >= 330 ? "yearly" : "monthly";
+      } catch {
+        resolvedBillingCycle = userSubscription?.plan?.interval === "YEARLY" ? "yearly" : "monthly";
+      }
+    } else {
+      resolvedBillingCycle = userSubscription?.plan?.interval === "YEARLY" ? "yearly" : "monthly";
+    }
     const requestedCycle: "monthly" | "yearly" = billingCycle === "yearly" ? "yearly" : "monthly";
 
     // First, prefer an existing pending transaction amount if present to avoid recomputation drift
@@ -186,7 +198,11 @@ export async function POST(request: NextRequest) {
         (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      const currentPlanPrice = Number(userSubscription.plan.price) || 0;
+      // Map both current and new plan prices to the same billing cycle as the current subscription
+      const baseCurrentPrice = Number(userSubscription.plan.price) || 0;
+      const currentPlanPrice = resolvedBillingCycle === "yearly"
+        ? (userSubscription.plan.interval === "YEARLY" ? baseCurrentPrice : Math.round(baseCurrentPrice * 12 * 0.8))
+        : baseCurrentPrice;
       // Map new plan price to the same billing cycle as the current subscription
       const baseNewPrice = Number(plan.price) || 0;
       const cycleForProration: "monthly" | "yearly" = resolvedBillingCycle;

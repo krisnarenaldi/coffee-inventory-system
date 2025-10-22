@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -104,10 +104,11 @@ function SubscriptionContent() {
 
   // Enforce billing cycle selection for yearly subscribers when opening the modal
   useEffect(() => {
-    if (showUpgradeModal && subscription?.plan?.interval === "YEARLY") {
+    if (!showUpgradeModal) return;
+    if (isCurrentCycleYearly) {
       setSelectedCycle("yearly");
     }
-  }, [showUpgradeModal, subscription?.plan?.interval]);
+  }, [showUpgradeModal, isCurrentCycleYearly]);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -136,6 +137,28 @@ function SubscriptionContent() {
       setShowUpgradeModal(true);
     }
   }, [isExpired, hasError]);
+
+  // Derive if current subscription period is yearly based on period length
+  const isCurrentCycleYearly = useMemo(() => {
+    if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+    try {
+      const start = new Date(subscription.currentPeriodStart);
+      const end = new Date(subscription.currentPeriodEnd);
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return days >= 300; // treat ~10 months+ as yearly period
+    } catch {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+  }, [subscription?.currentPeriodStart, subscription?.currentPeriodEnd, subscription?.plan?.interval]);
+
+  // Ensure selectedCycle reflects current cycle when subscription changes
+  useEffect(() => {
+    if (isCurrentCycleYearly && selectedCycle !== "yearly") {
+      setSelectedCycle("yearly");
+    }
+  }, [isCurrentCycleYearly]);
 
   // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
@@ -335,7 +358,9 @@ function SubscriptionContent() {
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
+    // Map current plan price to the enforced/selected cycle for fair comparison
+    const currentPriceForCycle = getPriceForCycle(subscription.plan, selectedCycle);
+    const currentDailyRate = Number(currentPriceForCycle) / totalCurrentDays;
 
     // Align with backend: use total days in current period for both plans
     const priceForNewPlanCycle = getPriceForCycle(newPlan, selectedCycle);
@@ -1167,7 +1192,7 @@ function SubscriptionContent() {
                 )}
               </div>
               {/* Billing Cycle Selection */}
-              {subscription?.plan?.interval !== "YEARLY" && (
+              {!isCurrentCycleYearly && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium text-gray-900 mb-2">
                     Billing cycle
