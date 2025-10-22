@@ -891,7 +891,7 @@ function SubscriptionContent() {
                           console.log("🔘 REACTIVATE BUTTON CLICKED");
                           handleReactivateSubscription();
                         }}
-                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium cursor-pointer"
                       >
                         Keep Current Plan
                       </button>
