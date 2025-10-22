@@ -157,8 +157,8 @@ export async function POST(request: NextRequest) {
       }
     } else if (upgradeOption === "immediate") {
       // Securely recompute proration for immediate upgrades
-      const currentPeriodStart = userSubscription.currentPeriodStart;
-      const currentPeriodEnd = userSubscription.currentPeriodEnd;
+      const currentPeriodStart = userSubscription?.currentPeriodStart;
+      const currentPeriodEnd = userSubscription?.currentPeriodEnd;
 
       if (!currentPeriodStart || !currentPeriodEnd) {
         // No active period (e.g., free plan): charge standard price instead of proration
