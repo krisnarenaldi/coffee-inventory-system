@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -90,12 +90,138 @@ function SubscriptionContent() {
   const isExpired = searchParams?.get("expired") === "true";
   const hasError = searchParams?.get("error") === "validation_failed";
 
+  // Helper function to calculate price for cycle (moved outside to avoid recreation)
+  const getPriceForCycle = (
+    plan: SubscriptionPlan | undefined,
+    cycle: "monthly" | "yearly"
+  ) => {
+    if (!plan) return 0;
+    const base = Number(plan.price) || 0;
+    if (cycle === "yearly") {
+      return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
+    }
+    return base;
+  };
+
+  // Memoize calculateUpgradeOptions to prevent infinite re-renders
+  const calculateUpgradeOptions = useCallback(async () => {
+    if (!selectedPlan || !subscription) return;
+
+    const newPlan = availablePlans.find((p) => p.id === selectedPlan);
+    if (!newPlan) return;
+
+    // Check if this is a renewal case for expired subscription
+    const now = new Date();
+    const currentPeriodEnd = subscription.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd)
+      : null;
+    const remainingDays = currentPeriodEnd
+      ? Math.ceil(
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+    const isExpired = remainingDays <= 0;
+    const isSamePlan = newPlan.id === subscription.plan.id;
+
+    // For same plan selection
+    if (isSamePlan) {
+      if (isExpired) {
+        // Expired subscription renewal - show renewal calculation
+        const renewalPrice = getPriceForCycle(newPlan, selectedCycle);
+        setUpgradeCalculation({
+          currentPlan: subscription.plan,
+          newPlan: newPlan,
+          remainingDays: 0,
+          unusedCurrentValue: 0, // No unused value for expired subscription
+          newPlanProratedCost: renewalPrice, // Full price for renewal
+          additionalCharge: renewalPrice, // User pays full price
+          isRenewal: true,
+          isExpired: true,
+          currentPeriodEnd: currentPeriodEnd,
+          nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        });
+        return;
+      } else {
+        // Active subscription - no calculation needed (will be blocked anyway)
+        setUpgradeCalculation(null);
+        return;
+      }
+    }
+
+    // For expired subscriptions with different plans, show full price
+    if (isExpired && !isSamePlan) {
+      const fullPrice = getPriceForCycle(newPlan, selectedCycle);
+      setUpgradeCalculation({
+        currentPlan: subscription.plan,
+        newPlan: newPlan,
+        remainingDays: 0,
+        unusedCurrentValue: 0, // No unused value for expired subscription
+        newPlanProratedCost: fullPrice, // Full price for new plan
+        additionalCharge: fullPrice, // Full price for new plan
+        currentPeriodEnd: currentPeriodEnd,
+        nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      });
+      return;
+    }
+
+    // For plan changes (not renewals), calculate proration
+    if (!currentPeriodEnd) {
+      // Handle case where currentPeriodEnd is null
+      setUpgradeCalculation(null);
+      return;
+    }
+
+    // Clamp remaining days to 0 to avoid negative values after expiry
+    const rawRemainingDays = Math.ceil(
+      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const clampedRemainingDays = Math.max(0, rawRemainingDays);
+
+    // Calculate current plan daily rate
+    const currentPeriodStart = new Date(subscription.currentPeriodStart);
+    const totalCurrentDays = Math.ceil(
+      (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    
+    // Map current plan price to the enforced/selected cycle for fair comparison
+    const currentPriceForCycle = getPriceForCycle(subscription.plan, selectedCycle);
+    const currentDailyRate = Number(currentPriceForCycle) / totalCurrentDays;
+
+    // Align with backend: use total days in current period for both plans
+    const priceForNewPlanCycle = getPriceForCycle(newPlan, selectedCycle);
+    const newDailyRate = Number(priceForNewPlanCycle) / totalCurrentDays;
+
+    // Calculate unused current plan value
+    const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
+
+    // Calculate new plan cost for remaining period
+    const newPlanProratedCost = newDailyRate * clampedRemainingDays;
+
+    // Calculate additional charge for immediate upgrade
+    const additionalCharge = Math.max(
+      0,
+      newPlanProratedCost - unusedCurrentValue
+    );
+
+    setUpgradeCalculation({
+      currentPlan: subscription.plan,
+      newPlan: newPlan,
+      remainingDays: clampedRemainingDays,
+      unusedCurrentValue: unusedCurrentValue,
+      newPlanProratedCost: newPlanProratedCost,
+      additionalCharge: additionalCharge,
+      currentPeriodEnd: currentPeriodEnd,
+      nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    });
+  }, [selectedPlan, subscription, availablePlans, selectedCycle]);
+
   // Calculate upgrade pricing when plan or option changes
   useEffect(() => {
     if (selectedPlan && subscription) {
       calculateUpgradeOptions();
     }
-  }, [selectedPlan, subscription, availablePlans, selectedCycle]);
+  }, [selectedPlan, subscription, calculateUpgradeOptions]);
 
   // Debug modal state changes
   useEffect(() => {
@@ -267,127 +393,6 @@ function SubscriptionContent() {
     return () => clearTimeout(timeout);
   }, [session]);
 
-  const calculateUpgradeOptions = async () => {
-    if (!selectedPlan || !subscription) return;
-
-    const newPlan = availablePlans.find((p) => p.id === selectedPlan);
-    if (!newPlan) return;
-
-    const getPriceForCycle = (
-      plan: SubscriptionPlan,
-      cycle: "monthly" | "yearly"
-    ) => {
-      const base = Number(plan.price) || 0;
-      if (cycle === "yearly") {
-        return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
-      }
-      return base;
-    };
-
-    // Check if this is a renewal case for expired subscription
-    const now = new Date();
-    const currentPeriodEnd = subscription.currentPeriodEnd
-      ? new Date(subscription.currentPeriodEnd)
-      : null;
-    const remainingDays = currentPeriodEnd
-      ? Math.ceil(
-          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        )
-      : 0;
-    const isExpired = remainingDays <= 0;
-    const isSamePlan = newPlan.id === subscription.plan.id;
-
-    // For same plan selection
-    if (isSamePlan) {
-      if (isExpired) {
-        // Expired subscription renewal - show renewal calculation
-        const renewalPrice = getPriceForCycle(newPlan, selectedCycle);
-        setUpgradeCalculation({
-          currentPlan: subscription.plan,
-          newPlan: newPlan,
-          remainingDays: 0,
-          unusedCurrentValue: 0, // No unused value for expired subscription
-          newPlanProratedCost: renewalPrice, // Full price for renewal
-          additionalCharge: renewalPrice, // User pays full price
-          isRenewal: true,
-          isExpired: true,
-          currentPeriodEnd: currentPeriodEnd,
-          nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-        });
-        return;
-      } else {
-        // Active subscription - no calculation needed (will be blocked anyway)
-        setUpgradeCalculation(null);
-        return;
-      }
-    }
-
-    // CRITICAL FIX: For expired subscriptions with different plans, show full price
-    if (isExpired && !isSamePlan) {
-      const fullPrice = getPriceForCycle(newPlan, selectedCycle);
-      setUpgradeCalculation({
-        currentPlan: subscription.plan,
-        newPlan: newPlan,
-        remainingDays: 0,
-        unusedCurrentValue: 0, // No unused value for expired subscription
-        newPlanProratedCost: fullPrice, // Full price for new plan
-        additionalCharge: fullPrice, // Full price for new plan
-        currentPeriodEnd: currentPeriodEnd,
-        nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-      });
-      return;
-    }
-
-    // Reuse the variables already declared above
-    // For plan changes (not renewals), calculate proration
-    if (!currentPeriodEnd) {
-      // Handle case where currentPeriodEnd is null
-      setUpgradeCalculation(null);
-      return;
-    }
-
-    // Clamp remaining days to 0 to avoid negative values after expiry
-    const rawRemainingDays = Math.ceil(
-      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const clampedRemainingDays = Math.max(0, rawRemainingDays);
-
-    // Calculate current plan daily rate
-    const currentPeriodStart = new Date(subscription.currentPeriodStart);
-    const totalCurrentDays = Math.ceil(
-      (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    // Map current plan price to the enforced/selected cycle for fair comparison
-    const currentPriceForCycle = getPriceForCycle(subscription.plan, selectedCycle);
-    const currentDailyRate = Number(currentPriceForCycle) / totalCurrentDays;
-
-    // Align with backend: use total days in current period for both plans
-    const priceForNewPlanCycle = getPriceForCycle(newPlan, selectedCycle);
-    const newDailyRate = Number(priceForNewPlanCycle) / totalCurrentDays;
-
-    // Calculate unused current plan value
-    const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
-
-    // Calculate new plan cost for remaining period
-    const newPlanProratedCost = newDailyRate * clampedRemainingDays;
-
-    // Calculate additional charge for immediate upgrade
-    const additionalCharge = Math.max(
-      0,
-      newPlanProratedCost - unusedCurrentValue
-    );
-
-    setUpgradeCalculation({
-      currentPlan: subscription.plan,
-      newPlan: newPlan,
-      remainingDays: clampedRemainingDays,
-      unusedCurrentValue: unusedCurrentValue,
-      newPlanProratedCost: newPlanProratedCost,
-      additionalCharge: additionalCharge,
-      currentPeriodEnd: currentPeriodEnd,
-      nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-    });
   };
 
   const fetchSubscriptionMessage = async () => {
