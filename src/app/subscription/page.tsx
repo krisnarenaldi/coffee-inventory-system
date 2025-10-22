@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import type { JSX } from 'react';
+import React, { Suspense } from "react";
+
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -750,6 +751,11 @@ const SubscriptionContent = (): JSX.Element | null => {
         return "text-red-600 bg-red-100";
       case "EXPIRED":
         return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
+
   // Handle loading and authentication states
   if (router.query.status === "loading" || router.query.loading) {
     return (
