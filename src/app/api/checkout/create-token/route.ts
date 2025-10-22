@@ -87,24 +87,24 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
-    } else {
+    } else if (userSubscription) {
       // Allow active users to upgrade, and expired/canceled users to renew.
       const allowedStatuses = ["ACTIVE", "EXPIRED", "CANCELED", "PAST_DUE"];
-      if (userSubscription && !allowedStatuses.includes(userSubscription.status)) {
-        // For users without PENDING_CHECKOUT, and not in a renewable/upgradable state, block access.
-        // This path should now only be hit for statuses like INCOMPLETE, TRIALING etc.
-        // that might have different flows.
+      if (!allowedStatuses.includes(userSubscription.status)) {
+        // For users not in PENDING_CHECKOUT and not in a renewable/upgradable state, block access.
+        // This path handles statuses like INCOMPLETE, TRIALING etc., which have different flows.
         return NextResponse.json(
           {
             error:
               "Unauthorized: Your current subscription status does not permit this action.",
-            currentStatus: userSubscription?.status || "unknown",
+            currentStatus: userSubscription.status,
           },
           { status: 403 },
         );
       }
-      // If userSubscription is null (new tenant) or has an allowed status, let them proceed.
+      // If userSubscription has an allowed status, let them proceed.
     }
+    // If userSubscription is null (new tenant), they can also proceed.
 
     // Get the subscription plan
     const plan = await prisma.subscriptionPlan.findUnique({
