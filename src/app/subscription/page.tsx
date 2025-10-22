@@ -1,8 +1,7 @@
 "use client";
 
 import type { JSX } from 'react';
-import React, { Suspense } from "react";
-
+import React, { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -116,7 +115,7 @@ const SubscriptionContent = (): JSX.Element | null => {
 
 
   // Derive if current subscription period is yearly based on period length
-  const isCurrentCycleYearly = useMemo(() => {
+  const isCurrentCycleYearly = React.useMemo(() => {
     if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
       return subscription?.plan?.interval === "YEARLY";
     }
@@ -144,7 +143,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   };
 
   // Memoize calculateUpgradeOptions to prevent infinite re-renders
-  const calculateUpgradeOptions = useCallback(async () => {
+  const calculateUpgradeOptions = React.useCallback(async () => {
     if (!selectedPlan || !subscription) return;
 
     const newPlan = availablePlans.find((p) => p.id === selectedPlan);
@@ -305,7 +304,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   }, [isExpired, hasError]);
 
   // Derive if current subscription period is yearly based on period length
-  const isCurrentCycleYearly = useMemo(() => {
+  const isCurrentCycleYearly = React.useMemo(() => {
     if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
       return subscription?.plan?.interval === "YEARLY";
     }
@@ -432,8 +431,6 @@ const SubscriptionContent = (): JSX.Element | null => {
 
     return () => clearTimeout(timeout);
   }, [session]);
-
-  };
 
   const fetchSubscriptionMessage = async () => {
     try {
@@ -757,7 +754,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   };
 
   // Handle loading and authentication states
-  if (router.query.status === "loading" || router.query.loading) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-600"></div>
@@ -766,13 +763,13 @@ const SubscriptionContent = (): JSX.Element | null => {
   }
 
   // Handle loading and authentication states
-  if (router.query.status === "unauthenticated") {
+  if (status === "unauthenticated") {
     router.push("/auth/signin");
     return null;
   }
 
   // Return null if no session
-  if (!router.query.session) {
+  if (!session) {
     return null;
   }
 
