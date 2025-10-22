@@ -90,17 +90,46 @@ function SubscriptionContent() {
   const isExpired = searchParams?.get("expired") === "true";
   const hasError = searchParams?.get("error") === "validation_failed";
 
+  // Determine if the current subscription is on a yearly cycle
+  const isCurrentCycleYearly = React.useMemo(() => {
+    if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+    try {
+      const start = new Date(subscription.currentPeriodStart);
+      const end = new Date(subscription.currentPeriodEnd);
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return days >= 300; // treat ~10 months+ as yearly period
+    } catch (e) {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+  }, [subscription]);
+
+  // Check if the subscription is in PENDING_CHECKOUT status for renewal
+  const isPendingCheckoutRenewal = React.useMemo(() => {
+    return subscription?.status === "PENDING_CHECKOUT";
+  }, [subscription]);
+
   // Calculate upgrade pricing when plan or option changes
   useEffect(() => {
     if (selectedPlan && subscription) {
+      // If user has yearly subscription, force yearly cycle for calculation
+      if (isCurrentCycleYearly) {
+        setSelectedCycle("yearly");
+      }
       calculateUpgradeOptions();
     }
-  }, [selectedPlan, subscription, availablePlans, selectedCycle]);
+  }, [selectedPlan, subscription, availablePlans, selectedCycle, isCurrentCycleYearly]);
 
   // Debug modal state changes
   useEffect(() => {
     console.log("🔧 MODAL STATE CHANGED:", showUpgradeModal);
-  }, [showUpgradeModal]);
+    
+    // Set selected cycle based on current subscription when modal opens
+    if (showUpgradeModal && isCurrentCycleYearly) {
+      setSelectedCycle("yearly");
+    }
+  }, [showUpgradeModal, isCurrentCycleYearly]);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -240,6 +269,9 @@ function SubscriptionContent() {
   const calculateUpgradeOptions = async () => {
     if (!selectedPlan || !subscription) return;
 
+    // For yearly subscribers, always use yearly pricing
+    const cycleToUse = isCurrentCycleYearly ? "yearly" : selectedCycle;
+    
     const newPlan = availablePlans.find((p) => p.id === selectedPlan);
     if (!newPlan) return;
 
@@ -271,7 +303,7 @@ function SubscriptionContent() {
     if (isSamePlan) {
       if (isExpired) {
         // Expired subscription renewal - show renewal calculation
-        const renewalPrice = getPriceForCycle(newPlan, selectedCycle);
+        const renewalPrice = getPriceForCycle(newPlan, cycleToUse);
         setUpgradeCalculation({
           currentPlan: subscription.plan,
           newPlan: newPlan,
@@ -294,7 +326,7 @@ function SubscriptionContent() {
 
     // CRITICAL FIX: For expired subscriptions with different plans, show full price
     if (isExpired && !isSamePlan) {
-      const fullPrice = getPriceForCycle(newPlan, selectedCycle);
+      const fullPrice = getPriceForCycle(newPlan, cycleToUse);
       setUpgradeCalculation({
         currentPlan: subscription.plan,
         newPlan: newPlan,
@@ -331,7 +363,9 @@ function SubscriptionContent() {
     const currentDailyRate = Number(subscription.plan.price) / totalCurrentDays;
 
     // Align with backend: use total days in current period for both plans
-    const newDailyRate = Number(newPlan.price) / totalCurrentDays;
+    // Use the correct price based on the cycle
+    const newPlanPrice = getPriceForCycle(newPlan, cycleToUse);
+    const newDailyRate = Number(newPlanPrice) / totalCurrentDays;
 
     // Calculate unused current plan value
     const unusedCurrentValue = currentDailyRate * clampedRemainingDays;
@@ -1159,38 +1193,53 @@ function SubscriptionContent() {
                 )}
               </div>
               {/* Billing Cycle Selection */}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  Billing cycle
-                </h4>
-                <div className="flex items-center space-x-6">
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="monthly"
-                      checked={selectedCycle === "monthly"}
-                      onChange={() => setSelectedCycle("monthly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">Monthly</span>
-                  </label>
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="yearly"
-                      checked={selectedCycle === "yearly"}
-                      onChange={() => setSelectedCycle("yearly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Yearly (20% off)
-                    </span>
-                  </label>
-                </div>
-              </div>
-              {/* Enhanced Upgrade Options */}
+               {!isCurrentCycleYearly && !isPendingCheckoutRenewal && (
+                 <div className="mt-4">
+                   <h4 className="text-sm font-medium text-gray-900 mb-2">
+                     Billing cycle
+                   </h4>
+                   <div className="flex items-center space-x-6">
+                     <label className="inline-flex items-center space-x-2 cursor-pointer">
+                       <input
+                         type="radio"
+                         name="billingCycle"
+                         value="monthly"
+                         checked={selectedCycle === "monthly"}
+                         onChange={() => setSelectedCycle("monthly")}
+                         className="h-4 w-4 text-amber-600 border-gray-300"
+                       />
+                       <span className="text-sm text-gray-700">Monthly</span>
+                     </label>
+                     <label className="inline-flex items-center space-x-2 cursor-pointer">
+                       <input
+                         type="radio"
+                         name="billingCycle"
+                         value="yearly"
+                         checked={selectedCycle === "yearly"}
+                         onChange={() => setSelectedCycle("yearly")}
+                         className="h-4 w-4 text-amber-600 border-gray-300"
+                       />
+                       <span className="text-sm text-gray-700">
+                         Yearly (20% off)
+                       </span>
+                     </label>
+                   </div>
+                 </div>
+               )}
+               {(isCurrentCycleYearly || isPendingCheckoutRenewal) && (
+                 <div className="mt-4">
+                   <h4 className="text-sm font-medium text-gray-900 mb-2">
+                     Billing cycle
+                   </h4>
+                   <div className="px-3 py-2 bg-gray-50 rounded-md">
+                     <p className="text-sm text-gray-700">
+                       {isCurrentCycleYearly ? "Yearly billing cycle will be maintained" : "Current billing cycle will be maintained"}
+                     </p>
+                   </div>
+                 </div>
+               )}
+
+               {/* Enhanced Upgrade Options */}
               {selectedPlan &&
                 upgradeCalculation &&
                 upgradeCalculation.newPlan &&
