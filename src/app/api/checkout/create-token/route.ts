@@ -9,6 +9,7 @@ import {
   MidtransParameter,
   formatMidtransStartTime,
 } from "../../../../../lib/midtrans";
+import { getSubscriptionWithCurrentStatus } from "../../../../../lib/update-subscription-status";
 
 // Midtrans expects 'yyyy-MM-dd HH:mm:ss Z' (eg '2020-06-09 15:07:00 +0700')
 function formatMidtransStartTime(date: Date): string {
@@ -51,10 +52,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Security: Validate user has permission to purchase this plan
-    const userSubscription = await prisma.subscription.findFirst({
-      where: { tenantId: session.user.tenantId },
-      include: { plan: true },
-    });
+    // Get subscription with up-to-date status
+    const userSubscription = await getSubscriptionWithCurrentStatus(session.user.tenantId);
 
     console.log('🔍 CREATE-TOKEN DEBUG: User subscription:', {
       id: userSubscription?.id,

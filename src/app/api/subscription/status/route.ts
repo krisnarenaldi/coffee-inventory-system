@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/prisma';
 import { validateSubscription, getSubscriptionMessage } from '../../../../../lib/subscription-validation';
+import { getSubscriptionWithCurrentStatus } from '../../../../../lib/update-subscription-status';
 
 // GET /api/subscription/status - Get status for the current logged-in user's tenant
 export async function GET(request: NextRequest) {
@@ -13,10 +14,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: session.user.tenantId },
-      include: { plan: true },
-    });
+    // Get subscription with up-to-date status
+    const subscription = await getSubscriptionWithCurrentStatus(session.user.tenantId);
 
     if (!subscription) {
       return NextResponse.json({
@@ -71,11 +70,8 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     }).catch(() => null);
 
-    // Get subscription for the tenant
-    const subscription = await prisma.subscription.findUnique({
-      where: { tenantId: tenant.id },
-      include: { plan: true },
-    });
+    // Get subscription for the tenant with up-to-date status
+    const subscription = await getSubscriptionWithCurrentStatus(tenant.id);
 
     if (!subscription) {
       // No subscription means they are effectively on free; not expired

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/prisma';
+import { getSubscriptionWithCurrentStatus } from '../../../../lib/update-subscription-status';
 
 // GET /api/subscription - Get current tenant's subscription
 export async function GET(request: NextRequest) {
@@ -15,26 +16,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let subscription = await prisma.subscription.findUnique({
-      where: {
-        tenantId: session.user.tenantId
-      },
-      include: {
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            price: true,
-            interval: true,
-            maxUsers: true,
-            maxIngredients: true,
-            maxBatches: true,
-            features: true
-          }
-        }
-      }
-    });
+    // Get subscription with up-to-date status
+    let subscription = await getSubscriptionWithCurrentStatus(session.user.tenantId);
 
     if (!subscription) {
       // Initialize a free subscription if none exists for the tenant
