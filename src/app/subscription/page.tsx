@@ -319,21 +319,6 @@ const SubscriptionContent = (): JSX.Element | null => {
     }
   }, [searchParams]);
 
-  // Derive if current subscription period is yearly based on period length
-  const isCurrentCycleYearly = useMemo(() => {
-    if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
-      return subscription?.plan?.interval === "YEARLY";
-    }
-    try {
-      const start = new Date(subscription.currentPeriodStart);
-      const end = new Date(subscription.currentPeriodEnd);
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return days >= 300; // treat ~10 months+ as yearly period
-    } catch {
-      return subscription?.plan?.interval === "YEARLY";
-    }
-  }, [subscription?.currentPeriodStart, subscription?.currentPeriodEnd, subscription?.plan?.interval]);
-
   // Ensure selectedCycle reflects current cycle when subscription changes
   useEffect(() => {
     if (isCurrentCycleYearly && selectedCycle !== "yearly") {
@@ -752,7 +737,7 @@ const SubscriptionContent = (): JSX.Element | null => {
         text: "Failed to schedule downgrade. Please try again.",
       });
     }
-  };
+  }
 
   // Handle loading and authentication states
   if (status === "loading" || loading) {
