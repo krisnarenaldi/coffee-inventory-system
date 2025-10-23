@@ -237,22 +237,24 @@ function SubscriptionContent() {
     return () => clearTimeout(timeout);
   }, [session]);
 
+  // Helper function to calculate price for cycle (moved to component level for modal access)
+  const getPriceForCycle = (
+    plan: SubscriptionPlan | undefined,
+    cycle: "monthly" | "yearly"
+  ) => {
+    if (!plan) return 0;
+    const base = Number(plan.price) || 0;
+    if (cycle === "yearly") {
+      return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
+    }
+    return base;
+  };
+
   const calculateUpgradeOptions = async () => {
     if (!selectedPlan || !subscription) return;
 
     const newPlan = availablePlans.find((p) => p.id === selectedPlan);
     if (!newPlan) return;
-
-    const getPriceForCycle = (
-      plan: SubscriptionPlan,
-      cycle: "monthly" | "yearly"
-    ) => {
-      const base = Number(plan.price) || 0;
-      if (cycle === "yearly") {
-        return plan.interval === "YEARLY" ? base : Math.round(base * 12 * 0.8);
-      }
-      return base;
-    };
 
     // Check if this is a renewal case for expired subscription
     const now = new Date();
@@ -261,8 +263,8 @@ function SubscriptionContent() {
       : null;
     const remainingDays = currentPeriodEnd
       ? Math.ceil(
-          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        )
+        (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
       : 0;
     const isExpired = remainingDays <= 0;
     const isSamePlan = newPlan.id === subscription.plan.id;
@@ -326,14 +328,14 @@ function SubscriptionContent() {
     const currentPeriodStart = new Date(subscription.currentPeriodStart);
     const totalCurrentDays = Math.ceil(
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24)
     );
-    
+
     // CRITICAL FIX: Use billing cycle-adjusted prices for fair comparison
     // Map both plans to the selected billing cycle for accurate proration
     const currentPriceForCycle = getPriceForCycle(subscription.plan, selectedCycle);
     const newPriceForCycle = getPriceForCycle(newPlan, selectedCycle);
-    
+
     // Calculate daily rates based on the selected billing cycle
     // For yearly cycles, use 365 days; for monthly cycles, use actual period days
     const daysForCalculation = selectedCycle === "yearly" ? 365 : totalCurrentDays;
@@ -487,8 +489,8 @@ function SubscriptionContent() {
         : null;
       const remainingDays = currentPeriodEnd
         ? Math.ceil(
-            (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-          )
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
         : 0;
       const isExpired = remainingDays <= 0;
       const isSamePlan = chosenPlan.id === subscription.plan.id;
@@ -520,18 +522,6 @@ function SubscriptionContent() {
       // If active and different plan: this is an upgrade/downgrade (allowed)
 
       const currentPrice = parseFloat(String(subscription.plan.price));
-      const getPriceForCycle = (
-        plan: SubscriptionPlan,
-        cycle: "monthly" | "yearly"
-      ) => {
-        const base = Number(plan.price) || 0;
-        if (cycle === "yearly") {
-          return plan.interval === "YEARLY"
-            ? base
-            : Math.round(base * 12 * 0.8);
-        }
-        return base;
-      };
       const newPrice = getPriceForCycle(chosenPlan, selectedCycle);
       const isUpgrade = newPrice > currentPrice;
       const isDowngrade = newPrice < currentPrice;
@@ -768,15 +758,15 @@ function SubscriptionContent() {
                   {isExpired
                     ? "Subscription Expired"
                     : hasError
-                    ? "Subscription Validation Error"
-                    : "Subscription Issue"}
+                      ? "Subscription Validation Error"
+                      : "Subscription Issue"}
                 </h3>
                 <p className="mt-1 text-sm text-red-700">
                   {isExpired
                     ? "Your subscription has expired. Please renew to continue using the service."
                     : hasError
-                    ? "There was an error validating your subscription. Please contact support if this persists."
-                    : String(subscriptionMessage || "")}
+                      ? "There was an error validating your subscription. Please contact support if this persists."
+                      : String(subscriptionMessage || "")}
                 </p>
               </div>
             </div>
@@ -786,11 +776,10 @@ function SubscriptionContent() {
         {/* Action Feedback (hidden while modal open; shown on main page) */}
         {actionMessage && !showUpgradeModal && (
           <div
-            className={`${
-              actionMessage.type === "success"
+            className={`${actionMessage.type === "success"
                 ? "bg-green-50 border-green-200"
                 : "bg-red-50 border-red-200"
-            } border rounded-lg p-4 mb-6`}
+              } border rounded-lg p-4 mb-6`}
           >
             <div className="flex items-center">
               {actionMessage.type === "success" ? (
@@ -799,11 +788,10 @@ function SubscriptionContent() {
                 <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
               )}
               <p
-                className={`text-sm ${
-                  actionMessage.type === "success"
+                className={`text-sm ${actionMessage.type === "success"
                     ? "text-green-800"
                     : "text-red-800"
-                }`}
+                  }`}
               >
                 {actionMessage.text}
               </p>
@@ -883,7 +871,7 @@ function SubscriptionContent() {
                         </button>
                         {subscription.plan?.id !== "free-plan" &&
                           (subscription.plan?.name?.toLowerCase() || "") !==
-                            "free" && (
+                          "free" && (
                             <button
                               onClick={handleDowngradeAtPeriodEnd}
                               className="w-full px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 text-sm font-medium"
@@ -1036,36 +1024,35 @@ function SubscriptionContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.isArray(subscription.plan.features)
                   ? // Handle array format
-                    subscription.plan.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="text-sm text-gray-900">{feature}</span>
-                      </div>
-                    ))
+                  subscription.plan.features.map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <span className="text-sm text-gray-900">{feature}</span>
+                    </div>
+                  ))
                   : // Handle object format
-                    Object.entries(subscription.plan.features).map(
-                      ([feature, enabled]) => (
-                        <div
-                          key={feature}
-                          className="flex items-center space-x-2"
-                        >
-                          {enabled ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-gray-400" />
-                          )}
-                          <span
-                            className={`text-sm ${
-                              enabled ? "text-gray-900" : "text-gray-400"
+                  Object.entries(subscription.plan.features).map(
+                    ([feature, enabled]) => (
+                      <div
+                        key={feature}
+                        className="flex items-center space-x-2"
+                      >
+                        {enabled ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-gray-400" />
+                        )}
+                        <span
+                          className={`text-sm ${enabled ? "text-gray-900" : "text-gray-400"
                             }`}
-                          >
-                            {feature
-                              .replace(/([A-Z])/g, " $1")
-                              .replace(/^./, (str) => str.toUpperCase())}
-                          </span>
-                        </div>
-                      )
-                    )}
+                        >
+                          {feature
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) => str.toUpperCase())}
+                        </span>
+                      </div>
+                    )
+                  )}
               </div>
             </div>
           </div>
@@ -1083,11 +1070,10 @@ function SubscriptionContent() {
               {/* Modal-specific feedback */}
               {actionMessage && (
                 <div
-                  className={`${
-                    actionMessage.type === "success"
+                  className={`${actionMessage.type === "success"
                       ? "bg-green-50 border-green-200"
                       : "bg-red-50 border-red-200"
-                  } border rounded-lg p-3 mb-4`}
+                    } border rounded-lg p-3 mb-4`}
                 >
                   <div className="flex items-center">
                     {actionMessage.type === "success" ? (
@@ -1096,11 +1082,10 @@ function SubscriptionContent() {
                       <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
                     )}
                     <p
-                      className={`text-sm ${
-                        actionMessage.type === "success"
+                      className={`text-sm ${actionMessage.type === "success"
                           ? "text-green-800"
                           : "text-red-800"
-                      }`}
+                        }`}
                     >
                       {actionMessage.text}
                     </p>
@@ -1116,11 +1101,10 @@ function SubscriptionContent() {
                   availablePlans.map((plan) => (
                     <div
                       key={plan.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        selectedPlan === plan.id
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedPlan === plan.id
                           ? "border-amber-500 bg-amber-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                       onClick={() => setSelectedPlan(plan.id)}
                     >
                       <div className="flex justify-between items-start">
@@ -1165,38 +1149,59 @@ function SubscriptionContent() {
                   ))
                 )}
               </div>
-              {/* Billing Cycle Selection */}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  Billing cycle
-                </h4>
-                <div className="flex items-center space-x-6">
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="monthly"
-                      checked={selectedCycle === "monthly"}
-                      onChange={() => setSelectedCycle("monthly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">Monthly</span>
-                  </label>
-                  <label className="inline-flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="billingCycle"
-                      value="yearly"
-                      checked={selectedCycle === "yearly"}
-                      onChange={() => setSelectedCycle("yearly")}
-                      className="h-4 w-4 text-amber-600 border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Yearly (20% off)
-                    </span>
-                  </label>
-                </div>
-              </div>
+              {/* Billing Cycle Selection - Hide for active subscriptions and pending checkout */}
+              {(!subscription ||
+                subscription.status === "EXPIRED" ||
+                subscription.status === "CANCELLED" ||
+                subscription.status === "UNPAID") &&
+                subscription?.status !== "PENDING_CHECKOUT" && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      Billing cycle
+                    </h4>
+                    <div className="flex items-center space-x-6">
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="billingCycle"
+                          value="monthly"
+                          checked={selectedCycle === "monthly"}
+                          onChange={() => setSelectedCycle("monthly")}
+                          className="h-4 w-4 text-amber-600 border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">Monthly</span>
+                      </label>
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="billingCycle"
+                          value="yearly"
+                          checked={selectedCycle === "yearly"}
+                          onChange={() => setSelectedCycle("yearly")}
+                          className="h-4 w-4 text-amber-600 border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">
+                          Yearly (20% off)
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+              {/* Show current billing cycle for active subscriptions */}
+              {subscription &&
+                subscription.status !== "EXPIRED" &&
+                subscription.status !== "CANCELLED" &&
+                subscription.status !== "UNPAID" && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-sm text-blue-800">
+                      <strong>Current billing cycle:</strong> {selectedCycle === "yearly" ? "Yearly" : "Monthly"}
+                      {subscription.status === "PENDING_CHECKOUT" && (
+                        <span className="ml-2 text-orange-600">(Pending checkout)</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               {/* Enhanced Upgrade Options */}
               {selectedPlan &&
                 upgradeCalculation &&
@@ -1219,8 +1224,8 @@ function SubscriptionContent() {
                             <div className="text-lg font-bold text-amber-600">
                               {(upgradeCalculation.additionalCharge || 0) > 0
                                 ? `Rp ${Math.round(
-                                    upgradeCalculation.additionalCharge || 0
-                                  ).toLocaleString()}`
+                                  upgradeCalculation.additionalCharge || 0
+                                ).toLocaleString()}`
                                 : "Free"}
                             </div>
                           </div>
@@ -1247,8 +1252,8 @@ function SubscriptionContent() {
                             </div>
                             <div>
                               • Next billing: Rp{" "}
-                              {parseFloat(
-                                String(upgradeCalculation.newPlan.price)
+                              {Math.round(
+                                getPriceForCycle(upgradeCalculation.newPlan, selectedCycle)
                               ).toLocaleString()}{" "}
                               on{" "}
                               {formatDate(upgradeCalculation.nextBillingDate)}
@@ -1297,14 +1302,14 @@ function SubscriptionContent() {
                         <strong>✅ Ready to Upgrade:</strong> Pay{" "}
                         {(upgradeCalculation.additionalCharge || 0) > 0
                           ? `Rp ${Math.round(
-                              upgradeCalculation.additionalCharge || 0
-                            ).toLocaleString()}`
+                            upgradeCalculation.additionalCharge || 0
+                          ).toLocaleString()}`
                           : "nothing"}{" "}
                         now for immediate access to{" "}
                         {upgradeCalculation.newPlan.name || "new"} features.
                         Your next billing will be Rp{" "}
-                        {parseFloat(
-                          String(upgradeCalculation.newPlan.price || 0)
+                        {Math.round(
+                          getPriceForCycle(upgradeCalculation.newPlan, selectedCycle)
                         ).toLocaleString()}{" "}
                         on {formatDate(upgradeCalculation.nextBillingDate)}.
                       </div>
