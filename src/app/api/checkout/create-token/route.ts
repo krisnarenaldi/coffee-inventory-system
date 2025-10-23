@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
     const { planId, billingCycle, upgradeOption, customAmount } =
       await request.json();
 
+    console.log('🔍 CREATE-TOKEN DEBUG: Request data:', {
+      planId,
+      billingCycle,
+      upgradeOption,
+      customAmount,
+      userId: session.user.id,
+      tenantId: session.user.tenantId
+    });
+
     if (!planId || !billingCycle) {
       return NextResponse.json(
         { error: "Plan ID and billing cycle are required" },
@@ -45,6 +54,15 @@ export async function POST(request: NextRequest) {
     const userSubscription = await prisma.subscription.findFirst({
       where: { tenantId: session.user.tenantId },
       include: { plan: true },
+    });
+
+    console.log('🔍 CREATE-TOKEN DEBUG: User subscription:', {
+      id: userSubscription?.id,
+      status: userSubscription?.status,
+      planId: userSubscription?.planId,
+      currentPeriodStart: userSubscription?.currentPeriodStart,
+      currentPeriodEnd: userSubscription?.currentPeriodEnd,
+      intendedPlan: (userSubscription as any)?.intendedPlan
     });
 
     // Check if user has a pending checkout and validate intended plan
@@ -90,19 +108,44 @@ export async function POST(request: NextRequest) {
     } else if (userSubscription) {
       // Allow active users to upgrade, and expired/canceled users to renew.
       const allowedStatuses = ["ACTIVE", "EXPIRED", "CANCELED", "PAST_DUE"];
-      if (!allowedStatuses.includes(userSubscription.status)) {
+      
+      // Check if subscription is expired based on currentPeriodEnd date
+      const now = new Date();
+      const isExpiredByDate = userSubscription.currentPeriodEnd 
+        ? new Date(userSubscription.currentPeriodEnd) < now 
+        : false;
+      
+      console.log('🔍 CREATE-TOKEN DEBUG: Checking subscription status:', {
+        currentStatus: userSubscription.status,
+        currentPeriodEnd: userSubscription.currentPeriodEnd,
+        isExpiredByDate,
+        allowedStatuses,
+        isAllowedByStatus: allowedStatuses.includes(userSubscription.status)
+      });
+      
+      // Allow if status is in allowed list OR if subscription is expired by date (grace period)
+      const isAllowed = allowedStatuses.includes(userSubscription.status) || isExpiredByDate;
+      
+      if (!isAllowed) {
         // For users not in PENDING_CHECKOUT and not in a renewable/upgradable state, block access.
         // This path handles statuses like INCOMPLETE, TRIALING etc., which have different flows.
+        console.error('🔍 CREATE-TOKEN DEBUG: Status not allowed:', {
+          status: userSubscription.status,
+          isExpiredByDate,
+          currentPeriodEnd: userSubscription.currentPeriodEnd
+        });
         return NextResponse.json(
           {
             error:
               "Unauthorized: Your current subscription status does not permit this action.",
             currentStatus: userSubscription.status,
+            isExpiredByDate,
           },
           { status: 403 },
         );
       }
-      // If userSubscription has an allowed status, let them proceed.
+      console.log('🔍 CREATE-TOKEN DEBUG: Status check passed, proceeding...');
+      // If userSubscription has an allowed status or is expired by date, let them proceed.
     }
     // If userSubscription is null (new tenant), they can also proceed.
 
@@ -163,18 +206,40 @@ export async function POST(request: NextRequest) {
     let price: number;
     let chosenCycle: "monthly" | "yearly" = resolvedBillingCycle;
 
+    console.log('🔍 CREATE-TOKEN DEBUG: Price calculation context:', {
+      existingPendingTx: !!existingPendingTx,
+      upgradeOption,
+      resolvedBillingCycle,
+      requestedCycle
+    });
+
     if (existingPendingTx) {
       price = Number(existingPendingTx.amount) || 0;
       if (existingPendingTx.billingCycle === "monthly" || existingPendingTx.billingCycle === "yearly") {
         chosenCycle = existingPendingTx.billingCycle as any;
       }
+      console.log('🔍 CREATE-TOKEN DEBUG: Using existing pending transaction:', {
+        amount: price,
+        billingCycle: chosenCycle
+      });
     } else if (upgradeOption === "immediate") {
       // Securely recompute proration for immediate upgrades
       const currentPeriodStart = userSubscription?.currentPeriodStart;
       const currentPeriodEnd = userSubscription?.currentPeriodEnd;
 
-      if (!currentPeriodStart || !currentPeriodEnd) {
-        // No active period (e.g., free plan): charge standard price instead of proration
+      // Check if subscription is expired (including grace period)
+      const now = new Date();
+      const isExpiredByDate = currentPeriodEnd ? new Date(currentPeriodEnd) < now : false;
+
+      console.log('🔍 CREATE-TOKEN DEBUG: Upgrade option immediate - checking expiry:', {
+        currentPeriodStart,
+        currentPeriodEnd,
+        isExpiredByDate,
+        now: now.toISOString()
+      });
+
+      if (!currentPeriodStart || !currentPeriodEnd || isExpiredByDate) {
+        // No active period OR expired subscription: charge standard price instead of proration
         const planPrice = plan.price ? Number(plan.price) : 0;
         const targetCycle: "monthly" | "yearly" = plan.interval === "YEARLY" ? "yearly" : requestedCycle;
         const calculatedPrice = targetCycle === "yearly"
@@ -188,6 +253,12 @@ export async function POST(request: NextRequest) {
         }
         price = calculatedPrice;
         chosenCycle = targetCycle;
+        
+        console.log('🔍 CREATE-TOKEN DEBUG: Using full price for expired/no-period subscription:', {
+          price,
+          chosenCycle,
+          reason: isExpiredByDate ? 'expired' : 'no-period'
+        });
       } else {
 
       const now = new Date();
@@ -306,7 +377,23 @@ export async function POST(request: NextRequest) {
     };
 
     // Create Snap token
+    console.log('🔍 CREATE-TOKEN DEBUG: Creating Midtrans token with params:', {
+      orderId,
+      amount: Number(price),
+      planName: plan.name,
+      billingCycle: chosenCycle,
+      midtransParams: {
+        transaction_details: midtransParams.transaction_details,
+        customer_details: midtransParams.customer_details
+      }
+    });
+
     const snapToken = await createSnapToken(midtransParams);
+
+    console.log('🔍 CREATE-TOKEN DEBUG: Snap token created successfully:', {
+      hasToken: !!snapToken,
+      tokenLength: snapToken?.length
+    });
 
     return NextResponse.json({
       snapToken,

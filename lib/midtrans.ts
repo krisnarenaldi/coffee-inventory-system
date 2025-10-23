@@ -94,10 +94,28 @@ export interface MidtransNotification {
  */
 export async function createSnapToken(parameter: MidtransParameter): Promise<string> {
   try {
+    console.log('🔍 MIDTRANS DEBUG: Creating transaction with parameter:', {
+      order_id: parameter.transaction_details.order_id,
+      gross_amount: parameter.transaction_details.gross_amount,
+      customer_email: parameter.customer_details.email,
+      isProduction,
+      serverKeyPrefix: serverKey?.substring(0, 10) + '...'
+    });
+    
     const transaction = await snap.createTransaction(parameter);
+    
+    console.log('🔍 MIDTRANS DEBUG: Transaction created successfully:', {
+      hasToken: !!transaction.token,
+      tokenLength: transaction.token?.length
+    });
+    
     return transaction.token;
   } catch (error) {
-    console.error('Error creating Snap token:', error);
+    console.error('🔍 MIDTRANS DEBUG: Error creating Snap token:', error);
+    console.error('🔍 MIDTRANS DEBUG: Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw new Error('Failed to create payment token');
   }
 }

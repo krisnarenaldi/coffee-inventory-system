@@ -125,8 +125,15 @@ function CheckoutContent() {
     const script = document.createElement("script");
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
 
+    console.log('🔍 MIDTRANS SCRIPT DEBUG: Client key check:', {
+      hasClientKey: !!clientKey,
+      keyPrefix: clientKey?.substring(0, 10) + '...',
+      keyLength: clientKey?.length
+    });
+
     if (!clientKey) {
       console.error("Midtrans client key not found");
+      toast.error("Payment system configuration error. Please contact support.");
       return;
     }
 
