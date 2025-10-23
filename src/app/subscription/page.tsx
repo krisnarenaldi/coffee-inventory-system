@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -86,6 +86,21 @@ function SubscriptionContent() {
     null
   );
 
+  // Derive if current subscription period is yearly based on period length
+  const isCurrentCycleYearly = useMemo(() => {
+    if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+    try {
+      const start = new Date(subscription.currentPeriodStart);
+      const end = new Date(subscription.currentPeriodEnd);
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return days >= 300; // treat ~10 months+ as yearly period
+    } catch {
+      return subscription?.plan?.interval === "YEARLY";
+    }
+  }, [subscription?.currentPeriodStart, subscription?.currentPeriodEnd, subscription?.plan?.interval]);
+
   // Check for expired or error parameters
   const isExpired = searchParams?.get("expired") === "true";
   const hasError = searchParams?.get("error") === "validation_failed";
@@ -129,6 +144,15 @@ function SubscriptionContent() {
       setShowUpgradeModal(true);
     }
   }, [isExpired, hasError]);
+
+  // Ensure selectedCycle reflects current cycle when subscription changes
+  useEffect(() => {
+    if (isCurrentCycleYearly && selectedCycle !== "yearly") {
+      setSelectedCycle("yearly");
+    } else if (!isCurrentCycleYearly && selectedCycle !== "monthly") {
+      setSelectedCycle("monthly");
+    }
+  }, [isCurrentCycleYearly, selectedCycle]);
 
   // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
@@ -777,8 +801,8 @@ function SubscriptionContent() {
         {actionMessage && !showUpgradeModal && (
           <div
             className={`${actionMessage.type === "success"
-                ? "bg-green-50 border-green-200"
-                : "bg-red-50 border-red-200"
+              ? "bg-green-50 border-green-200"
+              : "bg-red-50 border-red-200"
               } border rounded-lg p-4 mb-6`}
           >
             <div className="flex items-center">
@@ -789,8 +813,8 @@ function SubscriptionContent() {
               )}
               <p
                 className={`text-sm ${actionMessage.type === "success"
-                    ? "text-green-800"
-                    : "text-red-800"
+                  ? "text-green-800"
+                  : "text-red-800"
                   }`}
               >
                 {actionMessage.text}
@@ -1071,8 +1095,8 @@ function SubscriptionContent() {
               {actionMessage && (
                 <div
                   className={`${actionMessage.type === "success"
-                      ? "bg-green-50 border-green-200"
-                      : "bg-red-50 border-red-200"
+                    ? "bg-green-50 border-green-200"
+                    : "bg-red-50 border-red-200"
                     } border rounded-lg p-3 mb-4`}
                 >
                   <div className="flex items-center">
@@ -1083,8 +1107,8 @@ function SubscriptionContent() {
                     )}
                     <p
                       className={`text-sm ${actionMessage.type === "success"
-                          ? "text-green-800"
-                          : "text-red-800"
+                        ? "text-green-800"
+                        : "text-red-800"
                         }`}
                     >
                       {actionMessage.text}
@@ -1102,8 +1126,8 @@ function SubscriptionContent() {
                     <div
                       key={plan.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedPlan === plan.id
-                          ? "border-amber-500 bg-amber-50"
-                          : "border-gray-200 hover:border-gray-300"
+                        ? "border-amber-500 bg-amber-50"
+                        : "border-gray-200 hover:border-gray-300"
                         }`}
                       onClick={() => setSelectedPlan(plan.id)}
                     >
@@ -1195,7 +1219,20 @@ function SubscriptionContent() {
                 subscription.status !== "UNPAID" && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="text-sm text-blue-800">
-                      <strong>Current billing cycle:</strong> {selectedCycle === "yearly" ? "Yearly" : "Monthly"}
+                      <strong>Current billing cycle:</strong> {(() => {
+                        // Detect current billing cycle from subscription data
+                        if (!subscription?.currentPeriodStart || !subscription?.currentPeriodEnd) {
+                          return subscription?.plan?.interval === "YEARLY" ? "Yearly" : "Monthly";
+                        }
+                        try {
+                          const start = new Date(subscription.currentPeriodStart);
+                          const end = new Date(subscription.currentPeriodEnd);
+                          const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                          return days >= 300 ? "Yearly" : "Monthly"; // treat ~10 months+ as yearly period
+                        } catch {
+                          return subscription?.plan?.interval === "YEARLY" ? "Yearly" : "Monthly";
+                        }
+                      })()}
                       {subscription.status === "PENDING_CHECKOUT" && (
                         <span className="ml-2 text-orange-600">(Pending checkout)</span>
                       )}
