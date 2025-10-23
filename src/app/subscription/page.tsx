@@ -67,7 +67,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // State management with proper types
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
@@ -169,8 +169,8 @@ const SubscriptionContent = (): JSX.Element | null => {
       : null;
     const remainingDays = currentPeriodEnd
       ? Math.ceil(
-          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        )
+        (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
       : 0;
     const isExpired = remainingDays <= 0;
     const isSamePlan = newPlan.id === subscription.plan.id;
@@ -233,9 +233,9 @@ const SubscriptionContent = (): JSX.Element | null => {
     const currentPeriodStart = new Date(subscription.currentPeriodStart);
     const totalCurrentDays = Math.ceil(
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24)
     );
-    
+
     // Map current plan price to the enforced/selected cycle for fair comparison
     const currentPriceForCycle = getPriceForCycle(subscription.plan, selectedCycle);
     const currentDailyRate = Number(currentPriceForCycle) / totalCurrentDays;
@@ -311,7 +311,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   useEffect(() => {
     const isExpired = searchParams.get('expired') === 'true';
     const hasError = searchParams.get('error') === 'true';
-    
+
     console.log("🔍 CHECKING URL PARAMS:", { isExpired, hasError });
     if (isExpired || hasError) {
       console.log("🚨 OPENING MODAL DUE TO URL PARAMS");
@@ -556,8 +556,8 @@ const SubscriptionContent = (): JSX.Element | null => {
         : null;
       const remainingDays = currentPeriodEnd
         ? Math.ceil(
-            (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-          )
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
         : 0;
       const isExpired = remainingDays <= 0;
       const isSamePlan = chosenPlan.id === subscription.plan.id;
@@ -757,8 +757,217 @@ const SubscriptionContent = (): JSX.Element | null => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Home Page Link with Logo */}
-        {/* ... rest of your code ... */}
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Subscription Management</h1>
+          <p className="mt-2 text-gray-600">Manage your subscription plan and billing</p>
+        </div>
+
+        {/* Action Messages */}
+        {actionMessage && (
+          <div className={`mb-6 p-4 rounded-md ${actionMessage.type === "success"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+            }`}>
+            <div className="flex">
+              <div className="flex-shrink-0">
+                {actionMessage.type === "success" ? (
+                  <CheckCircle className="h-5 w-5" />
+                ) : (
+                  <XCircle className="h-5 w-5" />
+                )}
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium">{actionMessage.text}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Subscription Message */}
+        {subscriptionMessage && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-blue-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-800">{subscriptionMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Current Subscription */}
+        {subscription && (
+          <div className="bg-white shadow rounded-lg mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Current Subscription</h2>
+            </div>
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Plan</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{subscription.plan.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Status</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(subscription.status)}`}>
+                      {subscription.status}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Current Period</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {formatDate(subscription.currentPeriodStart)} - {formatDate(subscription.currentPeriodEnd)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Price</dt>
+                  <dd className="mt-1 text-sm text-gray-900">${subscription.plan.price}/{subscription.plan.interval.toLowerCase()}</dd>
+                </div>
+              </div>
+
+              {subscription.cancelAtPeriodEnd && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Clock className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-800">
+                        Your subscription will be cancelled at the end of the current period ({formatDate(subscription.currentPeriodEnd)}).
+                      </p>
+                      <button
+                        onClick={handleReactivateSubscription}
+                        className="mt-2 text-sm text-yellow-800 underline hover:text-yellow-900"
+                      >
+                        Reactivate subscription
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Usage Information */}
+        {usage && subscription && (
+          <div className="bg-white shadow rounded-lg mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Usage</h2>
+            </div>
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Users</span>
+                    <span className="text-sm text-gray-900">
+                      {usage.users} / {subscription.plan.maxUsers || '∞'}
+                    </span>
+                  </div>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(usage.users, subscription.plan.maxUsers))}`}
+                      style={{ width: `${getUsagePercentage(usage.users, subscription.plan.maxUsers)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Ingredients</span>
+                    <span className="text-sm text-gray-900">
+                      {usage.ingredients} / {subscription.plan.maxIngredients || '∞'}
+                    </span>
+                  </div>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(usage.ingredients, subscription.plan.maxIngredients))}`}
+                      style={{ width: `${getUsagePercentage(usage.ingredients, subscription.plan.maxIngredients)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">Batches</span>
+                    <span className="text-sm text-gray-900">
+                      {usage.batches} / {subscription.plan.maxBatches || '∞'}
+                    </span>
+                  </div>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(usage.batches, subscription.plan.maxBatches))}`}
+                      style={{ width: `${getUsagePercentage(usage.batches, subscription.plan.maxBatches)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Available Plans */}
+        {availablePlans.length > 0 && (
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Available Plans</h2>
+            </div>
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availablePlans.map((plan) => (
+                  <div key={plan.id} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900">{plan.name}</h3>
+                    <p className="mt-2 text-sm text-gray-600">{plan.description}</p>
+                    <div className="mt-4">
+                      <span className="text-2xl font-bold text-gray-900">${plan.price}</span>
+                      <span className="text-sm text-gray-500">/{plan.interval.toLowerCase()}</span>
+                    </div>
+                    <ul className="mt-4 space-y-2">
+                      <li className="flex items-center text-sm text-gray-600">
+                        <Users className="h-4 w-4 mr-2" />
+                        {plan.maxUsers ? `${plan.maxUsers} users` : 'Unlimited users'}
+                      </li>
+                      <li className="flex items-center text-sm text-gray-600">
+                        <Package className="h-4 w-4 mr-2" />
+                        {plan.maxIngredients ? `${plan.maxIngredients} ingredients` : 'Unlimited ingredients'}
+                      </li>
+                      <li className="flex items-center text-sm text-gray-600">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        {plan.maxBatches ? `${plan.maxBatches} batches` : 'Unlimited batches'}
+                      </li>
+                    </ul>
+                    <button
+                      onClick={() => {
+                        setSelectedPlan(plan.id);
+                        setShowUpgradeModal(true);
+                      }}
+                      className="mt-4 w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 transition-colors"
+                    >
+                      {subscription?.plan.id === plan.id ? 'Current Plan' : 'Select Plan'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        {subscription && !subscription.cancelAtPeriodEnd && (
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={handleDowngradeAtPeriodEnd}
+              className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Cancel Subscription
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
