@@ -782,11 +782,11 @@ const SubscriptionContent = (): JSX.Element | null => {
   );
 };
 
-const SubscriptionPage = (): JSX.Element => {
+function SubscriptionPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
         </div>
       }
@@ -794,6 +794,6 @@ const SubscriptionPage = (): JSX.Element => {
       <SubscriptionContent />
     </Suspense>
   );
-};
+}
 
 export default SubscriptionPage;
