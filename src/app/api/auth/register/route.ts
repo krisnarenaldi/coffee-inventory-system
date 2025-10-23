@@ -85,31 +85,34 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Determine the plan to use - default to "free-plan" if no plan provided
-    const planId = plan ? `${plan}-plan` : 'free-plan';
-    let selectedPlan = await prisma.subscriptionPlan.findFirst({
-      where: {
-        id: planId
-      }
-    });
-
-    if (!selectedPlan) {
-      // Fallback to Starter plan if specified plan not found
-      selectedPlan = await prisma.subscriptionPlan.findFirst({
-        where: { id: 'starter-plan' },
-      });
-      
-      if (!selectedPlan) {
-        return NextResponse.json(
-          { error: 'Subscription plan not found' },
-          { status: 500 }
-        );
-      }
-    }
-
-    // Create tenant and user in a transaction
+    // Create tenant and user in a transaction with timeout
     const result = await prisma.$transaction(async (tx) => {
+      // Determine the plan to use inside transaction for consistency
+      const planId = plan ? `${plan}-plan` : 'free-plan';
+      console.log('Looking for plan with ID:', planId);
+      
+      let selectedPlan = await tx.subscriptionPlan.findFirst({
+        where: {
+          id: planId
+        }
+      });
+      console.log('Found plan:', selectedPlan ? selectedPlan.id : 'null');
+
+      if (!selectedPlan) {
+        console.log('Plan not found, falling back to starter-plan');
+        // Fallback to Starter plan if specified plan not found
+        selectedPlan = await tx.subscriptionPlan.findFirst({
+          where: { id: 'starter-plan' },
+        });
+        console.log('Fallback plan:', selectedPlan ? selectedPlan.id : 'null');
+        
+        if (!selectedPlan) {
+          console.error('No subscription plans found in database');
+          throw new Error('Subscription plan not found');
+        }
+      }
       // Create tenant
+      console.log('Creating tenant with subdomain:', subdomain);
       const tenant = await tx.tenant.create({
         data: {
           name: breweryName,
@@ -117,6 +120,7 @@ export async function POST(request: NextRequest) {
           status: 'ACTIVE',
         },
       });
+      console.log('Tenant created successfully:', tenant.id);
 
       // Determine subscription configuration based on plan
       let subscriptionData: any;
@@ -153,11 +157,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Create subscription for the tenant
+      console.log('Creating subscription with data:', subscriptionData);
       const subscription = await tx.subscription.create({
         data: subscriptionData,
       });
+      console.log('Subscription created successfully:', subscription.id);
 
       // Create admin user
+      console.log('Creating user with email:', email);
       const user = await tx.user.create({
         data: {
           tenantId: tenant.id,
@@ -168,8 +175,10 @@ export async function POST(request: NextRequest) {
           emailVerified: new Date(), // Auto-verify for demo purposes
         },
       });
+      console.log('User created successfully:', user.id);
 
       // Create default roles for the tenant
+      console.log('Creating default roles for tenant:', tenant.id);
       const roles = [
         {
           name: 'Admin',
@@ -203,22 +212,31 @@ export async function POST(request: NextRequest) {
         },
       ];
 
-      const createdRoles = await Promise.all(
-        roles.map((role) => tx.role.create({ data: role }))
-      );
+      try {
+        const createdRoles = await Promise.all(
+          roles.map((role) => tx.role.create({ data: role }))
+        );
+        console.log('Roles created successfully:', createdRoles.length);
 
-      // Assign admin role to the user
-      const adminRole = createdRoles.find((role) => role.name === 'Admin');
-      if (adminRole) {
-        await tx.userRoleAssignment.create({
-          data: {
-            userId: user.id,
-            roleId: adminRole.id,
-          },
-        });
+        // Assign admin role to the user
+        const adminRole = createdRoles.find((role) => role.name === 'Admin');
+        if (adminRole) {
+          await tx.userRoleAssignment.create({
+            data: {
+              userId: user.id,
+              roleId: adminRole.id,
+            },
+          });
+          console.log('Admin role assigned successfully');
+        }
+      } catch (roleError) {
+        console.error('Error creating roles:', roleError);
+        // Don't fail the entire registration if role creation fails
+        // Roles can be created later
       }
 
       // Create default tenant settings
+      console.log('Creating default tenant settings');
       const defaultSettings = [
         { key: 'timezone', value: 'UTC' },
         { key: 'currency', value: 'IDR' },
@@ -227,19 +245,28 @@ export async function POST(request: NextRequest) {
         { key: 'enable_notifications', value: 'true' },
       ];
 
-      await Promise.all(
-        defaultSettings.map((setting) =>
-          tx.tenantSetting.create({
-            data: {
-              tenantId: tenant.id,
-              key: setting.key,
-              value: setting.value,
-            },
-          })
-        )
-      );
+      try {
+        await Promise.all(
+          defaultSettings.map((setting) =>
+            tx.tenantSetting.create({
+              data: {
+                tenantId: tenant.id,
+                key: setting.key,
+                value: setting.value,
+              },
+            })
+          )
+        );
+        console.log('Tenant settings created successfully');
+      } catch (settingsError) {
+        console.error('Error creating tenant settings:', settingsError);
+        // Don't fail the entire registration if settings creation fails
+      }
 
       return { tenant, user, subscription };
+    }, {
+      maxWait: 5000, // 5 seconds
+      timeout: 10000, // 10 seconds
     });
 
     return NextResponse.json(
@@ -266,6 +293,35 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Registration error:', error);
+    
+    // Provide more specific error messages for debugging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Check for specific database constraint errors
+      if (error.message.includes('Unique constraint')) {
+        return NextResponse.json(
+          { error: 'Account with this information already exists' },
+          { status: 409 }
+        );
+      }
+      
+      if (error.message.includes('subdomain')) {
+        return NextResponse.json(
+          { error: 'Subdomain already taken' },
+          { status: 409 }
+        );
+      }
+      
+      if (error.message.includes('email')) {
+        return NextResponse.json(
+          { error: 'Email already registered' },
+          { status: 409 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
