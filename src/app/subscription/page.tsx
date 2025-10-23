@@ -433,8 +433,6 @@ const SubscriptionContent = (): JSX.Element | null => {
     return () => clearTimeout(timeout);
   }, [session]);
 
-    }
-
   const fetchSubscriptionMessage = async () => {
     try {
       const response = await fetch("/api/subscription/status");
