@@ -145,14 +145,12 @@ function SubscriptionContent() {
     }
   }, [isExpired, hasError]);
 
-  // Ensure selectedCycle reflects current cycle when subscription changes
+  // Force selectedCycle to always be monthly (business decision)
   useEffect(() => {
-    if (isCurrentCycleYearly && selectedCycle !== "yearly") {
-      setSelectedCycle("yearly");
-    } else if (!isCurrentCycleYearly && selectedCycle !== "monthly") {
+    if (selectedCycle !== "monthly") {
       setSelectedCycle("monthly");
     }
-  }, [isCurrentCycleYearly, selectedCycle]);
+  }, [selectedCycle]);
 
   // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
@@ -1173,44 +1171,7 @@ function SubscriptionContent() {
                   ))
                 )}
               </div>
-              {/* Billing Cycle Selection - Hide for active subscriptions and pending checkout */}
-              {(!subscription ||
-                subscription.status === "EXPIRED" ||
-                subscription.status === "CANCELLED" ||
-                subscription.status === "UNPAID") &&
-                subscription?.status !== "PENDING_CHECKOUT" && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Billing cycle
-                    </h4>
-                    <div className="flex items-center space-x-6">
-                      <label className="inline-flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="billingCycle"
-                          value="monthly"
-                          checked={selectedCycle === "monthly"}
-                          onChange={() => setSelectedCycle("monthly")}
-                          className="h-4 w-4 text-amber-600 border-gray-300"
-                        />
-                        <span className="text-sm text-gray-700">Monthly</span>
-                      </label>
-                      <label className="inline-flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="billingCycle"
-                          value="yearly"
-                          checked={selectedCycle === "yearly"}
-                          onChange={() => setSelectedCycle("yearly")}
-                          className="h-4 w-4 text-amber-600 border-gray-300"
-                        />
-                        <span className="text-sm text-gray-700">
-                          Yearly (20% off)
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                )}
+              {/* Billing Cycle Selection - HIDDEN: Using MONTHLY cycle only */}
 
               {/* Show current billing cycle for active subscriptions */}
               {subscription &&
