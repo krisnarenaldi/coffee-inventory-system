@@ -237,6 +237,7 @@ export default function PricingPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Billing Toggle */}
+        {/*
         <div className="text-center mb-12">
           <div className="inline-flex items-center bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-lg border border-amber-200/20">
             <button
@@ -258,14 +259,15 @@ export default function PricingPage() {
               }`}
             >
               Yearly
-              {/*
+          
               <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
                 Save 20%
               </span>
-              */}
+          
             </button>
           </div>
         </div>
+        */}
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
