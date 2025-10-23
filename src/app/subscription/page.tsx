@@ -4,6 +4,19 @@ import React, { useState, useEffect, useMemo, useCallback, Suspense } from "reac
 import type { JSX } from 'react';
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+interface UpgradeCalculation {
+  currentPlan: SubscriptionPlan;
+  newPlan: SubscriptionPlan;
+  remainingDays: number;
+  unusedCurrentValue: number;
+  newPlanProratedCost: number;
+  additionalCharge: number;
+  isRenewal?: boolean;
+  isExpired?: boolean;
+  currentPeriodEnd?: Date | null;
+  nextBillingDate?: Date | null;
+}
 import {
   CreditCard,
   Users,
@@ -63,7 +76,7 @@ const SubscriptionContent = (): JSX.Element | null => {
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("monthly");
-  const [upgradeCalculation, setUpgradeCalculation] = useState<any>(null);
+  const [upgradeCalculation, setUpgradeCalculation] = useState<UpgradeCalculation | null>(null);
   const [actionMessage, setActionMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -90,8 +103,15 @@ const SubscriptionContent = (): JSX.Element | null => {
     return Math.min((current / max) * 100, 100);
   };
 
+  const getUsageColor = (percentage: number): string => {
+    if (percentage >= 90) return "bg-red-500";
+    if (percentage >= 75) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
   const getStatusColor = (status: string): string => {
-    switch (status?.toUpperCase()) {
+    if (!status) return "text-gray-600 bg-gray-100";
+    switch (status.toUpperCase()) {
       case 'ACTIVE':
         return "text-green-600 bg-green-100";
       case 'TRIALING':
@@ -106,13 +126,6 @@ const SubscriptionContent = (): JSX.Element | null => {
         return "text-gray-600 bg-gray-100";
     }
   };
-
-  const getUsageColor = (percentage: number): string => {
-    if (percentage >= 90) return "bg-red-500";
-    if (percentage >= 75) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
 
   // Derive if current subscription period is yearly based on period length
   const isCurrentCycleYearly = useMemo(() => {
@@ -296,12 +309,15 @@ const SubscriptionContent = (): JSX.Element | null => {
 
   // Handle URL parameters for expired/error states
   useEffect(() => {
+    const isExpired = searchParams.get('expired') === 'true';
+    const hasError = searchParams.get('error') === 'true';
+    
     console.log("🔍 CHECKING URL PARAMS:", { isExpired, hasError });
     if (isExpired || hasError) {
       console.log("🚨 OPENING MODAL DUE TO URL PARAMS");
       setShowUpgradeModal(true);
     }
-  }, [isExpired, hasError]);
+  }, [searchParams]);
 
   // Derive if current subscription period is yearly based on period length
   const isCurrentCycleYearly = useMemo(() => {
@@ -323,7 +339,7 @@ const SubscriptionContent = (): JSX.Element | null => {
     if (isCurrentCycleYearly && selectedCycle !== "yearly") {
       setSelectedCycle("yearly");
     }
-  }, [isCurrentCycleYearly]);
+  }, [isCurrentCycleYearly, selectedCycle]);
 
   // Check and reconcile pending checkout for current tenant (user-scoped)
   useEffect(() => {
@@ -432,7 +448,7 @@ const SubscriptionContent = (): JSX.Element | null => {
     return () => clearTimeout(timeout);
   }, [session]);
 
-  };
+    }
 
   const fetchSubscriptionMessage = async () => {
     try {
@@ -738,20 +754,8 @@ const SubscriptionContent = (): JSX.Element | null => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "text-green-600 bg-green-100";
-      case "TRIALING":
-        return "text-blue-600 bg-blue-100";
-      case "PAST_DUE":
-        return "text-yellow-600 bg-yellow-100";
-      case "CANCELLED":
-        return "text-red-600 bg-red-100";
-      case "EXPIRED":
-        return "text-red-600 bg-red-100";
   // Handle loading and authentication states
-  if (router.query.status === "loading" || router.query.loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-600"></div>
@@ -759,14 +763,9 @@ const SubscriptionContent = (): JSX.Element | null => {
     );
   }
 
-  // Handle loading and authentication states
-  if (router.query.status === "unauthenticated") {
+  // Handle unauthenticated state
+  if (status === "unauthenticated") {
     router.push("/auth/signin");
-    return null;
-  }
-
-  // Return null if no session
-  if (!router.query.session) {
     return null;
   }
 
