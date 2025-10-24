@@ -490,29 +490,76 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate prorated amounts
+    // Check if subscription is expired
     const now = new Date();
     const currentPeriodStart = subscription.currentPeriodStart;
     const currentPeriodEnd = subscription.currentPeriodEnd;
+    const remainingDays = Math.ceil(
+      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const isExpired = remainingDays <= 0;
+    const isSamePlan = subscription.planId === newPlanId;
 
+    const currentPlanPrice = Number(subscription.plan.price);
+    const newPlanPrice = Number(newPlan.price);
+    const isUpgrade = newPlanPrice > currentPlanPrice;
+    const changeType = isUpgrade ? "upgrade" : "downgrade";
+
+    // For expired subscriptions with different plans, return full price
+    if (isExpired && !isSamePlan) {
+      return NextResponse.json({
+        currentPlan: {
+          id: subscription.plan.id,
+          name: subscription.plan.name,
+          price: currentPlanPrice,
+          interval: subscription.plan.interval,
+        },
+        newPlan: {
+          id: newPlan.id,
+          name: newPlan.name,
+          price: newPlanPrice,
+          interval: newPlan.interval,
+        },
+        changeType,
+        billingPeriod: {
+          start: currentPeriodStart,
+          end: currentPeriodEnd,
+          totalDays: 0,
+          remainingDays: 0,
+          usedDays: 0,
+        },
+        calculation: {
+          unusedAmount: 0,
+          newPlanProrated: newPlanPrice,
+          proratedAmount: newPlanPrice, // Full price for expired subscriptions
+          requiresPayment: newPlanPrice > 0,
+          creditAmount: 0,
+        },
+        options: {
+          immediate: {
+            available: true,
+            requiresPayment: newPlanPrice > 0,
+            amount: newPlanPrice, // Full price
+          },
+          endOfPeriod: {
+            available: false, // Not available for expired subscriptions
+            requiresPayment: false,
+            effectiveDate: currentPeriodEnd,
+          },
+        },
+      });
+    }
+
+    // For active subscriptions, calculate proration
     const totalDaysInPeriod = Math.ceil(
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const remainingDays = Math.ceil(
-      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
     const usedDays = totalDaysInPeriod - remainingDays;
 
-    const currentPlanPrice = Number(subscription.plan.price);
-    const newPlanPrice = Number(newPlan.price);
-
-    const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * remainingDays;
-    const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * remainingDays;
+    const unusedAmount = (currentPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
+    const newPlanProrated = (newPlanPrice / totalDaysInPeriod) * Math.max(0, remainingDays);
     const proratedAmount = newPlanProrated - unusedAmount;
-
-    const isUpgrade = newPlanPrice > currentPlanPrice;
-    const changeType = isUpgrade ? "upgrade" : "downgrade";
 
     return NextResponse.json({
       currentPlan: {
