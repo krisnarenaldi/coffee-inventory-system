@@ -84,18 +84,19 @@ export async function POST(request: NextRequest) {
     // Check if it's the same plan with expiration awareness
     const isSamePlan = subscription.planId === newPlanId;
 
+    // Check if subscription is expired (needed for both same plan and different plan logic)
+    const now = new Date();
+    const currentPeriodEnd = subscription.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd)
+      : null;
+    const remainingDays = currentPeriodEnd
+      ? Math.ceil(
+          (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+    const isExpired = remainingDays <= 0;
+
     if (isSamePlan) {
-      // Check if subscription is expired
-      const now = new Date();
-      const currentPeriodEnd = subscription.currentPeriodEnd
-        ? new Date(subscription.currentPeriodEnd)
-        : null;
-      const remainingDays = currentPeriodEnd
-        ? Math.ceil(
-            (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-          )
-        : 0;
-      const isExpired = remainingDays <= 0;
 
       if (!isExpired) {
         // Active subscription: cannot renew same plan
@@ -167,7 +168,6 @@ export async function POST(request: NextRequest) {
         });
       } else {
         // Free plan - activate immediately
-        const now = new Date();
         const nextPeriodEnd =
           newPlan.interval === "YEARLY"
             ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
@@ -199,7 +199,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate prorated amounts
-    const now = new Date();
     const currentPeriodStart = subscription.currentPeriodStart;
     const currentPeriodEnd = subscription.currentPeriodEnd;
 

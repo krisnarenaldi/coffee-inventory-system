@@ -551,8 +551,9 @@ function SubscriptionContent() {
       const isRenewal = isExpired && isSamePlan;
 
       // Route renewals and upgrades to the upgrade endpoint (requires payment)
-      // CRITICAL FIX: Expired downgrades should go to change-plan endpoint, not upgrade endpoint
-      if ((isUpgrade || isRenewal) && !isDowngrade) {
+      // CRITICAL FIX: For expired subscriptions, ALL plan changes should go to upgrade endpoint
+      // because they're essentially new subscriptions requiring payment
+      if (isRenewal || isUpgrade || (isExpired && !isSamePlan)) {
         // Use upgrade endpoint for upgrades and renewals (will redirect to checkout)
         const upgradePayload = {
           planId: selectedPlan,
