@@ -200,16 +200,21 @@ export async function POST(request: NextRequest) {
 
     // Calculate prorated amounts
     const currentPeriodStart = subscription.currentPeriodStart;
-    const currentPeriodEnd = subscription.currentPeriodEnd;
+    // currentPeriodEnd already declared at the top of the function
+    
+    if (!currentPeriodEnd) {
+      return NextResponse.json(
+        { error: "Cannot calculate proration for subscription without end date" },
+        { status: 400 }
+      );
+    }
 
     // Calculate remaining days in current period
     const totalDaysInPeriod = Math.ceil(
       (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const remainingDays = Math.ceil(
-      (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    // remainingDays already declared at the top of the function
     const usedDays = totalDaysInPeriod - remainingDays;
 
     // Calculate prorated amounts
