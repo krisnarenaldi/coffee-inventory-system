@@ -1207,9 +1207,10 @@ function SubscriptionContent() {
                 upgradeCalculation.newPlan &&
                 upgradeCalculation.currentPlan && (
                   <div className="mt-6 border-t pt-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-4">
+                    {/*<h4 className="text-sm font-medium text-gray-900 mb-4">
                       Choose when to upgrade:
                     </h4>
+                    */}
 
                     <div className="space-y-4">
                       {/* Immediate Upgrade Option */}
