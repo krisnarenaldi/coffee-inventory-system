@@ -68,6 +68,16 @@ export async function POST(request: NextRequest) {
       Number(newPlan.price) > Number(currentSubscription.plan.price);
     const isSamePlan = planId === currentSubscription.planId;
 
+    console.log('🔍 UPGRADE API DEBUG:', {
+      currentPlan: currentSubscription.plan.name,
+      currentPrice: Number(currentSubscription.plan.price),
+      newPlan: newPlan.name,
+      newPrice: Number(newPlan.price),
+      isUpgrade,
+      isSamePlan,
+      tenantId: session.user.tenantId
+    });
+
     // Check if subscription is expired
     const now = new Date();
     const currentPeriodEnd = currentSubscription.currentPeriodEnd
@@ -97,7 +107,16 @@ export async function POST(request: NextRequest) {
 
     // Determine if this requires payment
     const isRenewal = isSamePlan && isExpired;
-    const requiresPayment = isUpgrade || isRenewal;
+    // For expired subscriptions, ALL plan changes require payment (even downgrades)
+    const requiresPayment = isUpgrade || isRenewal || (isExpired && !isSamePlan);
+
+    console.log('🔍 UPGRADE API DEBUG - Payment logic:', {
+      isExpired,
+      remainingDays,
+      isRenewal,
+      requiresPayment,
+      reason: isUpgrade ? 'upgrade' : isRenewal ? 'renewal' : (isExpired && !isSamePlan) ? 'expired_plan_change' : 'none'
+    });
 
     // Enforce checkout for upgrades and renewals: do NOT change plan immediately
     if (requiresPayment) {
@@ -138,12 +157,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // For non-upgrade changes, do not allow immediate changes here
-    // Clients should use the change-plan endpoint for downgrades or lateral changes
+    // For active subscription downgrades, redirect to change-plan endpoint
+    // This should only happen for active subscriptions doing downgrades
     return NextResponse.json(
       {
         error:
-          "Only upgrades are supported via this endpoint. Use change-plan for other modifications.",
+          "Active subscription downgrades should use the change-plan endpoint. Expired subscriptions require payment regardless of plan change.",
       },
       { status: 400 }
     );
