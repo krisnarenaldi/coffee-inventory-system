@@ -191,15 +191,23 @@ export async function POST(request: NextRequest) {
     }
     const requestedCycle: "monthly" | "yearly" = billingCycle === "yearly" ? "yearly" : "monthly";
 
+    // Check if subscription is expired to determine if we should reuse existing transactions
+    const now = new Date();
+    const currentPeriodEnd = userSubscription?.currentPeriodEnd 
+      ? new Date(userSubscription.currentPeriodEnd) 
+      : null;
+    const isExpiredSubscription = currentPeriodEnd ? currentPeriodEnd < now : false;
+
     // First, prefer an existing pending transaction amount if present to avoid recomputation drift
-    const existingPendingTx = await prisma.transaction.findFirst({
+    // BUT: For expired subscriptions, always calculate fresh price (don't reuse old transactions)
+    const existingPendingTx = !isExpiredSubscription ? await prisma.transaction.findFirst({
       where: {
         tenantId: user.tenantId,
         subscriptionPlanId: planId,
         status: "PENDING",
       },
       orderBy: { createdAt: "desc" },
-    });
+    }) : null;
 
     // Calculate secure price based on context; never trust client-provided customAmount
     let price: number;
@@ -207,12 +215,13 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 CREATE-TOKEN DEBUG: Price calculation context:', {
       existingPendingTx: !!existingPendingTx,
+      isExpiredSubscription,
       upgradeOption,
       resolvedBillingCycle,
       requestedCycle
     });
 
-    if (existingPendingTx) {
+    if (existingPendingTx && !isExpiredSubscription) {
       price = Number(existingPendingTx.amount) || 0;
       if (existingPendingTx.billingCycle === "monthly" || existingPendingTx.billingCycle === "yearly") {
         chosenCycle = existingPendingTx.billingCycle as any;
