@@ -59,9 +59,11 @@ export async function POST(request: NextRequest) {
       id: userSubscription?.id,
       status: userSubscription?.status,
       planId: userSubscription?.planId,
+      planName: userSubscription?.plan?.name,
       currentPeriodStart: userSubscription?.currentPeriodStart,
       currentPeriodEnd: userSubscription?.currentPeriodEnd,
-      intendedPlan: (userSubscription as any)?.intendedPlan
+      intendedPlan: (userSubscription as any)?.intendedPlan,
+      tenantId: userSubscription?.tenantId
     });
 
     // Check if user has a pending checkout and validate intended plan
@@ -199,8 +201,11 @@ export async function POST(request: NextRequest) {
     const isExpiredSubscription = currentPeriodEnd ? currentPeriodEnd < now : false;
 
     // First, prefer an existing pending transaction amount if present to avoid recomputation drift
-    // BUT: For expired subscriptions, always calculate fresh price (don't reuse old transactions)
-    const existingPendingTx = !isExpiredSubscription ? await prisma.transaction.findFirst({
+    // BUT: For expired subscriptions OR plan changes, always calculate fresh price
+    const isChangingPlans = userSubscription?.planId !== planId;
+    const shouldCalculateFreshPrice = isExpiredSubscription || isChangingPlans;
+    
+    const existingPendingTx = !shouldCalculateFreshPrice ? await prisma.transaction.findFirst({
       where: {
         tenantId: user.tenantId,
         subscriptionPlanId: planId,
@@ -215,13 +220,22 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 CREATE-TOKEN DEBUG: Price calculation context:', {
       existingPendingTx: !!existingPendingTx,
+      existingPendingTxAmount: existingPendingTx?.amount,
       isExpiredSubscription,
+      isChangingPlans,
+      shouldCalculateFreshPrice,
+      currentPlanId: userSubscription?.planId,
+      requestedPlanId: planId,
+      currentPeriodEnd: currentPeriodEnd?.toISOString(),
+      now: now.toISOString(),
+      subscriptionStatus: userSubscription?.status,
       upgradeOption,
       resolvedBillingCycle,
-      requestedCycle
+      requestedCycle,
+      tenantId: user.tenantId
     });
 
-    if (existingPendingTx && !isExpiredSubscription) {
+    if (existingPendingTx && !shouldCalculateFreshPrice) {
       price = Number(existingPendingTx.amount) || 0;
       if (existingPendingTx.billingCycle === "monthly" || existingPendingTx.billingCycle === "yearly") {
         chosenCycle = existingPendingTx.billingCycle as any;
