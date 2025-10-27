@@ -123,20 +123,9 @@ async function main() {
     data: {
       tenantId: coffeeCentralTenant.id,
       email: 'manager@coffeecentral.com',
-      name: 'Sarah Manager',
+      name: 'Mike Manager',
       password: hashedPassword,
       role: 'MANAGER',
-      emailVerified: new Date(),
-    },
-  })
-
-  const brewmasterUser = await prisma.user.create({
-    data: {
-      tenantId: coffeeCentralTenant.id,
-      email: 'brewmaster@coffeecentral.com',
-      name: 'Mike Brewmaster',
-      password: hashedPassword,
-      role: 'BREWMASTER',
       emailVerified: new Date(),
     },
   })
@@ -343,7 +332,7 @@ async function main() {
       endDate: new Date('2024-01-15'),
       actualYield: 9.8,
       notes: 'Excellent batch with balanced flavor profile',
-      createdById: brewmasterUser.id,
+      createdById: managerUser.id,
     },
   })
 
@@ -357,7 +346,7 @@ async function main() {
       endDate: new Date('2024-01-20'),
       actualYield: 4.9,
       notes: 'Light roast with excellent floral notes',
-      createdById: brewmasterUser.id,
+      createdById: managerUser.id,
     },
   })
 
@@ -409,7 +398,7 @@ async function main() {
   await prisma.activityLog.create({
     data: {
       tenantId: coffeeCentralTenant.id,
-      userId: brewmasterUser.id,
+      userId: managerUser.id,
       activityType: 'RECIPE_CREATED',
       severity: 'MEDIUM',
       description: 'New recipe created: House Blend',
@@ -456,7 +445,7 @@ async function main() {
       type: 'DECREASE',
       quantity: 20,
       reason: 'Used in production batch',
-      createdById: brewmasterUser.id,
+      createdById: managerUser.id,
     },
   })
 

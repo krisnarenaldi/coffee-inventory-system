@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     
     if (role && typeof role === 'string') {
-      const validRoles = ['STAFF', 'WAREHOUSE_STAFF', 'SALES', 'BREWMASTER', 'MANAGER'];
+      const validRoles = ['STAFF', 'WAREHOUSE_STAFF', 'SALES', 'MANAGER'];
       if (session.user.role === 'ADMIN') {
         validRoles.push('ADMIN');
       }

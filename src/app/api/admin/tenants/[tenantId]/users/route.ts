@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 const createUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required'),
-  role: z.enum(['ADMIN', 'MANAGER', 'BREWMASTER', 'STAFF', 'SALES']),
+  role: z.enum(['ADMIN', 'MANAGER', 'STAFF', 'SALES']),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   isActive: z.boolean().default(true)
 });
@@ -18,7 +18,7 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
   name: z.string().min(1, 'Name is required').optional(),
-  role: z.enum(['ADMIN', 'MANAGER', 'BREWMASTER', 'STAFF', 'SALES']).optional(),
+  role: z.enum(['ADMIN', 'MANAGER', 'STAFF', 'SALES']).optional(),
   isActive: z.boolean().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional()
 });

@@ -12,13 +12,11 @@ const updateProductSchema = z.object({
     .optional()
     .transform((val) => (val === "" ? null : val)),
   name: z.string().min(1, "Product name is required").optional(),
-  packagingType: z
-    .enum(["BAG", "BULK_BIN", "RETAIL_PACKAGE", "SAMPLE_BAG", "OTHER"])
-    .optional(),
+  packagingTypeId: z.string().transform(val => val === "" ? undefined : val).optional(),
   packagingDate: z.string().optional(),
   lotNumber: z.string().optional(),
   quantity: z.number().min(0, "Quantity must be non-negative").optional(),
-  shelfLife: z.number().int().min(0).optional(),
+  shelfLife: z.union([z.number().int().min(0), z.string().transform(val => val === "" ? undefined : Number(val))]).optional(),
   storageLocation: z.string().optional(),
   status: z
     .enum(["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "EXPIRED", "RECALLED"])
@@ -128,8 +126,8 @@ export async function PUT(
     if (validatedData.batchId !== undefined)
       updateData.batchId = validatedData.batchId;
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
-    if (validatedData.packagingType !== undefined)
-      updateData.packagingType = validatedData.packagingType as PackagingType;
+    if (validatedData.packagingTypeId !== undefined)
+      updateData.packagingTypeId = validatedData.packagingTypeId || null;
     if (validatedData.packagingDate !== undefined) {
       updateData.packagingDate = validatedData.packagingDate
         ? new Date(validatedData.packagingDate)

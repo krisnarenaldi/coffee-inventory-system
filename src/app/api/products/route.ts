@@ -10,7 +10,7 @@ import { z } from "zod";
 const productSchema = z.object({
   batchId: z.string().transform(val => val === "" ? undefined : val).optional(),
   name: z.string().min(1, "Product name is required"),
-  packagingTypeId: z.string().min(1, "Packaging type is required"),
+  packagingTypeId: z.string().transform(val => val === "" ? undefined : val).optional(),
   packagingDate: z.string().transform(val => val === "" ? undefined : val).optional(),
   lotNumber: z.string().transform(val => val === "" ? undefined : val).optional(),
   quantity: z.number().min(0, "Quantity must be non-negative"),
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
         tenantId: session.user.tenantId,
         batchId: batchId,
         name: validatedData.name,
-        packagingTypeId: validatedData.packagingTypeId,
+        packagingTypeId: validatedData.packagingTypeId || null,
         packagingDate: validatedData.packagingDate
           ? new Date(validatedData.packagingDate)
           : null,

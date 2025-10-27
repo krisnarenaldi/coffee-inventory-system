@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    const validRoles = ['STAFF', 'WAREHOUSE_STAFF', 'SALES', 'BREWMASTER', 'MANAGER'];
+    const validRoles = ['STAFF', 'WAREHOUSE_STAFF', 'SALES', 'MANAGER'];
     if (session.user.role === 'ADMIN') {
       validRoles.push('ADMIN');
     }
