@@ -258,10 +258,14 @@ export async function checkFeatureAccess(
       "Basic Report",
       "Advance Report & Analytics",
       "Basic Reports",
+      "Report advance",
+      "Analytics advance",
     ],
     advancedReports: [
       "Advanced report and analytics",
       "Advance Report & Analytics",
+      "Report advance",
+      "Analytics advance",
     ],
     batches: [
       "Advanced inventory management",

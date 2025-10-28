@@ -280,11 +280,10 @@ export default function PricingPage() {
             return (
               <div
                 key={tier.name}
-                className={`relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border transition-all duration-300 hover:shadow-2xl hover:scale-105 ${
-                  tier.popular
+                className={`relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border transition-all duration-300 hover:shadow-2xl hover:scale-105 ${tier.popular
                     ? "border-amber-300 ring-2 ring-amber-200"
                     : "border-amber-200/20 hover:border-amber-300"
-                }`}
+                  }`}
               >
                 {tier.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -316,7 +315,7 @@ export default function PricingPage() {
                             parseInt(
                               tier.price.replace("Rp", "").replace(/\./g, ""),
                             ) *
-                              12 -
+                            12 -
                             yearlyPrice * 12
                           ).toLocaleString("id-ID", {
                             minimumFractionDigits: 0,
@@ -354,13 +353,12 @@ export default function PricingPage() {
                     href={`/auth/signup?plan=${tier.name
                       .toLowerCase()
                       .replace(/\s+/g, "-")}&cycle=${billingCycle}`}
-                    className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 block text-center ${
-                      tier.buttonVariant === "primary"
+                    className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 block text-center ${tier.buttonVariant === "primary"
                         ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white hover:from-amber-700 hover:to-amber-800 shadow-lg hover:shadow-xl"
                         : tier.buttonVariant === "secondary"
                           ? "bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 shadow-lg hover:shadow-xl"
                           : "border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white"
-                    }`}
+                      }`}
                   >
                     {tier.buttonText}
                   </Link>
