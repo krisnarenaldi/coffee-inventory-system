@@ -46,6 +46,8 @@ interface BatchFormData {
   startDate: string;
   notes: string;
   measurements: Record<string, any>;
+  actualYield: number;
+  status: string;
 }
 
 const statusColors = {
@@ -103,6 +105,8 @@ export default function BatchesPage() {
     startDate: "",
     notes: "",
     measurements: {},
+    actualYield: 0,
+    status: "PLANNED",
   });
 
   // Add Escape key listener for modals
@@ -122,6 +126,8 @@ export default function BatchesPage() {
             startDate: "",
             notes: "",
             measurements: {},
+            actualYield: 0,
+            status: "PLANNED",
           });
         }
       }
@@ -345,6 +351,8 @@ export default function BatchesPage() {
       startDate: "",
       notes: "",
       measurements: {},
+      actualYield: 0,
+      status: "PLANNED",
     });
     setError("");
   };
@@ -592,6 +600,8 @@ export default function BatchesPage() {
                             : "",
                           notes: batch.notes || "",
                           measurements: batch.measurements || {},
+                          actualYield: batch.actualYield || 0,
+                          status: batch.status,
                         });
                         fetchRecipes(); // Refresh recipes list
                         setShowForm(true);
@@ -842,6 +852,33 @@ export default function BatchesPage() {
                     {formData.notes.length}/191 characters
                   </div>
                 </div>
+
+                {/* Actual Yield field - only show for completed batches */}
+                {editingBatch && formData.status === "COMPLETED" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Actual Yield (kg) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.actualYield}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          actualYield: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      required
+                      placeholder="Enter actual yield in kg"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="mt-1 text-sm text-gray-500">
+                      Expected: {recipes.find(r => r.id === formData.recipeId)?.expectedYield || 0} kg
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button

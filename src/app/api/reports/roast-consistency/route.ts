@@ -73,8 +73,26 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Filter out batches without actual yield data for meaningful analysis
+    const batchesWithYield = batches.filter(batch => batch.actualYield && batch.actualYield > 0);
+    
+    if (batchesWithYield.length === 0) {
+      return NextResponse.json({
+        message: 'No completed batches with yield data found. Please ensure actual yields are recorded for completed batches.',
+        summary: null,
+        batches: [],
+        consistency: null,
+        trends: null,
+        recommendations: [{
+          type: 'missing_yield_data',
+          priority: 'high',
+          message: 'No actual yield data found for completed batches. Please record actual yields in the batch management system to generate meaningful consistency reports.',
+        }],
+      });
+    }
+
     // Calculate consistency metrics
-    const metrics = batches.map(batch => {
+    const metrics = batchesWithYield.map(batch => {
       const actualYield = Number(batch.actualYield) || 0;
       const expectedYield = Number(batch.recipe?.expectedYield) || 0;
       // Extract from measurements JSON if available
@@ -264,6 +282,16 @@ export async function GET(request: NextRequest) {
 
     // Generate recommendations
     const recommendations = [];
+    
+    // Add note about missing data if some batches were excluded
+    const excludedBatches = batches.length - batchesWithYield.length;
+    if (excludedBatches > 0) {
+      recommendations.push({
+        type: 'missing_yield_data',
+        priority: 'medium',
+        message: `${excludedBatches} completed batch(es) were excluded from analysis due to missing actual yield data. Record actual yields for all completed batches to improve report accuracy.`,
+      });
+    }
     
     if (consistencyScore.yield.rating === 'Poor' || consistencyScore.yield.rating === 'Fair') {
       recommendations.push({
