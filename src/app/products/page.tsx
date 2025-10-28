@@ -760,7 +760,7 @@ export default function ProductsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Packaging Type (optional)
+                        Packaging Type *
                       </label>
                       <select
                         value={formData.packagingTypeId}
@@ -769,7 +769,8 @@ export default function ProductsPage() {
                             ...formData,
                             packagingTypeId: e.target.value,
                           })
-                        }                        
+                        }
+                        required
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       >
                         <option value="">Select packaging type...</option>
