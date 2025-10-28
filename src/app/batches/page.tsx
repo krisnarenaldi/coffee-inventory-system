@@ -193,7 +193,7 @@ export default function BatchesPage() {
 
   const fetchRecipes = async () => {
     try {
-      const response = await fetch("/api/recipes");
+      const response = await fetch("/api/recipes?limit=100"); // Get all recipes for dropdown
       if (response.ok) {
         const data = await response.json();
         setRecipes(data.recipes || []);
@@ -387,6 +387,7 @@ export default function BatchesPage() {
                 ...prev,
                 batchNumber: generateBatchNumber(),
               }));
+              fetchRecipes(); // Refresh recipes list
               setShowForm(true);
             }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
@@ -539,11 +540,18 @@ export default function BatchesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>
                       <div>
-                        {batch.actualYield ? `${batch.actualYield} kg` : "-"}
+                        {batch.status === "COMPLETED" 
+                          ? `Expected: ${batch.recipe.expectedYield} kg`
+                          : batch.actualYield 
+                            ? `${batch.actualYield} kg` 
+                            : "-"
+                        }
                       </div>
-                      <div className="text-xs text-gray-400">
-                        Expected: {batch.recipe.expectedYield} kg
-                      </div>
+                      {batch.status !== "COMPLETED" && (
+                        <div className="text-xs text-gray-400">
+                          Expected: {batch.recipe.expectedYield} kg
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -585,6 +593,7 @@ export default function BatchesPage() {
                           notes: batch.notes || "",
                           measurements: batch.measurements || {},
                         });
+                        fetchRecipes(); // Refresh recipes list
                         setShowForm(true);
                       }}
                       className="text-blue-600 hover:text-blue-900 cursor-pointer"

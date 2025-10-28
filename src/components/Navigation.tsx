@@ -202,17 +202,16 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       icon: "🏠",
       permission: () => true,
     },
-
-    {
-      name: "Roast Profiles",
-      href: "/recipes",
-      icon: "📋",
-      permission: () => (userRole ? canManageInventory(userRole) : false),
-    },
     {
       name: "Roast Batches",
       href: "/batches",
       icon: "☕",
+      permission: () => (userRole ? canManageInventory(userRole) : false),
+    },
+    {
+      name: "Roast Profiles",
+      href: "/recipes",
+      icon: "📋",
       permission: () => (userRole ? canManageInventory(userRole) : false),
     },
     {
