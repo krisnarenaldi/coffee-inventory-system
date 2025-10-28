@@ -69,7 +69,7 @@ export default function DemoPage() {
 
             {/* Demo Button */}
             <a
-              href="https://demo.coffeelogica.com/auth/signin"
+              href="https://kopi-demo.coffeelogica.com/auth/signin"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-orange-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
