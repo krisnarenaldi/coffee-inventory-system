@@ -330,8 +330,9 @@ export default function ReportsPage() {
     }
   };
 
-  // Show simple reports for users without any reports access, or show full reports for users with basic/advanced access
-  if (!hasBasicReports && !hasAdvancedReports) {
+  // Show simple reports for users without advanced reports access
+  // Only users with advancedReports should see the full reports page
+  if (!hasAdvancedReports) {
     const handleUpgradeClick = () => {
       router.push("/subscription?src=feature_gate_reports");
     };
