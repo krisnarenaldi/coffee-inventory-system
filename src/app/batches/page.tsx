@@ -549,12 +549,19 @@ export default function BatchesPage() {
                     <div>
                       <div>
                         {batch.status === "COMPLETED" 
-                          ? `Expected: ${batch.recipe.expectedYield} kg`
+                          ? batch.actualYield 
+                            ? `${batch.actualYield} kg`
+                            : `Expected: ${batch.recipe.expectedYield} kg`
                           : batch.actualYield 
                             ? `${batch.actualYield} kg` 
                             : "-"
                         }
                       </div>
+                      {batch.status === "COMPLETED" && batch.actualYield && (
+                        <div className="text-xs text-gray-400">
+                          Expected: {batch.recipe.expectedYield} kg
+                        </div>
+                      )}
                       {batch.status !== "COMPLETED" && (
                         <div className="text-xs text-gray-400">
                           Expected: {batch.recipe.expectedYield} kg
