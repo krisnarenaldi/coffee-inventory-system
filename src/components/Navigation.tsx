@@ -202,12 +202,6 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       icon: "🏠",
       permission: () => true,
     },
-    {
-      name: "Coffee Products",
-      href: "/products",
-      icon: "🛍️",
-      permission: () => (userRole ? canManageProducts(userRole) : false),
-    },
 
     {
       name: "Roast Profiles",
@@ -226,6 +220,12 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       href: "/ingredients",
       icon: "📦",
       permission: () => (userRole ? canManageInventory(userRole) : false),
+    },
+    {
+      name: "Coffee Products",
+      href: "/products",
+      icon: "🛍️",
+      permission: () => (userRole ? canManageProducts(userRole) : false),
     },
     {
       name: "Suppliers",
@@ -259,7 +259,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       permission: () =>
         userRole
           ? canViewReports(userRole) &&
-            (hasBasicReports || hasAdvancedAnalytics)
+          (hasBasicReports || hasAdvancedAnalytics)
           : false,
     },
     {
@@ -345,11 +345,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                       ? "/subscription?expired=true"
                       : item.href
                   }
-                  className={`inline-flex items-center px-2 pt-1 border-b-2 text-xs font-medium transition-colors duration-200 whitespace-nowrap ${
-                    isActive(item.href)
-                      ? "border-blue-500 text-gray-900"
-                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                  }`}
+                  className={`inline-flex items-center px-2 pt-1 border-b-2 text-xs font-medium transition-colors duration-200 whitespace-nowrap ${isActive(item.href)
+                    ? "border-blue-500 text-gray-900"
+                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    }`}
                 >
                   <span className="mr-1 text-sm">{item.icon}</span>
                   <span className="hidden 2xl:inline">{item.name}</span>
@@ -383,11 +382,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                             ? "/subscription?expired=true"
                             : item.href
                         }
-                        className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${
-                          isActive(item.href)
-                            ? "bg-blue-50 text-blue-700"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${isActive(item.href)
+                          ? "bg-blue-50 text-blue-700"
+                          : "text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
                         <span className="mr-2">{item.icon}</span>
                         {item.name}
@@ -405,7 +403,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               featuresChecked && !(hasBasicReports || hasAdvancedAnalytics
             */}
             {featuresChecked &&
-              !hasAdvancedAnalytics &&
+              !(hasBasicReports || hasAdvancedAnalytics) &&
               !hasPendingCheckout && (
                 <Link
                   href="/subscription?src=nav"
@@ -537,11 +535,10 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                   ? "/subscription?expired=true"
                   : item.href
               }
-              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200 ${
-                isActive(item.href)
-                  ? "bg-blue-50 border-blue-500 text-blue-700"
-                  : "border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
-              }`}
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200 ${isActive(item.href)
+                ? "bg-blue-50 border-blue-500 text-blue-700"
+                : "border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+                }`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <span className="mr-2">{item.icon}</span>

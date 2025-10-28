@@ -90,6 +90,7 @@ export default function ReportsPage() {
   const [error, setError] = useState("");
   const [period, setPeriod] = useState("90");
   const [hasAdvancedReports, setHasAdvancedReports] = useState(false);
+  const [hasBasicReports, setHasBasicReports] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -109,22 +110,49 @@ export default function ReportsPage() {
     if (!session?.user?.tenantId) return;
 
     try {
-      const response = await fetch(
-        `/api/subscription/features?feature=advancedReports&t=${Date.now()}`,
-        {
-          credentials: "include",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        }
-      );
-      const data = await response.json();
-      console.log("🔍 REPORTS: Advanced reports check:", data);
-      setHasAdvancedReports(data.hasAccess || false);
+      // Check for both basic and advanced reports access
+      const [basicResponse, advancedResponse] = await Promise.all([
+        fetch(
+          `/api/subscription/features?feature=basicReports&t=${Date.now()}`,
+          {
+            credentials: "include",
+            cache: "no-cache",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }
+        ),
+        fetch(
+          `/api/subscription/features?feature=advancedReports&t=${Date.now()}`,
+          {
+            credentials: "include",
+            cache: "no-cache",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          }
+        )
+      ]);
+
+      const [basicData, advancedData] = await Promise.all([
+        basicResponse.json(),
+        advancedResponse.json()
+      ]);
+
+      console.log("🔍 REPORTS: Basic reports check:", basicData);
+      console.log("🔍 REPORTS: Advanced reports check:", advancedData);
+      
+      const hasBasicReportsAccess = basicData.hasAccess || false;
+      const hasAdvancedReportsAccess = advancedData.hasAccess || false;
+      
+      setHasBasicReports(hasBasicReportsAccess);
+      setHasAdvancedReports(hasAdvancedReportsAccess);
     } catch (error) {
       console.error("Error checking reports access:", error);
       setHasAdvancedReports(false);
@@ -302,8 +330,8 @@ export default function ReportsPage() {
     }
   };
 
-  // Show simple reports for starter plan users
-  if (!hasAdvancedReports) {
+  // Show simple reports for users without any reports access, or show full reports for users with basic/advanced access
+  if (!hasBasicReports && !hasAdvancedReports) {
     const handleUpgradeClick = () => {
       router.push("/subscription?src=feature_gate_reports");
     };
