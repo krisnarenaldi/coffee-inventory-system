@@ -403,7 +403,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
               featuresChecked && !(hasBasicReports || hasAdvancedAnalytics
             */}
             {featuresChecked &&
-              !(hasBasicReports || hasAdvancedAnalytics) &&
+              !hasAdvancedAnalytics &&
               !hasPendingCheckout && (
                 <Link
                   href="/subscription?src=nav"
@@ -561,7 +561,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
           </div>
           <div className="mt-3 space-y-1">
             {featuresChecked &&
-              !(hasBasicReports || hasAdvancedAnalytics) &&
+              !hasAdvancedAnalytics &&
               !hasPendingCheckout && (
                 <Link
                   href="/subscription?src=nav_mobile"

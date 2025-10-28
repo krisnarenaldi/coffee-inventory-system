@@ -254,16 +254,15 @@ export async function checkFeatureAccess(
     ],
     basicReports: [
       "Basic report",
-      "Advanced report and analytics",
-      "Basic Report",
-      "Advance Report & Analytics",
+      "Basic Report", 
       "Basic Reports",
-      "Report advance",
-      "Analytics advance",
+      "Report", // Starter plan has just "Report"
+      "Report Basic", // Starter plan has "Report Basic"
+      "Analytics Basic", // Starter plan has "Analytics Basic"
     ],
     advancedReports: [
       "Advanced report and analytics",
-      "Advance Report & Analytics",
+      "Advance Report & Analytics", 
       "Report advance",
       "Analytics advance",
     ],
