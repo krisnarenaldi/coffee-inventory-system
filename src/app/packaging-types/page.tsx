@@ -266,14 +266,14 @@ export default function PackagingTypesPage() {
 
   if (loading) {
     return (
-      <>
-        <Navigation />
-        <ProtectedPage requiredPermission="packaging-types">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center">Loading...</div>
+      <ProtectedPage requiredPermission="packaging-types">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading packaging types...</p>
           </div>
-        </ProtectedPage>
-      </>
+        </div>
+      </ProtectedPage>
     );
   }
 
