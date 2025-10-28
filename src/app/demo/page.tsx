@@ -55,13 +55,13 @@ export default function DemoPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Email:</span>
                   <code className="bg-white px-2 py-1 rounded text-amber-700 font-mono">
-                    admin@demo.coffeeshop
+                    admin@kopidemo.com
                   </code>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Password:</span>
                   <code className="bg-white px-2 py-1 rounded text-amber-700 font-mono">
-                    demo123
+                    Kopidemo123#
                   </code>
                 </div>
               </div>
