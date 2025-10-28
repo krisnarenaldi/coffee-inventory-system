@@ -12,6 +12,7 @@ import {
   canManagePackagingTypes,
   canManageUsers,
 } from "../../lib/auth";
+import { isDemoAccount } from "../../lib/demo-protection";
 
 interface NavigationProps {
   title?: string;
@@ -271,7 +272,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       name: "Users",
       href: "/users",
       icon: "👥",
-      permission: () => (userRole ? canManageUsers(userRole) : false),
+      permission: () => (userRole ? canManageUsers(userRole) && !isDemoAccount(session?.user?.email) : false),
     },
     {
       name: "Help",
@@ -458,7 +459,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
                   </Link>
 
                   {/* Users Link */}
-                  {["ADMIN"].includes(session?.user?.role || "") && (
+                  {["ADMIN"].includes(session?.user?.role || "") && !isDemoAccount(session?.user?.email) && (
                     <Link
                       href="/users"
                       className="flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
@@ -578,7 +579,7 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
             >
               Profile
             </Link>
-            {["ADMIN"].includes(session?.user?.role || "") && (
+            {["ADMIN"].includes(session?.user?.role || "") && !isDemoAccount(session?.user?.email) && (
               <Link
                 href="/users"
                 className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"

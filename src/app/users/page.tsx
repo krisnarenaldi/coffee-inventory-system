@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { isDemoAccount } from "../../../lib/demo-protection";
 
 interface User {
   id: string;
@@ -81,6 +82,12 @@ export default function UsersManagement() {
     }
 
     if (session.user.role !== "ADMIN") {
+      router.push("/dashboard");
+      return;
+    }
+
+    // Redirect demo accounts away from user management
+    if (isDemoAccount(session.user.email)) {
       router.push("/dashboard");
       return;
     }

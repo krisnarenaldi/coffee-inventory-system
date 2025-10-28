@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { isDemoAccount } from "../../../lib/demo-protection";
 
 interface UserProfile {
   id: string;
@@ -35,6 +36,13 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("profile");
+
+  // Reset to profile tab for demo accounts
+  useEffect(() => {
+    if (isDemoAccount(session?.user?.email) && activeTab === "password") {
+      setActiveTab("profile");
+    }
+  }, [session?.user?.email, activeTab]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -216,16 +224,18 @@ export default function ProfilePage() {
                 >
                   Profile Information
                 </button>
-                <button
-                  onClick={() => setActiveTab("password")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === "password"
-                      ? "border-amber-500 text-amber-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 cursor-pointer"
-                  }`}
-                >
-                  Change Password
-                </button>
+                {!isDemoAccount(session?.user?.email) && (
+                  <button
+                    onClick={() => setActiveTab("password")}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === "password"
+                        ? "border-amber-500 text-amber-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 cursor-pointer"
+                    }`}
+                  >
+                    Change Password
+                  </button>
+                )}
               </nav>
             </div>
 
@@ -239,6 +249,18 @@ export default function ProfilePage() {
               {success && (
                 <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
                   {success}
+                </div>
+              )}
+
+              {/* Demo Account Notice */}
+              {isDemoAccount(session?.user?.email) && (
+                <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded">
+                  <div className="flex items-center">
+                    <span className="mr-2">ℹ️</span>
+                    <span>
+                      <strong>Demo Account:</strong> Some features like password changes and user management are disabled to protect the demo environment.
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -332,7 +354,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {activeTab === "password" && (
+              {activeTab === "password" && !isDemoAccount(session?.user?.email) && (
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
                     Change Password
