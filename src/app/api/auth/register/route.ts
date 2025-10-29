@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../../../../lib/prisma';
+import { sendWelcomeEmail } from '../../../../../lib/email';
 
 interface RegisterRequest {
   name: string;
@@ -268,6 +269,15 @@ export async function POST(request: NextRequest) {
       maxWait: 5000, // 5 seconds
       timeout: 10000, // 10 seconds
     });
+
+    // Send welcome email (don't block registration if email fails)
+    try {
+      const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Free';
+      await sendWelcomeEmail(result.user.email, result.user.name || 'User', planName);
+      console.log('✅ Welcome email sent to:', result.user.email);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send welcome email (registration still successful):', emailError);
+    }
 
     return NextResponse.json(
       {
