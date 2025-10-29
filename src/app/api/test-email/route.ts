@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
           troubleshooting: {
             host: 'smtp.zoho.com',
             port: 587,
-            user: process.env.EMAIL_USER || 'info@coffeelogica.com',
+            user: process.env.EMAIL_USER ? '***@coffeelogica.com' : 'NOT_SET',
             suggestions: [
               'Verify email credentials are correct',
               'Check if 2FA is enabled (may need app password)',
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
       config: {
         host: 'smtp.zoho.com',
         port: 587,
-        user: process.env.EMAIL_USER || 'info@coffeelogica.com',
-        // Don't expose password in response
+        user: process.env.EMAIL_USER ? '***@coffeelogica.com' : 'NOT_SET',
+        passwordConfigured: !!process.env.EMAIL_PASSWORD
       }
     });
   } catch (error) {

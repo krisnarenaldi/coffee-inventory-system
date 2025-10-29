@@ -8,8 +8,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER || 'info@coffeelogica.com',
-    pass: process.env.EMAIL_PASSWORD || 'C0ff331@3Abc',
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
     rejectUnauthorized: false, // For development only
@@ -25,8 +25,8 @@ const transporter = nodemailer.createTransport({
 export async function verifyEmailConfig() {
   try {
     console.log('🔍 Testing email configuration...');
-    console.log('📧 Email User:', process.env.EMAIL_USER || 'info@coffeelogica.com');
-    console.log('🔐 Password length:', (process.env.EMAIL_PASSWORD || 'C0ff331@3Abc').length);
+    console.log('📧 Email User:', process.env.EMAIL_USER ? '***@coffeelogica.com' : 'NOT_SET');
+    console.log('🔐 Password configured:', process.env.EMAIL_PASSWORD ? 'YES' : 'NO');
     
     await transporter.verify();
     console.log('✅ Email server is ready to send messages');
@@ -362,7 +362,7 @@ export async function sendWelcomeEmail(to: string, userName: string, planName: s
     const mailOptions = {
       from: {
         name: 'Coffee Shop Inventory',
-        address: process.env.EMAIL_USER || 'info@coffeelogica.com'
+        address: process.env.EMAIL_USER || 'noreply@example.com'
       },
       to,
       subject: `Welcome to Coffee Shop Inventory, ${userName}! ☕`,
@@ -386,7 +386,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, reset
     const mailOptions = {
       from: {
         name: 'Coffee Shop Inventory',
-        address: process.env.EMAIL_USER || 'info@coffeelogica.com'
+        address: process.env.EMAIL_USER || 'noreply@example.com'
       },
       to,
       subject: 'Reset Your Password - Coffee Shop Inventory',
