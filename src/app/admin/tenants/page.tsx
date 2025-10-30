@@ -35,6 +35,7 @@ interface NewTenant {
   domain?: string;
   adminEmail: string;
   adminName: string;
+  adminPassword?: string;
   planId: string;
 }
 
@@ -70,6 +71,7 @@ export default function TenantsAdminPage() {
     domain: "",
     adminEmail: "",
     adminName: "",
+    adminPassword: "",
     planId: "",
   });
   const [searchTerm, setSearchTerm] = useState("");
@@ -249,6 +251,7 @@ export default function TenantsAdminPage() {
         domain: "",
         adminEmail: "",
         adminName: "",
+        adminPassword: "",
         planId: "",
       });
       // Clear validation errors
@@ -675,7 +678,7 @@ export default function TenantsAdminPage() {
                         {createdTenantInfo.adminUser.name}
                       </p>
                       <p>
-                        <span className="font-medium">Temporary Password:</span>
+                        <span className="font-medium">Password:</span>
                         <span className="font-mono bg-amber-100 px-2 py-1 rounded ml-2">
                           {createdTenantInfo.defaultPassword}
                         </span>
@@ -684,8 +687,8 @@ export default function TenantsAdminPage() {
                     <div className="mt-3 p-3 bg-amber-100 rounded border border-amber-300">
                       <p className="text-xs text-amber-800">
                         <strong>Important:</strong> Please share these
-                        credentials with the tenant admin. They should change
-                        the password on first login for security.
+                        credentials with the tenant admin securely. Recommend they change
+                        the password after first login for better security.
                       </p>
                     </div>
                   </div>
@@ -828,6 +831,39 @@ export default function TenantsAdminPage() {
                         Checking availability...
                       </p>
                     )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admin Password
+                    </label>
+                    <input
+                      type="password"
+                      value={newTenant.adminPassword || ""}
+                      onChange={(e) =>
+                        setNewTenant({
+                          ...newTenant,
+                          adminPassword: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="Enter a secure password (min 8 characters)"
+                      minLength={8}
+                      required
+                    />
+                    <div className="mt-1 text-xs text-gray-500">
+                      <p>Password requirements:</p>
+                      <ul className="list-disc list-inside ml-2 space-y-1">
+                        <li className={newTenant.adminPassword && newTenant.adminPassword.length >= 8 ? "text-green-600" : "text-gray-500"}>
+                          At least 8 characters
+                        </li>
+                        <li className={newTenant.adminPassword && /[A-Z]/.test(newTenant.adminPassword) ? "text-green-600" : "text-gray-500"}>
+                          One uppercase letter (recommended)
+                        </li>
+                        <li className={newTenant.adminPassword && /[0-9]/.test(newTenant.adminPassword) ? "text-green-600" : "text-gray-500"}>
+                          One number (recommended)
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
           break;
           
         case 'roast':
-          const roastData = await prisma.batch.findMany({
+        case 'consistency':
+          const consistencyData = await prisma.batch.findMany({
             where: {
               tenantId,
               status: 'COMPLETED',
@@ -89,24 +90,75 @@ export async function GET(request: NextRequest) {
                 lte: now
               }
             },
-            include: { recipe: true },
+            include: { 
+              recipe: {
+                select: {
+                  id: true,
+                  name: true,
+                  style: true,
+                  expectedYield: true
+                }
+              },
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
           reportData = `Roast Consistency Report\n\n`;
           reportData += `Period: Last ${period} days\n`;
           reportData += `Generated: ${now.toLocaleDateString()}\n\n`;
-          reportData += `Completed Batches: ${roastData.length}\n\n`;
           
-          if (roastData.length > 0) {
-             reportData += `Roast Details:\n`;
-             roastData.forEach((batch: any, index: number) => {
-               reportData += `${index + 1}. ${batch.recipe?.name || 'Unknown Recipe'}\n`;
-               reportData += `   Quantity: ${batch.quantity} ${batch.unit}\n`;
-               reportData += `   Completed: ${batch.updatedAt.toLocaleDateString()}\n\n`;
-             });
+          if (consistencyData.length > 0) {
+             const batchesWithYield = consistencyData.filter((batch: any) => batch.actualYield && batch.actualYield > 0);
+             
+             if (batchesWithYield.length > 0) {
+               const totalEfficiency = batchesWithYield.reduce((sum: number, batch: any) => {
+                 const expectedYield = Number(batch.recipe?.expectedYield || 0);
+                 const actualYield = Number(batch.actualYield || 0);
+                 const efficiency = expectedYield > 0 ? (actualYield / expectedYield) * 100 : 0;
+                 return sum + efficiency;
+               }, 0);
+               const avgEfficiency = totalEfficiency / batchesWithYield.length;
+               
+               reportData += `Total Batches Analyzed: ${batchesWithYield.length}\n`;
+               reportData += `Average Yield Efficiency: ${avgEfficiency.toFixed(2)}%\n\n`;
+               
+               // Group by recipe for consistency analysis
+               const recipeMap = new Map();
+               batchesWithYield.forEach((batch: any) => {
+                 const recipeName = batch.recipe?.name || 'Unknown Recipe';
+                 if (!recipeMap.has(recipeName)) {
+                   recipeMap.set(recipeName, []);
+                 }
+                 recipeMap.get(recipeName).push(batch);
+               });
+               
+               reportData += `Recipe Performance:\n`;
+               recipeMap.forEach((batches, recipeName) => {
+                 const recipeEfficiencies = batches.map((batch: any) => {
+                   const expectedYield = Number(batch.recipe?.expectedYield || 0);
+                   const actualYield = Number(batch.actualYield || 0);
+                   return expectedYield > 0 ? (actualYield / expectedYield) * 100 : 0;
+                 });
+                 
+                 const avgRecipeEfficiency = recipeEfficiencies.reduce((sum: number, eff: number) => sum + eff, 0) / recipeEfficiencies.length;
+                 const minEfficiency = Math.min(...recipeEfficiencies);
+                 const maxEfficiency = Math.max(...recipeEfficiencies);
+                 
+                 reportData += `\n${recipeName} (${batches.length} batches):\n`;
+                 reportData += `  Average Efficiency: ${avgRecipeEfficiency.toFixed(2)}%\n`;
+                 reportData += `  Range: ${minEfficiency.toFixed(2)}% - ${maxEfficiency.toFixed(2)}%\n`;
+               });
+             } else {
+               reportData += `No batches with yield data found for analysis.\n`;
+             }
           } else {
-            reportData += `No completed roasts found for the selected period.\n`;
+            reportData += `No completed batches found for the selected period.\n`;
           }
           break;
           
@@ -117,29 +169,87 @@ export async function GET(request: NextRequest) {
               createdAt: {
                 gte: startDate,
                 lte: now
+              },
+              actualYield: {
+                not: null,
+                gt: 0
               }
             },
-            include: { recipe: true },
+            include: { 
+              recipe: {
+                select: {
+                  id: true,
+                  name: true,
+                  expectedYield: true
+                }
+              },
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
           reportData = `Yield Analysis Report\n\n`;
           reportData += `Period: Last ${period} days\n`;
           reportData += `Generated: ${now.toLocaleDateString()}\n\n`;
-          reportData += `Total Batches Analyzed: ${yieldData.length}\n\n`;
           
           if (yieldData.length > 0) {
-             const totalQuantity = yieldData.reduce((sum: number, batch: any) => sum + (batch.quantity || 0), 0);
-             const avgQuantity = totalQuantity / yieldData.length;
+             const totalExpected = yieldData.reduce((sum: number, batch: any) => sum + Number(batch.recipe?.expectedYield || 0), 0);
+             const totalActual = yieldData.reduce((sum: number, batch: any) => sum + Number(batch.actualYield || 0), 0);
+             const totalLoss = totalExpected - totalActual;
+             const avgEfficiency = totalExpected > 0 ? (totalActual / totalExpected) * 100 : 0;
              
-             reportData += `Total Production: ${totalQuantity.toFixed(2)} units\n`;
-             reportData += `Average Batch Size: ${avgQuantity.toFixed(2)} units\n\n`;
+             reportData += `Total Batches Analyzed: ${yieldData.length}\n`;
+             reportData += `Total Expected Yield: ${totalExpected.toFixed(2)} kg\n`;
+             reportData += `Total Actual Yield: ${totalActual.toFixed(2)} kg\n`;
+             reportData += `Total Yield Loss: ${totalLoss.toFixed(2)} kg\n`;
+             reportData += `Average Efficiency: ${avgEfficiency.toFixed(2)}%\n\n`;
              
-             reportData += `Batch Yields:\n`;
-             yieldData.forEach((batch: any, index: number) => {
-               reportData += `${index + 1}. ${batch.recipe?.name || 'Unknown Recipe'}\n`;
-               reportData += `   Yield: ${batch.quantity} ${batch.unit}\n`;
-               reportData += `   Date: ${batch.createdAt.toLocaleDateString()}\n\n`;
+             // Group by recipe for yield analysis
+             const recipeMap = new Map();
+             yieldData.forEach((batch: any) => {
+               const recipeName = batch.recipe?.name || 'Unknown Recipe';
+               if (!recipeMap.has(recipeName)) {
+                 recipeMap.set(recipeName, []);
+               }
+               recipeMap.get(recipeName).push(batch);
+             });
+             
+             reportData += `Yield Performance by Recipe:\n`;
+             recipeMap.forEach((batches, recipeName) => {
+               const recipeExpected = batches.reduce((sum: number, batch: any) => sum + Number(batch.recipe?.expectedYield || 0), 0);
+               const recipeActual = batches.reduce((sum: number, batch: any) => sum + Number(batch.actualYield || 0), 0);
+               const recipeLoss = recipeExpected - recipeActual;
+               const recipeEfficiency = recipeExpected > 0 ? (recipeActual / recipeExpected) * 100 : 0;
+               
+               reportData += `\n${recipeName} (${batches.length} batches):\n`;
+               reportData += `  Expected: ${recipeExpected.toFixed(2)} kg\n`;
+               reportData += `  Actual: ${recipeActual.toFixed(2)} kg\n`;
+               reportData += `  Loss: ${recipeLoss.toFixed(2)} kg\n`;
+               reportData += `  Efficiency: ${recipeEfficiency.toFixed(2)}%\n`;
+             });
+             
+             reportData += `\nTop Yield Losses:\n`;
+             const sortedBatches = yieldData
+               .map((batch: any) => ({
+                 name: batch.recipe?.name || 'Unknown Recipe',
+                 expected: Number(batch.recipe?.expectedYield || 0),
+                 actual: Number(batch.actualYield || 0),
+                 loss: Math.max(0, Number(batch.recipe?.expectedYield || 0) - Number(batch.actualYield || 0)),
+                 date: batch.createdAt
+               }))
+               .filter(batch => batch.loss > 0)
+               .sort((a, b) => b.loss - a.loss)
+               .slice(0, 5);
+               
+             sortedBatches.forEach((batch, index) => {
+               reportData += `${index + 1}. ${batch.name}\n`;
+               reportData += `   Loss: ${batch.loss.toFixed(2)} kg\n`;
+               reportData += `   Date: ${batch.date.toLocaleDateString()}\n`;
              });
           } else {
             reportData += `No yield data found for the selected period.\n`;
@@ -147,41 +257,94 @@ export async function GET(request: NextRequest) {
           break;
           
         case 'waste':
-          const wasteData = await prisma.batch.findMany({
+          const wasteMovements = await prisma.inventoryMovement.findMany({
             where: {
               tenantId,
+              type: 'WASTE',
               createdAt: {
                 gte: startDate,
                 lte: now
               }
             },
-            include: { recipe: true },
+            include: {
+              ingredient: {
+                select: {
+                  name: true,
+                  unitOfMeasure: true,
+                  costPerUnit: true
+                }
+              },
+              createdBy: {
+                select: {
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
-          reportData = `Waste Analysis Report\n\n`;
+          reportData = `Waste Tracking Report\n\n`;
           reportData += `Period: Last ${period} days\n`;
           reportData += `Generated: ${now.toLocaleDateString()}\n\n`;
-          reportData += `Batches Analyzed: ${wasteData.length}\n\n`;
           
-          if (wasteData.length > 0) {
-             const failedBatches = wasteData.filter((batch: any) => batch.status === 'FAILED');
-             const inProgressBatches = wasteData.filter((batch: any) => batch.status === 'IN_PROGRESS');
+          if (wasteMovements.length > 0) {
+             const totalVolume = wasteMovements.reduce((sum: number, movement: any) => sum + Math.abs(movement.quantity), 0);
+             const totalCost = wasteMovements.reduce((sum: number, movement: any) => {
+               const quantity = Math.abs(movement.quantity);
+               const cost = quantity * (movement.ingredient?.costPerUnit || 0);
+               return sum + cost;
+             }, 0);
              
-             reportData += `Failed Batches: ${failedBatches.length}\n`;
-             reportData += `In Progress Batches: ${inProgressBatches.length}\n`;
-             reportData += `Waste Rate: ${((failedBatches.length / wasteData.length) * 100).toFixed(2)}%\n\n`;
+             reportData += `Total Waste Entries: ${wasteMovements.length}\n`;
+             reportData += `Total Volume: ${totalVolume.toFixed(2)} (mixed units)\n`;
+             reportData += `Total Cost Impact: Rp ${totalCost.toFixed(0)}\n`;
+             reportData += `Average per Entry: ${(totalVolume / wasteMovements.length).toFixed(2)} units\n\n`;
              
-             if (failedBatches.length > 0) {
-               reportData += `Failed Batch Details:\n`;
-               failedBatches.forEach((batch: any, index: number) => {
-                 reportData += `${index + 1}. ${batch.recipe?.name || 'Unknown Recipe'}\n`;
-                 reportData += `   Quantity Lost: ${batch.quantity} ${batch.unit}\n`;
-                 reportData += `   Date: ${batch.createdAt.toLocaleDateString()}\n\n`;
-               });
-            }
+             // Group by category
+             const categories = {
+               production: [],
+               quality: [],
+               expiration: [],
+               process: []
+             };
+             
+             wasteMovements.forEach((movement: any) => {
+               const notes = movement.notes?.toLowerCase() || '';
+               let category = 'production';
+               
+               if (notes.includes('quality') || notes.includes('defect') || notes.includes('reject')) {
+                 category = 'quality';
+               } else if (notes.includes('expired') || notes.includes('expiration')) {
+                 category = 'expiration';
+               } else if (notes.includes('process') || notes.includes('roasting') || notes.includes('loss')) {
+                 category = 'process';
+               }
+               
+               categories[category].push(movement);
+             });
+             
+             reportData += `Waste by Category:\n`;
+             Object.entries(categories).forEach(([category, movements]) => {
+               if (movements.length > 0) {
+                 const categoryVolume = movements.reduce((sum, m) => sum + Math.abs(m.quantity), 0);
+                 reportData += `\n${category.toUpperCase()}: ${movements.length} entries, ${categoryVolume.toFixed(2)} units\n`;
+                 
+                 movements.slice(0, 5).forEach((movement, index) => {
+                   const quantity = Math.abs(movement.quantity);
+                   const costImpact = quantity * (movement.ingredient?.costPerUnit || 0);
+                   reportData += `  ${index + 1}. ${movement.ingredient?.name || 'Unknown'}\n`;
+                   reportData += `     Quantity: ${quantity.toFixed(2)} ${movement.ingredient?.unitOfMeasure || 'units'}\n`;
+                   reportData += `     Cost: Rp ${costImpact.toFixed(0)}\n`;
+                   reportData += `     Date: ${movement.createdAt.toLocaleDateString()}\n`;
+                 });
+                 
+                 if (movements.length > 5) {
+                   reportData += `  ... and ${movements.length - 5} more entries\n`;
+                 }
+               }
+             });
           } else {
-            reportData += `No waste data found for the selected period.\n`;
+            reportData += `No waste entries found for the selected period.\n`;
           }
           break;
           

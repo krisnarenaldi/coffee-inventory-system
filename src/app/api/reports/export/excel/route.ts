@@ -79,8 +79,8 @@ export async function GET(request: NextRequest) {
           }
           break;
           
-        case 'roast':
-          const roastData = await prisma.batch.findMany({
+        case 'consistency':
+          const consistencyData = await prisma.batch.findMany({
             where: {
               tenantId,
               status: 'COMPLETED',
@@ -89,18 +89,58 @@ export async function GET(request: NextRequest) {
                 lte: now
               }
             },
-            include: { recipe: true },
+            include: { 
+              recipe: {
+                select: {
+                  id: true,
+                  name: true,
+                  style: true,
+                  expectedYield: true
+                }
+              },
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
-          csvContent += `Batch ID,Recipe Name,Quantity,Unit,Completed Date\n`;
+          csvContent += `Batch ID,Recipe Name,Roaster,Expected Yield,Actual Yield,Yield Efficiency (%),Roast Date\n`;
           
-          if (roastData.length > 0) {
-             roastData.forEach((batch: any) => {
-               csvContent += `${batch.id},"${batch.recipe?.name || 'Unknown Recipe'}",${batch.quantity},${batch.unit},${batch.updatedAt.toLocaleDateString()}\n`;
-             });
+          if (consistencyData.length > 0) {
+             const batchesWithYield = consistencyData.filter((batch: any) => batch.actualYield && batch.actualYield > 0);
+             
+             if (batchesWithYield.length > 0) {
+               const totalEfficiency = batchesWithYield.reduce((sum: number, batch: any) => {
+                 const expectedYield = Number(batch.recipe?.expectedYield || 0);
+                 const actualYield = Number(batch.actualYield || 0);
+                 const efficiency = expectedYield > 0 ? (actualYield / expectedYield) * 100 : 0;
+                 return sum + efficiency;
+               }, 0);
+               const avgEfficiency = totalEfficiency / batchesWithYield.length;
+               
+               // Add summary
+               csvContent += `Summary,,,,,\n`;
+               csvContent += `Total Batches,${batchesWithYield.length},,,,\n`;
+               csvContent += `Average Yield Efficiency,${avgEfficiency.toFixed(2)}%,,,,\n`;
+               csvContent += `,,,,,\n`;
+               csvContent += `Batch Details,,,,,\n`;
+               
+               batchesWithYield.forEach((batch: any) => {
+                 const expectedYield = Number(batch.recipe?.expectedYield || 0);
+                 const actualYield = Number(batch.actualYield || 0);
+                 const efficiency = expectedYield > 0 ? (actualYield / expectedYield) * 100 : 0;
+                 
+                 csvContent += `${batch.id},"${batch.recipe?.name || 'Unknown Recipe'}","${batch.createdBy?.name || 'Unknown'}",${expectedYield.toFixed(2)},${actualYield.toFixed(2)},${efficiency.toFixed(2)},${batch.createdAt.toLocaleDateString()}\n`;
+               });
+             } else {
+               csvContent += `No batches with yield data found for the selected period\n`;
+             }
           } else {
-            csvContent += `No completed roasts found for the selected period\n`;
+            csvContent += `No completed batches found for the selected period\n`;
           }
           break;
           
@@ -111,27 +151,55 @@ export async function GET(request: NextRequest) {
               createdAt: {
                 gte: startDate,
                 lte: now
+              },
+              actualYield: {
+                not: null,
+                gt: 0
               }
             },
-            include: { recipe: true },
+            include: { 
+              recipe: {
+                select: {
+                  id: true,
+                  name: true,
+                  expectedYield: true
+                }
+              },
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
-          csvContent += `Batch ID,Recipe Name,Yield Quantity,Unit,Production Date\n`;
+          csvContent += `Batch ID,Recipe Name,Roaster,Expected Yield (kg),Actual Yield (kg),Yield Loss (kg),Yield Efficiency (%),Roast Date\n`;
           
           if (yieldData.length > 0) {
-             const totalQuantity = yieldData.reduce((sum: number, batch: any) => sum + (batch.quantity || 0), 0);
-             const avgQuantity = totalQuantity / yieldData.length;
+             const totalExpected = yieldData.reduce((sum: number, batch: any) => sum + Number(batch.recipe?.expectedYield || 0), 0);
+             const totalActual = yieldData.reduce((sum: number, batch: any) => sum + Number(batch.actualYield || 0), 0);
+             const totalLoss = totalExpected - totalActual;
+             const avgEfficiency = totalExpected > 0 ? (totalActual / totalExpected) * 100 : 0;
              
-             // Add summary row
-             csvContent += `Summary,,,,\n`;
-             csvContent += `Total Production,${totalQuantity.toFixed(2)},units,\n`;
-             csvContent += `Average Batch Size,${avgQuantity.toFixed(2)},units,\n`;
-             csvContent += `,,,,\n`;
-             csvContent += `Batch Details,,,,\n`;
+             // Add summary
+             csvContent += `Summary,,,,,,,\n`;
+             csvContent += `Total Batches,${yieldData.length},,,,,,\n`;
+             csvContent += `Total Expected Yield,${totalExpected.toFixed(2)},kg,,,,,\n`;
+             csvContent += `Total Actual Yield,${totalActual.toFixed(2)},kg,,,,,\n`;
+             csvContent += `Total Yield Loss,${totalLoss.toFixed(2)},kg,,,,,\n`;
+             csvContent += `Average Efficiency,${avgEfficiency.toFixed(2)}%,,,,,,\n`;
+             csvContent += `,,,,,,,\n`;
+             csvContent += `Batch Details,,,,,,,\n`;
              
              yieldData.forEach((batch: any) => {
-               csvContent += `${batch.id},"${batch.recipe?.name || 'Unknown Recipe'}",${batch.quantity},${batch.unit},${batch.createdAt.toLocaleDateString()}\n`;
+               const expectedYield = Number(batch.recipe?.expectedYield || 0);
+               const actualYield = Number(batch.actualYield || 0);
+               const yieldLoss = Math.max(0, expectedYield - actualYield);
+               const efficiency = expectedYield > 0 ? (actualYield / expectedYield) * 100 : 0;
+               
+               csvContent += `${batch.id},"${batch.recipe?.name || 'Unknown Recipe'}","${batch.createdBy?.name || 'Unknown'}",${expectedYield.toFixed(2)},${actualYield.toFixed(2)},${yieldLoss.toFixed(2)},${efficiency.toFixed(2)},${batch.createdAt.toLocaleDateString()}\n`;
              });
           } else {
             csvContent += `No yield data found for the selected period\n`;
@@ -139,43 +207,63 @@ export async function GET(request: NextRequest) {
           break;
           
         case 'waste':
-          const wasteData = await prisma.batch.findMany({
+          const wasteMovements = await prisma.inventoryMovement.findMany({
             where: {
               tenantId,
+              type: 'WASTE',
               createdAt: {
                 gte: startDate,
                 lte: now
               }
             },
-            include: { recipe: true },
+            include: {
+              ingredient: {
+                select: {
+                  name: true,
+                  unitOfMeasure: true,
+                  costPerUnit: true
+                }
+              },
+              createdBy: {
+                select: {
+                  name: true
+                }
+              }
+            },
             orderBy: { createdAt: 'desc' }
           });
           
-          csvContent += `Batch ID,Recipe Name,Status,Quantity Lost,Unit,Date\n`;
+          csvContent += `Waste ID,Ingredient Name,Quantity,Unit,Cost Impact (IDR),Reason,Created By,Date\n`;
           
-          if (wasteData.length > 0) {
-             const failedBatches = wasteData.filter((batch: any) => batch.status === 'FAILED');
-             const inProgressBatches = wasteData.filter((batch: any) => batch.status === 'IN_PROGRESS');
-             const wasteRate = ((failedBatches.length / wasteData.length) * 100).toFixed(2);
+          if (wasteMovements.length > 0) {
+             const totalVolume = wasteMovements.reduce((sum: number, movement: any) => sum + Math.abs(movement.quantity), 0);
+             const totalCost = wasteMovements.reduce((sum: number, movement: any) => {
+               const quantity = Math.abs(movement.quantity);
+               const cost = quantity * (movement.ingredient?.costPerUnit || 0);
+               return sum + cost;
+             }, 0);
              
              // Add summary
-             csvContent += `Summary,,,,\n`;
-             csvContent += `Total Batches,${wasteData.length},,,\n`;
-             csvContent += `Failed Batches,${failedBatches.length},,,\n`;
-             csvContent += `In Progress Batches,${inProgressBatches.length},,,\n`;
-             csvContent += `Waste Rate,${wasteRate}%,,,\n`;
-             csvContent += `,,,,\n`;
-             csvContent += `Failed Batch Details,,,,\n`;
+             csvContent += `Summary,,,,,,,\n`;
+             csvContent += `Total Waste Entries,${wasteMovements.length},,,,,,\n`;
+             csvContent += `Total Volume,${totalVolume.toFixed(2)},Mixed Units,,,,,\n`;
+             csvContent += `Total Cost Impact,${totalCost.toFixed(0)},IDR,,,,,\n`;
+             csvContent += `Average per Entry,${(totalVolume / wasteMovements.length).toFixed(2)},Mixed Units,,,,,\n`;
+             csvContent += `,,,,,,,\n`;
+             csvContent += `Waste Entry Details,,,,,,,\n`;
              
-             if (failedBatches.length > 0) {
-               failedBatches.forEach((batch: any) => {
-                 csvContent += `${batch.id},"${batch.recipe?.name || 'Unknown Recipe'}",${batch.status},${batch.quantity},${batch.unit},${batch.createdAt.toLocaleDateString()}\n`;
-               });
-            } else {
-              csvContent += `No failed batches found\n`;
-            }
+             wasteMovements.forEach((movement: any) => {
+               const quantity = Math.abs(movement.quantity);
+               const costImpact = quantity * (movement.ingredient?.costPerUnit || 0);
+               const reason = movement.notes || 'No reason specified';
+               const createdBy = movement.createdBy?.name || 'Unknown';
+               const ingredientName = movement.ingredient?.name || 'Unknown Ingredient';
+               const unit = movement.ingredient?.unitOfMeasure || 'units';
+               
+               csvContent += `${movement.id},"${ingredientName}",${quantity.toFixed(2)},${unit},${costImpact.toFixed(0)},"${reason}","${createdBy}",${movement.createdAt.toLocaleDateString()}\n`;
+             });
           } else {
-            csvContent += `No waste data found for the selected period\n`;
+            csvContent += `No waste entries found for the selected period\n`;
           }
           break;
           

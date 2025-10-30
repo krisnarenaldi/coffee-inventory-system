@@ -222,6 +222,12 @@ export default function Navigation({ title, subtitle }: NavigationProps) {
       permission: () => (userRole ? canManageInventory(userRole) : false),
     },
     {
+      name: "Record Waste",
+      href: "/waste",
+      icon: "🗑️",
+      permission: () => (userRole ? canManageInventory(userRole) : false),
+    },
+    {
       name: "Coffee Products",
       href: "/products",
       icon: "🛍️",

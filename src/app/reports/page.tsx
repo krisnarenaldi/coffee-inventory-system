@@ -7,6 +7,8 @@ import Navigation from "@/components/Navigation";
 import ProtectedPage from "@/components/ProtectedPage";
 import AnimatedTooltip from "@/components/AnimatedTooltip";
 import { SimpleReports } from "@/components/SimpleReports";
+import { YieldAnalysisReport } from "@/components/reports/YieldAnalysisReport";
+import { WasteTrackingReport } from "@/components/reports/WasteTrackingReport";
 
 interface InventoryValuation {
   summary: {
@@ -950,33 +952,14 @@ export default function ReportsPage() {
               </div>
             )}
 
-          {/* Placeholder for other report types */}
-          {(activeTab === "yield" || activeTab === "waste") && (
-            <div className="bg-white rounded-lg shadow p-8">
-              <div className="text-center">
-                <div className="text-4xl mb-4">
-                  {activeTab === "yield" ? "📊" : "🗑️"}
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  {activeTab === "yield" ? "Yield Analysis" : "Waste Tracking"}{" "}
-                  Report
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  This report is coming soon. We're working on advanced
-                  analytics for
-                  {activeTab === "yield"
-                    ? " production yield optimization"
-                    : " waste reduction and tracking"}
-                  .
-                </p>
-                <button
-                  onClick={() => setActiveTab("inventory")}
-                  className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 cursor-pointer"
-                >
-                  View Available Reports
-                </button>
-              </div>
-            </div>
+          {/* Yield Analysis Report */}
+          {activeTab === "yield" && (
+            <YieldAnalysisReport period={period} />
+          )}
+
+          {/* Waste Tracking Report */}
+          {activeTab === "waste" && (
+            <WasteTrackingReport period={period} />
           )}
         </div>
       </div>

@@ -20,6 +20,7 @@ model Tenant {
   batches              Batch[]
   ingredients          Ingredient[]
   inventoryAdjustments InventoryAdjustment[]
+  inventoryMovements   InventoryMovement[]
   packagingTypes       PackagingType[]
   products             Product[]
   recipes              Recipe[]
@@ -146,6 +147,7 @@ model User {
   alerts               Alert[]
   batches              Batch[]
   inventoryAdjustments InventoryAdjustment[]
+  inventoryMovements   InventoryMovement[]
   sessions             Session[]
   shipmentsReceived    Shipment[]
   transactions         Transaction[]
@@ -273,6 +275,7 @@ model Ingredient {
   adjustments       InventoryAdjustment[]
   recipeIngredients RecipeIngredient[]
   shipmentItems     ShipmentItem[]
+  inventoryMovements InventoryMovement[]
 
   @@index([supplierId], map: "ingredients_supplierId_idx")
   @@index([tenantId], map: "ingredients_tenantId_idx")
@@ -698,5 +701,22 @@ enum ContactStatus {
   NEW
   IN_PROGRESS
   RESOLVED
-  CLOSED
+}
+
+model InventoryMovement {
+  id           String                   @id @default(cuid())
+  tenantId     String                   @map("tenantid")
+  ingredientId String                   @map("ingredientid")
+  type         InventoryAdjustmentType
+  quantity     Decimal
+  notes        String?
+  createdById  String                   @map("createdbyid")
+  createdAt    DateTime                 @default(now()) @map("createdat")
+  updatedAt    DateTime                 @updatedAt @map("updatedat")
+
+  ingredient   Ingredient               @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  createdBy    User                     @relation(fields: [createdById], references: [id])
+  tenant       Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_movements")
 }

@@ -92,12 +92,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, subdomain, domain, adminEmail, adminName, planId } = body;
+    const { name, subdomain, domain, adminEmail, adminName, adminPassword, planId } = body;
 
     // Validate required fields
-    if (!name || !subdomain || !adminEmail || !adminName || !planId) {
+    if (!name || !subdomain || !adminEmail || !adminName || !adminPassword || !planId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength
+    if (adminPassword.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters long' },
         { status: 400 }
       );
     }
@@ -186,9 +194,8 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Hash default password
-      const defaultPassword = 'TempPassword123!';
-      const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+      // Hash the provided password
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
       // Create admin user
       const adminUser = await tx.user.create({
@@ -242,7 +249,7 @@ export async function POST(request: NextRequest) {
           name: adminUser.name,
           role: adminUser.role
         },
-        defaultPassword
+        adminPassword
       };
     });
 
@@ -250,7 +257,7 @@ export async function POST(request: NextRequest) {
       message: 'Tenant created successfully',
       tenant: result.tenant,
       adminUser: result.adminUser,
-      defaultPassword: result.defaultPassword,
+      adminPassword: result.adminPassword,
       subscription: result.subscription
     }, { status: 201 });
 

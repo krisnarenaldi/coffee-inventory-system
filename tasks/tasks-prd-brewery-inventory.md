@@ -224,22 +224,22 @@
   - [ ] 8.9 Implement report export functionality (PDF, CSV)
   - [ ] 8.10 Write tests for reporting and analytics
 
-- [ ] 13.0 Implement Yield Analysis and Waste Tracking Reports
+- [x] 13.0 Implement Yield Analysis and Waste Tracking Reports
 
-  - [ ] 13.1 Create yield analysis API endpoint (`/api/reports/yield-analysis`)
-  - [ ] 13.2 Implement yield efficiency calculations (actual vs expected yield)
-  - [ ] 13.3 Create yield variance analysis by recipe and roaster
-  - [ ] 13.4 Implement yield trend analysis over time periods
-  - [ ] 13.5 Create yield optimization recommendations engine
-  - [ ] 13.6 Build yield analysis UI components and charts
-  - [ ] 13.7 Create waste tracking API endpoint (`/api/reports/waste-tracking`)
-  - [ ] 13.8 Implement waste categorization (production, quality, expiration, process)
-  - [ ] 13.9 Create waste cost impact calculations
-  - [ ] 13.10 Implement waste reduction opportunity identification
-  - [ ] 13.11 Build waste tracking UI components and visualizations
-  - [ ] 13.12 Create combined yield and waste efficiency dashboard
-  - [ ] 13.13 Implement waste tracking data collection from batch processes
-  - [ ] 13.14 Create waste source analysis (by recipe, ingredient, process stage)
+  - [x] 13.1 Create yield analysis API endpoint (`/api/reports/yield-analysis`)
+  - [x] 13.2 Implement yield efficiency calculations (actual vs expected yield)
+  - [x] 13.3 Create yield variance analysis by recipe and roaster
+  - [x] 13.4 Implement yield trend analysis over time periods
+  - [x] 13.5 Create yield optimization recommendations engine
+  - [x] 13.6 Build yield analysis UI components and charts
+  - [x] 13.7 Create waste tracking API endpoint (`/api/reports/waste-tracking`)
+  - [x] 13.8 Implement waste categorization (production, quality, expiration, process)
+  - [x] 13.9 Create waste cost impact calculations
+  - [x] 13.10 Implement waste reduction opportunity identification
+  - [x] 13.11 Build waste tracking UI components and visualizations
+  - [x] 13.12 Create combined yield and waste efficiency dashboard
+  - [x] 13.13 Implement waste tracking data collection from batch processes
+  - [x] 13.14 Create waste source analysis (by recipe, ingredient, process stage)
   - [ ] 13.15 Write tests for yield analysis and waste tracking functionality
 
 - [x] 9.0 Implement multi-tenancy architecture
