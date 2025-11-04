@@ -239,6 +239,14 @@ export default function Home() {
               <ul className="space-y-2">
                 <li>
                   <Link
+                    href="/pitch"
+                    className="text-gray-400 hover:text-amber-400 transition-colors"
+                  >
+                    Pitch
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/pricing"
                     className="text-gray-400 hover:text-amber-400 transition-colors"
                   >
