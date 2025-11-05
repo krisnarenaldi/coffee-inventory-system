@@ -87,6 +87,12 @@ export default function Home() {
                 Pricing
               </Link>
               <Link
+                href="/blog"
+                className="text-gray-600 hover:text-amber-600 dark:text-gray-300 dark:hover:text-amber-400 py-2"
+              >
+                Blog
+              </Link>
+              <Link
                 href="/help"
                 className="text-gray-600 hover:text-amber-600 dark:text-gray-300 dark:hover:text-amber-400 py-2"
               >
@@ -243,6 +249,14 @@ export default function Home() {
                     className="text-gray-400 hover:text-amber-400 transition-colors"
                   >
                     Pitch
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/blog"
+                    className="text-gray-400 hover:text-amber-400 transition-colors"
+                  >
+                    Blog
                   </Link>
                 </li>
                 <li>
