@@ -1,6 +1,6 @@
 ---
 title: "The Complete Guide to Coffee Inventory Management"
-date: "2024-11-05"
+date: "2024-11-19"
 excerpt: "Learn how to optimize your coffee shop's inventory management to reduce waste, improve profitability, and ensure you never run out of customer favorites."
 author: "CoffeeLogica Team"
 tags: ["inventory", "management", "coffee-business", "optimization"]
